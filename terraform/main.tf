@@ -1,7 +1,7 @@
 resource "aws_cognito_user_pool" "pickem_user_pool" {
   name = local.user_pool_name
 
-  auto_verified_attributes = ["email"]
+  # auto_verified_attributes = ["email"]
   
   password_policy {
     minimum_length    = 8
@@ -11,12 +11,12 @@ resource "aws_cognito_user_pool" "pickem_user_pool" {
     require_uppercase = true
   }
 
-  account_recovery_setting {
-    recovery_mechanism {
-      name     = "verified_email"
-      priority = 1
-    }
-  }
+  # account_recovery_setting {
+  #   recovery_mechanism {
+  #     name     = "verified_email"
+  #     priority = 1
+  #   }
+  # }
 
   schema {
     attribute_data_type = "String"
