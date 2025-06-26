@@ -4,27 +4,51 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-pickemV2 is an early-stage project that appears to be a pick'em/prediction application (based on the name). The repository is currently in initial setup phase.
+pickemV2 is a pick'em/prediction web application built with Next.js and TypeScript. The project includes AWS integration for cloud services and Linear integration for project management.
 
 ## Current State
 
-- **Infrastructure**: Basic Terraform configuration present in `terraform/main.tf` (currently empty)
-- **Application Code**: Not yet implemented
+- **Frontend**: Next.js 15 with TypeScript, Tailwind CSS, App Router
+- **Cloud Services**: AWS SDK integrated (S3, DynamoDB, Lambda)
+- **Infrastructure**: Terraform configuration (in setup phase)
+- **Project Management**: Linear MCP server configured
 - **License**: MIT License
 
 ## Development Setup
 
-The project structure suggests this will be a cloud-deployed application using Terraform for infrastructure management. As development progresses, this file should be updated with:
+### Prerequisites
+- Node.js and npm
+- AWS credentials configured
+- Linear API key (for MCP integration)
 
-- Build and deployment commands
-- Development environment setup
-- Testing procedures
-- Architecture documentation
+### Getting Started
+```bash
+npm install
+npm run dev
+```
 
-## Next Steps for Development
+### Environment Variables
+Set up your environment variables:
+```bash
+export LINEAR_API_KEY=your_linear_api_key
+export AWS_ACCESS_KEY_ID=your_aws_access_key
+export AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+export AWS_REGION=your_preferred_region
+```
 
-When expanding this project, consider updating this CLAUDE.md with:
-- Package manager and build tool information
-- Database and external service configurations
-- API endpoints and service architecture
-- Environment variable requirements
+### Available Scripts
+- `npm run dev` - Start development server with Turbopack
+- `npm run build` - Build for production
+- `npm run start` - Start production server
+- `npm run lint` - Run ESLint
+
+## Architecture
+
+- **Frontend**: Next.js with TypeScript and Tailwind CSS
+- **Cloud**: AWS services (S3, DynamoDB, Lambda)
+- **Infrastructure**: Terraform for AWS resource management
+- **Project Management**: Linear integration via MCP server
+
+## MCP Configuration
+
+Linear MCP server is configured in `mcp-config.json` for project management integration.
