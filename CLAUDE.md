@@ -17,26 +17,30 @@ pickemV2 is a pick'em/prediction web application built with Next.js and TypeScri
 ## Development Setup
 
 ### Prerequisites
+
 - Node.js and npm
 - AWS credentials configured
 - Linear API key (for MCP integration)
 
 ### Getting Started
+
 ```bash
 npm install
 npm run dev
 ```
 
 ### Environment Variables
+
 Set up your environment variables:
+
 ```bash
-export LINEAR_API_KEY=your_linear_api_key
 export AWS_ACCESS_KEY_ID=your_aws_access_key
 export AWS_SECRET_ACCESS_KEY=your_aws_secret_key
 export AWS_REGION=your_preferred_region
 ```
 
 ### Available Scripts
+
 - `npm run dev` - Start development server with Turbopack
 - `npm run build` - Build for production
 - `npm run start` - Start production server
