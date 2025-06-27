@@ -16,6 +16,13 @@ export default function AuthForm({ onAuthSuccess }: AuthFormProps) {
   const [confirmationCode, setConfirmationCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [passwordValidation, setPasswordValidation] = useState({
+    length: false,
+    lowercase: false,
+    uppercase: false,
+    numbers: false,
+    symbols: false
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,8 +42,9 @@ export default function AuthForm({ onAuthSuccess }: AuthFormProps) {
         await signUp(email, password, name);
         setIsConfirming(true);
       }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -46,10 +54,43 @@ export default function AuthForm({ onAuthSuccess }: AuthFormProps) {
     try {
       await resendConfirmationCode(email);
       setError('Confirmation code resent!');
-    } catch (err: any) {
-      setError(err.message || 'Failed to resend code');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to resend code';
+      setError(errorMessage);
     }
   };
+
+  const validatePassword = (password: string) => {
+    setPasswordValidation({
+      length: password.length >= 8,
+      lowercase: /[a-z]/.test(password),
+      uppercase: /[A-Z]/.test(password),
+      numbers: /\d/.test(password),
+      symbols: /[!@#$%^&*(),.?":{}|<>]/.test(password)
+    });
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newPassword = e.target.value;
+    setPassword(newPassword);
+    if (!isLogin) {
+      validatePassword(newPassword);
+    }
+  };
+
+  const handleToggleMode = () => {
+    setIsLogin(!isLogin);
+    setError('');
+    setPasswordValidation({
+      length: false,
+      lowercase: false,
+      uppercase: false,
+      numbers: false,
+      symbols: false
+    });
+  };
+
+  const isPasswordValid = Object.values(passwordValidation).every(Boolean);
 
   if (isConfirming) {
     return (
@@ -105,17 +146,21 @@ export default function AuthForm({ onAuthSuccess }: AuthFormProps) {
         {!isLogin && (
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Full Name
+              Display Name
             </label>
             <input
               type="text"
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
+              maxLength={20}
               className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="Enter your full name"
+              placeholder="Enter your display name"
               required
             />
+            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+              {name.length}/20 characters
+            </div>
           </div>
         )}
         <div>
@@ -140,11 +185,36 @@ export default function AuthForm({ onAuthSuccess }: AuthFormProps) {
             type="password"
             id="password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={handlePasswordChange}
             className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
             placeholder="Enter your password"
             required
           />
+          {!isLogin && password && (
+            <div className="mt-2 space-y-1">
+              <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">Password requirements:</div>
+              <div className={`flex items-center gap-2 text-xs ${passwordValidation.length ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                <span className={`w-2 h-2 rounded-full ${passwordValidation.length ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                At least 8 characters
+              </div>
+              <div className={`flex items-center gap-2 text-xs ${passwordValidation.lowercase ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                <span className={`w-2 h-2 rounded-full ${passwordValidation.lowercase ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                Contains lowercase letter
+              </div>
+              <div className={`flex items-center gap-2 text-xs ${passwordValidation.uppercase ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                <span className={`w-2 h-2 rounded-full ${passwordValidation.uppercase ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                Contains uppercase letter
+              </div>
+              <div className={`flex items-center gap-2 text-xs ${passwordValidation.numbers ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                <span className={`w-2 h-2 rounded-full ${passwordValidation.numbers ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                Contains number
+              </div>
+              <div className={`flex items-center gap-2 text-xs ${passwordValidation.symbols ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
+                <span className={`w-2 h-2 rounded-full ${passwordValidation.symbols ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                Contains symbol
+              </div>
+            </div>
+          )}
         </div>
         {error && (
           <div className="text-red-600 dark:text-red-400 text-sm text-center">
@@ -153,7 +223,7 @@ export default function AuthForm({ onAuthSuccess }: AuthFormProps) {
         )}
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || (!isLogin && !isPasswordValid)}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
         >
           {loading ? (isLogin ? 'Signing In...' : 'Creating Account...') : (isLogin ? 'Sign In' : 'Create Account')}
@@ -162,7 +232,7 @@ export default function AuthForm({ onAuthSuccess }: AuthFormProps) {
       <div className="mt-4 text-center">
         <button
           type="button"
-          onClick={() => setIsLogin(!isLogin)}
+          onClick={handleToggleMode}
           className="text-blue-600 hover:text-blue-700 text-sm underline"
         >
           {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
