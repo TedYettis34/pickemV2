@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AuthForm from '../AuthForm'
 import { signUp, signIn, confirmSignUp, resendConfirmationCode } from '../../../lib/auth'
@@ -31,7 +31,7 @@ describe('AuthForm', () => {
 
     it('should successfully sign in', async () => {
       const user = userEvent.setup()
-      mockSignIn.mockResolvedValueOnce({} as any)
+      mockSignIn.mockResolvedValueOnce({} as unknown)
 
       render(<AuthForm onAuthSuccess={mockOnAuthSuccess} />)
 
@@ -132,7 +132,7 @@ describe('AuthForm', () => {
 
     it('should successfully sign up and show confirmation mode', async () => {
       const user = userEvent.setup()
-      mockSignUp.mockResolvedValueOnce({} as any)
+      mockSignUp.mockResolvedValueOnce({} as unknown)
 
       render(<AuthForm onAuthSuccess={mockOnAuthSuccess} />)
 
@@ -152,7 +152,7 @@ describe('AuthForm', () => {
   describe('Confirmation Mode', () => {
     beforeEach(async () => {
       const user = userEvent.setup()
-      mockSignUp.mockResolvedValueOnce({} as any)
+      mockSignUp.mockResolvedValueOnce({} as unknown)
 
       render(<AuthForm onAuthSuccess={mockOnAuthSuccess} />)
 
@@ -176,7 +176,7 @@ describe('AuthForm', () => {
 
     it('should successfully confirm account', async () => {
       const user = userEvent.setup()
-      mockConfirmSignUp.mockResolvedValueOnce({} as any)
+      mockConfirmSignUp.mockResolvedValueOnce({} as unknown)
 
       await user.type(screen.getByLabelText('Confirmation Code'), '123456')
       await user.click(screen.getByRole('button', { name: 'Confirm Account' }))
@@ -190,7 +190,7 @@ describe('AuthForm', () => {
 
     it('should resend confirmation code', async () => {
       const user = userEvent.setup()
-      mockResendConfirmationCode.mockResolvedValueOnce({} as any)
+      mockResendConfirmationCode.mockResolvedValueOnce({} as unknown)
 
       await user.click(screen.getByText('Resend confirmation code'))
 

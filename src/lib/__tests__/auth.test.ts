@@ -189,7 +189,7 @@ describe('Auth Functions', () => {
     it('should return false in server environment', () => {
       // Mock window being undefined (server environment)
       const originalWindow = global.window
-      delete (global as any).window
+      delete (global as unknown as { window?: unknown }).window
 
       const result = isAuthenticated()
 
