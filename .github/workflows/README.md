@@ -23,4 +23,16 @@ This workflow automatically runs on:
 - **Node.js**: v20.x
 - **Package Manager**: npm (with caching)
 
+### Required GitHub Secrets:
+The following secrets must be configured in your repository settings:
+- `NEXT_PUBLIC_AWS_REGION` - AWS region (e.g., us-east-1)
+- `NEXT_PUBLIC_USER_POOL_ID` - Cognito User Pool ID
+- `NEXT_PUBLIC_USER_POOL_CLIENT_ID` - Cognito User Pool Client ID
+
+## Setting Up Secrets:
+1. Go to your GitHub repository
+2. Settings → Secrets and variables → Actions
+3. Click "New repository secret"
+4. Add each required secret with its value
+
 This ensures code quality and prevents broken code from being merged into main.
