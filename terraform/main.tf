@@ -1,7 +1,7 @@
 resource "aws_cognito_user_pool" "pickem_user_pool" {
   name = local.user_pool_name
 
-  # auto_verified_attributes = ["email"]
+  auto_verified_attributes = ["email"]
   
   password_policy {
     minimum_length    = 8
