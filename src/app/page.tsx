@@ -39,7 +39,7 @@ export default function Home() {
               Welcome to PickEm
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
-              Make your predictions and compete with friends in the ultimate pick'em experience.
+              Make your predictions and compete with friends in the ultimate pick&apos;em experience.
             </p>
             <div className="space-y-4 text-lg text-gray-500 dark:text-gray-400">
               <div className="flex items-center justify-center lg:justify-start gap-2">
@@ -89,7 +89,7 @@ export default function Home() {
                 Welcome to your dashboard!
               </h2>
               <p className="text-gray-600 dark:text-gray-300">
-                Your pick'em features will be built here.
+                Your pick&apos;em features will be built here.
               </p>
             </div>
           </div>
