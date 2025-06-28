@@ -1,0 +1,47 @@
+# Cost-Optimized NAT Instance Configuration
+# This configuration replaces NAT Gateway with NAT Instance for significant cost savings
+
+# Basic Configuration
+aws_region = "us-east-1"
+environment = "dev"
+
+# Cost Optimization Settings
+cost_optimized_mode = true
+use_nat_instance = true
+
+# NAT Instance Configuration
+nat_instance_type = "t3.nano"  # Start with smallest for 50 users or less
+enable_nat_auto_recovery = false  # Set to true for production environments
+
+# Key pair for NAT instance access (create this first)
+# aws ec2 create-key-pair --key-name pickem-nat-instance
+key_pair_name = "pickem-nat-instance"
+
+# Database Configuration (cost-optimized)
+db_instance_class = "db.t3.micro"
+serverless_min_capacity = 0.5
+serverless_max_capacity = 2.0
+enable_multi_az = false
+backup_retention_days = 7
+enable_deletion_protection = false
+
+# Network Configuration
+vpc_cidr = "10.0.0.0/16"
+public_subnet_1_cidr = "10.0.1.0/24"
+public_subnet_2_cidr = "10.0.2.0/24"
+private_subnet_1_cidr = "10.0.3.0/24"
+private_subnet_2_cidr = "10.0.4.0/24"
+
+# Tagging
+cost_center = "engineering"
+owner = "infrastructure-team"
+
+# Cost Savings Summary:
+# NAT Gateway: $45/month ($540/year)
+# NAT Instance (t3.nano): $3.70/month ($44.40/year)
+# Annual Savings: $495.60 (91.8% reduction)
+#
+# For higher traffic or production:
+# - Use t3.micro ($7.39/month) for better performance
+# - Enable auto-recovery for high availability
+# - Consider t4g instances for ARM-based cost savings

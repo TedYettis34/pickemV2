@@ -2,11 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import AuthForm from '../components/auth/AuthForm';
+import AdminDashboard from '../components/admin/AdminDashboard';
 import { isAuthenticated, signOut } from '../lib/auth';
+import { useAdminAuth } from '../hooks/useAdminAuth';
 
 export default function Home() {
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const { isAdmin, isLoading: adminLoading } = useAdminAuth();
 
   useEffect(() => {
     setAuthenticated(isAuthenticated());
@@ -22,7 +25,7 @@ export default function Home() {
     setAuthenticated(false);
   };
 
-  if (loading) {
+  if (loading || adminLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-lg">Loading...</div>
@@ -64,6 +67,12 @@ export default function Home() {
     );
   }
 
+  // If user is admin, show admin dashboard
+  if (isAdmin) {
+    return <AdminDashboard />;
+  }
+
+  // Regular user dashboard
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <header className="bg-white dark:bg-gray-800 shadow-sm">

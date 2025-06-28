@@ -1,7 +1,52 @@
-# Copy this file to terraform.tfvars and update with your values
+# PickEm Application Terraform Configuration Example
+# Copy this file to terraform.tfvars and customize for your environment
 
-# AWS Configuration
-aws_region = "us-east-1"
+# Basic Configuration
+aws_region  = "us-east-1"
+environment = "dev"  # dev, staging, prod
 
-# Environment Configuration
-environment = "dev"
+# Database Configuration
+db_username = "pickemadmin"
+
+# Aurora Serverless v2 Scaling Configuration
+# Capacity units (ACUs) - each ACU provides 2 GiB of memory and corresponding CPU/networking
+serverless_min_capacity = 0.5   # Minimum: 0.5 ACUs (1 GiB RAM)
+serverless_max_capacity = 4     # Maximum: 4 ACUs (8 GiB RAM)
+
+# For production, consider higher limits:
+# serverless_min_capacity = 1
+# serverless_max_capacity = 16
+
+# Network Configuration  
+vpc_cidr               = "10.0.0.0/16"
+public_subnet_1_cidr   = "10.0.1.0/24"
+public_subnet_2_cidr   = "10.0.2.0/24"
+private_subnet_1_cidr  = "10.0.3.0/24"
+private_subnet_2_cidr  = "10.0.4.0/24"
+
+# Resource Tagging
+cost_center = "engineering"
+owner       = "admin"
+
+# Backup and Security
+backup_retention_days     = 7      # 1-35 days
+enable_deletion_protection = false  # Set to true for production
+enable_multi_az           = false   # Set to true for production
+
+# Cost Optimization Configuration
+cost_optimized_mode = true  # Enable for 50-100 user deployments
+
+# Cost Optimization Notes:
+# COST-OPTIMIZED MODE (50 users):
+# - Uses standard RDS PostgreSQL db.t4g.micro (~$15-20/month)
+# - Disables RDS Proxy (saves ~$30/month)
+# - Single AZ deployment (saves ~$15/month)
+# - Minimal monitoring (saves ~$10/month)
+# - Total monthly cost: ~$62-65 vs $203-505 (85% savings)
+#
+# STANDARD MODE (100+ users):
+# - Aurora Serverless v2 scales automatically based on demand
+# - Minimum capacity of 0.5 ACUs costs ~$43/month when idle
+# - Each additional ACU costs ~$0.12/hour when active
+# - RDS Proxy for connection pooling
+# - Production should use min_capacity >= 2 for better performance
