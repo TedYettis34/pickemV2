@@ -1,62 +1,63 @@
+# Modular Infrastructure Outputs
+
+# Cognito Outputs
 output "user_pool_id" {
   description = "ID of the Cognito User Pool"
-  value       = aws_cognito_user_pool.pickem_user_pool.id
+  value       = module.cognito.user_pool_id
 }
 
 output "user_pool_client_id" {
   description = "ID of the Cognito User Pool Client"
-  value       = aws_cognito_user_pool_client.pickem_user_pool_client.id
+  value       = module.cognito.user_pool_client_id
 }
 
 output "user_pool_endpoint" {
   description = "Endpoint name of the Cognito User Pool"
-  value       = aws_cognito_user_pool.pickem_user_pool.endpoint
+  value       = module.cognito.user_pool_endpoint
 }
 
 output "user_pool_domain" {
   description = "Domain name of the Cognito User Pool"
-  value       = aws_cognito_user_pool_domain.pickem_domain.domain
+  value       = module.cognito.user_pool_domain
 }
 
 output "user_pool_hosted_ui_url" {
   description = "Hosted UI URL for the Cognito User Pool"
-  value       = "https://${aws_cognito_user_pool_domain.pickem_domain.domain}.auth.${var.aws_region}.amazoncognito.com"
+  value       = module.cognito.user_pool_hosted_ui_url
 }
 
-# Cost-Optimized Database outputs
+# Database Outputs
 output "database_endpoint" {
   description = "Cost-optimized RDS PostgreSQL endpoint"
-  value       = aws_db_instance.pickem_cost_optimized_db.endpoint
+  value       = module.database.database_endpoint
   sensitive   = true
 }
 
 output "database_name" {
   description = "Database name"
-  value       = aws_db_instance.pickem_cost_optimized_db.db_name
+  value       = module.database.database_name
 }
 
 output "database_port" {
   description = "Database port"
-  value       = aws_db_instance.pickem_cost_optimized_db.port
+  value       = module.database.database_port
 }
 
 output "database_credentials_secret_arn" {
   description = "ARN of the database credentials secret"
-  value       = aws_secretsmanager_secret.db_credentials.arn
+  value       = module.database.database_credentials_secret_arn
   sensitive   = true
 }
 
-# RDS Proxy removed for cost optimization
-
-# VPC outputs
+# Networking Outputs
 output "vpc_id" {
   description = "ID of the VPC"
-  value       = aws_vpc.pickem_vpc.id
+  value       = module.networking.vpc_id
 }
 
 output "private_subnet_ids" {
   description = "IDs of the private subnets"
-  value       = [aws_subnet.private_subnet_1.id, aws_subnet.private_subnet_2.id]
+  value       = module.networking.private_subnet_ids
 }
 
 output "lambda_security_group_id" {
@@ -64,53 +65,56 @@ output "lambda_security_group_id" {
   value       = aws_security_group.lambda_security_group.id
 }
 
-# State management outputs
+# State Management Outputs
 output "terraform_state_bucket" {
   description = "S3 bucket for Terraform state"
-  value       = aws_s3_bucket.terraform_state.bucket
+  value       = module.state_backend.terraform_state_bucket
 }
 
 output "terraform_state_dynamodb_table" {
   description = "DynamoDB table for Terraform state locking"
-  value       = aws_dynamodb_table.terraform_state_locks.name
+  value       = module.state_backend.terraform_state_dynamodb_table
 }
-
-# VPC Flow Logs removed for cost optimization
 
 output "cloudtrail_s3_bucket" {
   description = "S3 bucket for CloudTrail logs"
   value       = aws_s3_bucket.cloudtrail_logs.bucket
 }
 
-# NAT Instance outputs
+# NAT Instance Outputs (conditional)
 output "nat_instance_ip" {
   description = "Public IP of NAT Instance"
-  value       = var.use_nat_instance ? aws_eip.nat_instance_eip.public_ip : null
+  value       = var.use_nat_instance ? module.nat_instance[0].nat_instance_ip : null
 }
 
 output "nat_instance_id" {
   description = "Instance ID of NAT Instance"
-  value       = var.use_nat_instance && !var.nat_instance_ha_enabled ? aws_instance.nat_instance[0].id : null
+  value       = var.use_nat_instance ? module.nat_instance[0].nat_instance_id : null
 }
 
 output "nat_cost_analysis" {
   description = "Cost comparison between NAT Gateway and NAT Instance"
-  value = {
+  value = var.use_nat_instance ? module.nat_instance[0].nat_cost_analysis : {
     nat_gateway_monthly_cost = "$45.00 (service) + $12.15 (data) = $57.15"
-    nat_instance_monthly_cost = var.nat_instance_type == "t3.nano" ? "$3.70 (instance) + $1.00 (EIP) = $4.70" : var.nat_instance_type == "t3.micro" ? "$7.39 (instance) + $1.00 (EIP) = $8.39" : var.nat_instance_type == "t3.small" ? "$14.79 (instance) + $1.00 (EIP) = $15.79" : "Custom instance type"
-    annual_savings = var.nat_instance_type == "t3.nano" ? "$629.40" : var.nat_instance_type == "t3.micro" ? "$585.12" : var.nat_instance_type == "t3.small" ? "$496.32" : "Variable"
-    current_configuration = var.use_nat_instance ? "NAT Instance (${var.nat_instance_type})" : "NAT Gateway"
-    cost_savings_percentage = var.nat_instance_type == "t3.nano" ? "91.8%" : var.nat_instance_type == "t3.micro" ? "85.3%" : var.nat_instance_type == "t3.small" ? "72.4%" : "Variable"
+    nat_instance_monthly_cost = "Not using NAT Instance"
+    annual_savings = "N/A"
+    current_configuration = "NAT Gateway"
+    cost_savings_percentage = "N/A"
   }
 }
 
-# Monitoring outputs
+# Monitoring Outputs
 output "nat_instance_cloudwatch_log_group" {
   description = "CloudWatch log group for NAT instance"
-  value       = var.use_nat_instance ? aws_cloudwatch_log_group.nat_instance[0].name : null
+  value       = module.monitoring.nat_instance_cloudwatch_log_group
 }
 
 output "nat_instance_sns_topic" {
   description = "SNS topic for NAT instance alerts"
-  value       = var.use_nat_instance ? aws_sns_topic.nat_instance_alerts[0].arn : null
+  value       = module.monitoring.nat_instance_sns_topic
+}
+
+output "nat_instance_dashboard_url" {
+  description = "URL for NAT instance CloudWatch dashboard"
+  value       = module.monitoring.nat_instance_dashboard_url
 }

@@ -183,8 +183,7 @@ resource "aws_db_instance" "pickem_cost_optimized_db" {
   # Auto minor version upgrade
   auto_minor_version_upgrade = true
 
-  # Disable automatic backups in ultra cost-optimized mode
-  backup_retention_period = var.backup_retention_days
+  # Backup retention already set above
 
   apply_immediately = var.environment != "prod"
 
