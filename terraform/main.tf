@@ -153,6 +153,24 @@ module "cognito" {
   common_tags  = local.common_tags
 }
 
+# Bastion Host Module (conditional - for database access)
+module "bastion" {
+  count  = var.create_bastion_host ? 1 : 0
+  source = "./modules/bastion"
+
+  project_name                = local.project_name
+  environment                 = var.environment
+  aws_region                  = var.aws_region
+  vpc_id                      = module.networking.vpc_id
+  public_subnet_id            = module.networking.public_subnet_1_id
+  db_credentials_secret_arn   = module.database.database_credentials_secret_arn
+  bastion_instance_type       = var.bastion_instance_type
+  bastion_key_pair_name       = var.bastion_key_pair_name
+  admin_cidr_blocks           = var.admin_cidr_blocks
+  use_elastic_ip              = var.bastion_use_elastic_ip
+  common_tags                 = local.common_tags
+}
+
 # Monitoring Module
 module "monitoring" {
   source = "./modules/monitoring"

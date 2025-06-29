@@ -118,3 +118,27 @@ output "nat_instance_dashboard_url" {
   description = "URL for NAT instance CloudWatch dashboard"
   value       = module.monitoring.nat_instance_dashboard_url
 }
+
+# Bastion Host Outputs
+output "bastion_instance_id" {
+  description = "Instance ID of the bastion host"
+  value       = var.create_bastion_host ? module.bastion[0].bastion_instance_id : null
+}
+
+output "bastion_public_ip" {
+  description = "Public IP address of the bastion host"
+  value       = var.create_bastion_host ? module.bastion[0].bastion_public_ip : null
+}
+
+output "bastion_ssh_tunnel_command" {
+  description = "SSH tunnel command for database access"
+  value       = var.create_bastion_host ? module.bastion[0].ssh_tunnel_command : null
+}
+
+output "bastion_cost_analysis" {
+  description = "Cost analysis for bastion host"
+  value       = var.create_bastion_host ? module.bastion[0].bastion_cost_analysis : {
+    message = "Bastion host not created"
+    savings = "No bastion host costs"
+  }
+}

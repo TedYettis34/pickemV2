@@ -202,3 +202,33 @@ variable "enable_automated_recovery" {
   type        = bool
   default     = false
 }
+
+# Bastion Host variables
+variable "create_bastion_host" {
+  description = "Whether to create a bastion host for database access"
+  type        = bool
+  default     = true
+}
+
+variable "bastion_instance_type" {
+  description = "Instance type for bastion host"
+  type        = string
+  default     = "t3.nano"
+  
+  validation {
+    condition     = can(regex("^(t3|t4g)\\.(nano|micro|small)", var.bastion_instance_type))
+    error_message = "Bastion instance type must be a cost-optimized instance (t3.nano, t3.micro, t3.small, t4g.nano, t4g.micro, t4g.small)."
+  }
+}
+
+variable "bastion_key_pair_name" {
+  description = "EC2 Key Pair name for bastion host SSH access"
+  type        = string
+  default     = ""
+}
+
+variable "bastion_use_elastic_ip" {
+  description = "Whether to assign an Elastic IP to the bastion host"
+  type        = bool
+  default     = true
+}

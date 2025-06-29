@@ -9,7 +9,9 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "db:migrate": "node scripts/run-migrations.js",
+    "db:seed": "node scripts/run-migrations.js && node database/seeds/run-seeds.js"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.835.0",
