@@ -65,87 +65,22 @@ resource "aws_secretsmanager_secret_version" "db_credentials" {
   })
 }
 
-# Parameter Group for cost-optimized PostgreSQL
-resource "aws_db_parameter_group" "cost_optimized_postgres" {
-  family = "postgres15"
-  name   = "${var.project_name}-${var.environment}-cost-optimized-postgres15"
-
-  # Optimized for small instance with 1GB RAM
-  parameter {
-    name  = "shared_preload_libraries"
-    value = "pg_stat_statements"
-  }
-
-  parameter {
-    name  = "log_statement"
-    value = "none"  # Reduce logging for cost optimization
-  }
-
-  parameter {
-    name  = "log_min_duration_statement"
-    value = "5000"  # Only log slow queries (>5s)
-  }
-
-  parameter {
-    name  = "max_connections"
-    value = "20"  # Reduced for small instance
-  }
-
-  parameter {
-    name  = "shared_buffers"
-    value = "{DBInstanceClassMemory/4}"  # 25% of memory
-  }
-
-  parameter {
-    name  = "effective_cache_size"
-    value = "{DBInstanceClassMemory*3/4}"  # 75% of memory
-  }
-
-  parameter {
-    name  = "work_mem"
-    value = "4096"  # 4MB - conservative for small instance
-  }
-
-  parameter {
-    name  = "maintenance_work_mem"
-    value = "64000"  # 64MB
-  }
-
-  parameter {
-    name  = "checkpoint_completion_target"
-    value = "0.9"
-  }
-
-  parameter {
-    name  = "wal_buffers"
-    value = "16000"  # 16MB
-  }
-
-  parameter {
-    name  = "default_statistics_target"
-    value = "100"
-  }
-
-  parameter {
-    name  = "random_page_cost"
-    value = "1.1"  # Optimized for SSD
-  }
-
-  parameter {
-    name  = "effective_io_concurrency"
-    value = "200"  # SSD optimization
-  }
-
-  tags = merge(var.common_tags, {
-    Name = "${var.project_name}-${var.environment}-cost-optimized-postgres15"
-  })
-}
+# Parameter Group for cost-optimized PostgreSQL (temporarily commented out due to static parameter issues)
+# Will be added in a future deployment after the DB is created
+# resource "aws_db_parameter_group" "cost_optimized_postgres" {
+#   family = "postgres15"
+#   name   = "${var.project_name}-${var.environment}-cost-optimized-postgres15"
+#   
+#   tags = merge(var.common_tags, {
+#     Name = "${var.project_name}-${var.environment}-cost-optimized-postgres15"
+#   })
+# }
 
 # Cost-Optimized RDS PostgreSQL Instance
 resource "aws_db_instance" "pickem_cost_optimized_db" {
   identifier     = "${var.project_name}-${var.environment}-cost-optimized-db"
   engine         = "postgres"
-  engine_version = "15.4"
+  engine_version = "15.8"
   instance_class = var.db_instance_class
 
   allocated_storage     = 20
@@ -160,7 +95,7 @@ resource "aws_db_instance" "pickem_cost_optimized_db" {
 
   vpc_security_group_ids = [aws_security_group.database_security_group.id]
   db_subnet_group_name   = aws_db_subnet_group.pickem_db_subnet_group.name
-  parameter_group_name   = aws_db_parameter_group.cost_optimized_postgres.name
+  # parameter_group_name   = aws_db_parameter_group.cost_optimized_postgres.name  # Temporarily use default
 
   # Cost optimization settings
   multi_az               = var.enable_multi_az

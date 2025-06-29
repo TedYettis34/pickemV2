@@ -43,6 +43,21 @@ resource "aws_kms_key" "pickem_key" {
           "kms:DescribeKey"
         ]
         Resource = "*"
+      },
+      {
+        Sid    = "Allow CloudWatch Logs to encrypt logs"
+        Effect = "Allow"
+        Principal = {
+          Service = "logs.amazonaws.com"
+        }
+        Action = [
+          "kms:Encrypt",
+          "kms:Decrypt",
+          "kms:ReEncrypt*",
+          "kms:GenerateDataKey*",
+          "kms:DescribeKey"
+        ]
+        Resource = "*"
       }
     ]
   })
@@ -177,8 +192,8 @@ resource "aws_cloudtrail" "pickem_trail" {
     exclude_management_event_sources = []
 
     data_resource {
-      type   = "AWS::RDS::DBInstance"
-      values = ["${module.database.database_instance_id}/*"]
+      type   = "AWS::S3::Object"
+      values = ["${aws_s3_bucket.cloudtrail_logs.arn}/*"]
     }
   }
 
