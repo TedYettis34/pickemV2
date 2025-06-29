@@ -1,13 +1,13 @@
 # NAT Instance Module - Cost-Optimized NAT Solution
 
-# Data source for Amazon Linux NAT AMI
+# Data source for Amazon Linux 2023 AMI (for NAT configuration)
 data "aws_ami" "amazon_linux_nat" {
   most_recent = true
   owners      = ["amazon"]
 
   filter {
     name   = "name"
-    values = ["amzn-ami-vpc-nat-*"]
+    values = ["al2023-ami-*-x86_64"]
   }
 
   filter {
