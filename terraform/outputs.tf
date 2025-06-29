@@ -95,11 +95,11 @@ output "nat_instance_id" {
 output "nat_cost_analysis" {
   description = "Cost comparison between NAT Gateway and NAT Instance"
   value = var.use_nat_instance ? module.nat_instance[0].nat_cost_analysis : {
-    nat_gateway_monthly_cost = "$45.00 (service) + $12.15 (data) = $57.15"
+    nat_gateway_monthly_cost  = "$45.00 (service) + $12.15 (data) = $57.15"
     nat_instance_monthly_cost = "Not using NAT Instance"
-    annual_savings = "N/A"
-    current_configuration = "NAT Gateway"
-    cost_savings_percentage = "N/A"
+    annual_savings            = "N/A"
+    current_configuration     = "NAT Gateway"
+    cost_savings_percentage   = "N/A"
   }
 }
 
