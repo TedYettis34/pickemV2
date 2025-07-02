@@ -23,6 +23,17 @@ resource "aws_security_group" "database_security_group" {
     description     = "PostgreSQL access from Lambda functions"
   }
 
+  dynamic "ingress" {
+    for_each = var.bastion_security_group_id != null ? [1] : []
+    content {
+      from_port       = 5432
+      to_port         = 5432
+      protocol        = "tcp"
+      security_groups = [var.bastion_security_group_id]
+      description     = "PostgreSQL access from bastion host"
+    }
+  }
+
   egress {
     from_port   = 0
     to_port     = 0

@@ -70,6 +70,12 @@ variable "enable_deletion_protection" {
   default     = false
 }
 
+variable "bastion_security_group_id" {
+  description = "Security group ID for bastion host access"
+  type        = string
+  default     = null
+}
+
 variable "common_tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)

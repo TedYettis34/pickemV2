@@ -134,6 +134,7 @@ module "database" {
   vpc_id                     = module.networking.vpc_id
   private_subnet_ids         = module.networking.private_subnet_ids
   lambda_security_group_id   = aws_security_group.lambda_security_group.id
+  bastion_security_group_id  = var.create_bastion_host ? module.bastion[0].bastion_security_group_id : null
   kms_key_arn                = aws_kms_key.pickem_key.arn
   db_username                = var.db_username
   db_instance_class          = var.cost_optimized_mode ? "db.t4g.micro" : "db.r6g.large"
