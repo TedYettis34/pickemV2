@@ -78,7 +78,7 @@ describe('/api/admin/weeks', () => {
 
       const url = 'http://localhost:3000/api/admin/weeks?name=Week%201&start_date_from=2024-01-01&active_on=2024-01-05';
       const request = new NextRequest(url);
-      const response = await GET(request);
+      await GET(request);
 
       expect(mockWeekRepository.findAll).toHaveBeenCalledWith({
         name: 'Week 1',
