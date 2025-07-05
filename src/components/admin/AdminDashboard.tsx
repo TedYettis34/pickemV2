@@ -5,7 +5,11 @@ import { useAdminAuth } from '../../hooks/useAdminAuth';
 import { signOut } from '../../lib/auth';
 import { WeekManagement } from './WeekManagement';
 
-export default function AdminDashboard() {
+interface AdminDashboardProps {
+  onBackToDashboard?: () => void;
+}
+
+export default function AdminDashboard({ onBackToDashboard }: AdminDashboardProps) {
   const { isAdmin, isLoading } = useAdminAuth();
   const [activeTab, setActiveTab] = useState<'weeks' | 'settings'>('weeks');
 
@@ -50,6 +54,14 @@ export default function AdminDashboard() {
               <span className="text-sm text-gray-500 dark:text-gray-400">
                 Administrator Access
               </span>
+              {onBackToDashboard && (
+                <button
+                  onClick={onBackToDashboard}
+                  className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Back to Dashboard
+                </button>
+              )}
               <button
                 onClick={handleSignOut}
                 className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"

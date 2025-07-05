@@ -9,6 +9,7 @@ import { useAdminAuth } from '../hooks/useAdminAuth';
 export default function Home() {
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
   const { isAdmin, isLoading: adminLoading } = useAdminAuth();
 
   useEffect(() => {
@@ -67,9 +68,9 @@ export default function Home() {
     );
   }
 
-  // If user is admin, show admin dashboard
-  if (isAdmin) {
-    return <AdminDashboard />;
+  // If user chose to view admin dashboard
+  if (showAdminDashboard && isAdmin) {
+    return <AdminDashboard onBackToDashboard={() => setShowAdminDashboard(false)} />;
   }
 
   // Regular user dashboard
@@ -81,12 +82,22 @@ export default function Home() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               PickEm Dashboard
             </h1>
-            <button
-              onClick={handleSignOut}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              Sign Out
-            </button>
+            <div className="flex items-center gap-3">
+              {isAdmin && (
+                <button
+                  onClick={() => setShowAdminDashboard(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Admin Panel
+                </button>
+              )}
+              <button
+                onClick={handleSignOut}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>

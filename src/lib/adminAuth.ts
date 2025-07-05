@@ -1,10 +1,3 @@
-import { CognitoIdentityProviderClient, GetUserCommand, AdminListGroupsForUserCommand } from '@aws-sdk/client-cognito-identity-provider';
-
-const client = new CognitoIdentityProviderClient({
-  region: process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1',
-});
-
-const USER_POOL_ID = process.env.NEXT_PUBLIC_USER_POOL_ID;
 
 export interface CognitoUser {
   username: string;
@@ -22,52 +15,29 @@ export interface AdminAuthResult {
 // Check if user is authenticated and is an admin
 export async function validateAdminAuth(accessToken: string): Promise<AdminAuthResult> {
   try {
-    if (!USER_POOL_ID) {
-      throw new Error('USER_POOL_ID environment variable is required');
-    }
-
-    // First, get user info from the access token
-    const getUserCommand = new GetUserCommand({
-      AccessToken: accessToken,
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+    const response = await fetch(`${baseUrl}/api/auth/admin`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
     });
 
-    const userResult = await client.send(getUserCommand);
-    
-    if (!userResult.Username) {
+    if (!response.ok) {
+      const errorData = await response.json();
       return {
         isAdmin: false,
         user: null,
-        error: 'Invalid user token',
+        error: errorData.error || 'Authentication failed',
       };
     }
 
-    // Extract user attributes
-    const attributes = userResult.UserAttributes || [];
-    const email = attributes.find(attr => attr.Name === 'email')?.Value || '';
-    const name = attributes.find(attr => attr.Name === 'name')?.Value || '';
-
-    // Get user's groups
-    const getGroupsCommand = new AdminListGroupsForUserCommand({
-      UserPoolId: USER_POOL_ID,
-      Username: userResult.Username,
-    });
-
-    const groupsResult = await client.send(getGroupsCommand);
-    const groups = groupsResult.Groups?.map(group => group.GroupName || '') || [];
+    const data = await response.json();
     
-    // Check if user is in admin group
-    const isAdmin = groups.includes('admin');
-
-    const user: CognitoUser = {
-      username: userResult.Username,
-      email,
-      name,
-      groups,
-    };
-
     return {
-      isAdmin,
-      user,
+      isAdmin: data.isAdmin,
+      user: data.user,
     };
 
   } catch (error) {

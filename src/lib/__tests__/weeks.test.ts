@@ -1,5 +1,13 @@
-import { WeekValidator } from '../weeks';
-import { CreateWeekInput, UpdateWeekInput } from '../../types/week';
+import { WeekValidator, WeekRepository } from '../weeks';
+import { CreateWeekInput, UpdateWeekInput, Week } from '../../types/week';
+import { query } from '../database';
+
+// Mock the database module
+jest.mock('../database', () => ({
+  query: jest.fn(),
+}));
+
+const mockQuery = query as jest.MockedFunction<typeof query>;
 
 describe('WeekValidator', () => {
   describe('validateCreateInput', () => {
@@ -207,6 +215,254 @@ describe('WeekValidator', () => {
 
       const errors = WeekValidator.validateUpdateInput(input);
       expect(errors).toEqual([]);
+    });
+  });
+});
+
+describe('WeekRepository', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  describe('findAll', () => {
+    it('should return all weeks when no filters provided', async () => {
+      const mockWeeks: Week[] = [
+        {
+          id: 1,
+          name: 'Week 1',
+          start_date: '2024-01-01',
+          end_date: '2024-01-07',
+          description: 'First week',
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        },
+      ];
+
+      mockQuery.mockResolvedValue(mockWeeks);
+
+      const result = await WeekRepository.findAll();
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'SELECT * FROM weeks ORDER BY start_date ASC',
+        []
+      );
+      expect(result).toEqual(mockWeeks);
+    });
+
+    it('should apply name filter', async () => {
+      mockQuery.mockResolvedValue([]);
+
+      await WeekRepository.findAll({ name: 'Week 1' });
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'SELECT * FROM weeks WHERE name ILIKE $1 ORDER BY start_date ASC',
+        ['%Week 1%']
+      );
+    });
+
+    it('should apply date filters', async () => {
+      mockQuery.mockResolvedValue([]);
+
+      await WeekRepository.findAll({
+        start_date_from: '2024-01-01',
+        end_date_to: '2024-12-31',
+      });
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'SELECT * FROM weeks WHERE start_date >= $1 AND end_date <= $2 ORDER BY start_date ASC',
+        ['2024-01-01', '2024-12-31']
+      );
+    });
+
+    it('should apply active_on filter', async () => {
+      mockQuery.mockResolvedValue([]);
+
+      await WeekRepository.findAll({ active_on: '2024-01-05' });
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'SELECT * FROM weeks WHERE start_date <= $1 AND end_date >= $2 ORDER BY start_date ASC',
+        ['2024-01-05', '2024-01-05']
+      );
+    });
+  });
+
+  describe('findById', () => {
+    it('should return week when found', async () => {
+      const mockWeek: Week = {
+        id: 1,
+        name: 'Week 1',
+        start_date: '2024-01-01',
+        end_date: '2024-01-07',
+        description: 'First week',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+
+      mockQuery.mockResolvedValue([mockWeek]);
+
+      const result = await WeekRepository.findById(1);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'SELECT * FROM weeks WHERE id = $1',
+        [1]
+      );
+      expect(result).toEqual(mockWeek);
+    });
+
+    it('should return null when not found', async () => {
+      mockQuery.mockResolvedValue([]);
+
+      const result = await WeekRepository.findById(999);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('findByName', () => {
+    it('should return week when found', async () => {
+      const mockWeek: Week = {
+        id: 1,
+        name: 'Week 1',
+        start_date: '2024-01-01',
+        end_date: '2024-01-07',
+        description: 'First week',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+
+      mockQuery.mockResolvedValue([mockWeek]);
+
+      const result = await WeekRepository.findByName('Week 1');
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'SELECT * FROM weeks WHERE name = $1',
+        ['Week 1']
+      );
+      expect(result).toEqual(mockWeek);
+    });
+
+    it('should return null when not found', async () => {
+      mockQuery.mockResolvedValue([]);
+
+      const result = await WeekRepository.findByName('Nonexistent Week');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('create', () => {
+    it('should create and return new week', async () => {
+      const input: CreateWeekInput = {
+        name: 'Week 1',
+        start_date: '2024-01-01',
+        end_date: '2024-01-07',
+        description: 'First week',
+      };
+
+      const mockWeek: Week = {
+        id: 1,
+        ...input,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+
+      mockQuery.mockResolvedValue([mockWeek]);
+
+      const result = await WeekRepository.create(input);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'INSERT INTO weeks (name, start_date, end_date, description)\n       VALUES ($1, $2, $3, $4)\n       RETURNING *',
+        ['Week 1', '2024-01-01', '2024-01-07', 'First week']
+      );
+      expect(result).toEqual(mockWeek);
+    });
+
+    it('should throw error when creation fails', async () => {
+      const input: CreateWeekInput = {
+        name: 'Week 1',
+        start_date: '2024-01-01',
+        end_date: '2024-01-07',
+      };
+
+      mockQuery.mockResolvedValue([]);
+
+      await expect(WeekRepository.create(input)).rejects.toThrow('Failed to create week');
+    });
+  });
+
+  describe('hasDateConflict', () => {
+    it('should return conflicting week when overlap exists', async () => {
+      const conflictingWeek: Week = {
+        id: 1,
+        name: 'Existing Week',
+        start_date: '2024-01-01',
+        end_date: '2024-01-07',
+        description: 'Existing week',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+
+      mockQuery.mockResolvedValue([conflictingWeek]);
+
+      const result = await WeekRepository.hasDateConflict('2024-01-05', '2024-01-10');
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('WHERE (start_date <= $2 AND end_date >= $1)'),
+        ['2024-01-05', '2024-01-10']
+      );
+      expect(result).toEqual(conflictingWeek);
+    });
+
+    it('should return null when no conflict exists', async () => {
+      mockQuery.mockResolvedValue([]);
+
+      const result = await WeekRepository.hasDateConflict('2024-02-01', '2024-02-07');
+
+      expect(result).toBeNull();
+    });
+
+    it('should exclude specific week ID when checking conflicts', async () => {
+      mockQuery.mockResolvedValue([]);
+
+      await WeekRepository.hasDateConflict('2024-01-05', '2024-01-10', 1);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('AND id != $3'),
+        ['2024-01-05', '2024-01-10', 1]
+      );
+    });
+  });
+
+  describe('isNameTaken', () => {
+    it('should return true when name is taken', async () => {
+      mockQuery.mockResolvedValue([{ id: 1 }]);
+
+      const result = await WeekRepository.isNameTaken('Week 1');
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'SELECT 1 FROM weeks WHERE name = $1',
+        ['Week 1']
+      );
+      expect(result).toBe(true);
+    });
+
+    it('should return false when name is available', async () => {
+      mockQuery.mockResolvedValue([]);
+
+      const result = await WeekRepository.isNameTaken('Available Name');
+
+      expect(result).toBe(false);
+    });
+
+    it('should exclude specific week ID when checking', async () => {
+      mockQuery.mockResolvedValue([]);
+
+      await WeekRepository.isNameTaken('Week 1', 1);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'SELECT 1 FROM weeks WHERE name = $1 AND id != $2',
+        ['Week 1', 1]
+      );
     });
   });
 });

@@ -51,9 +51,10 @@ export async function GET(req: NextRequest) {
 
   } catch (error) {
     console.error('Error fetching weeks:', error);
+    console.error('Error details:', error instanceof Error ? error.message : String(error));
     const response: ApiResponse<never> = {
       success: false,
-      error: 'Failed to fetch weeks',
+      error: `Failed to fetch weeks: ${error instanceof Error ? error.message : String(error)}`,
     };
     return NextResponse.json(response, { status: 500 });
   }

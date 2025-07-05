@@ -31,7 +31,7 @@ export default function AuthForm({ onAuthSuccess }: AuthFormProps) {
 
     try {
       if (isConfirming) {
-        await confirmSignUp(email, confirmationCode);
+        await confirmSignUp(name, confirmationCode);
         setIsConfirming(false);
         setIsLogin(true);
         setError('Account confirmed! Please log in.');
@@ -52,7 +52,7 @@ export default function AuthForm({ onAuthSuccess }: AuthFormProps) {
 
   const handleResendCode = async () => {
     try {
-      await resendConfirmationCode(email);
+      await resendConfirmationCode(name);
       setError('Confirmation code resent!');
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to resend code';
@@ -229,14 +229,23 @@ export default function AuthForm({ onAuthSuccess }: AuthFormProps) {
           {loading ? (isLogin ? 'Signing In...' : 'Creating Account...') : (isLogin ? 'Sign In' : 'Create Account')}
         </button>
       </form>
-      <div className="mt-4 text-center">
+      <div className="mt-4 text-center space-y-2">
         <button
           type="button"
           onClick={handleToggleMode}
-          className="text-blue-600 hover:text-blue-700 text-sm underline"
+          className="text-blue-600 hover:text-blue-700 text-sm underline block w-full"
         >
           {isLogin ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
         </button>
+        {isLogin && (
+          <button
+            type="button"
+            onClick={() => setIsConfirming(true)}
+            className="text-blue-600 hover:text-blue-700 text-sm underline block w-full"
+          >
+            Need to confirm your account?
+          </button>
+        )}
       </div>
     </div>
   );

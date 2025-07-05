@@ -88,6 +88,13 @@ resource "aws_cognito_user_pool_client" "pickem_user_pool_client" {
   # Supported identity providers
   supported_identity_providers = ["COGNITO"]
 
+  # Enable authentication flows
+  explicit_auth_flows = [
+    "ALLOW_USER_PASSWORD_AUTH",
+    "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_SRP_AUTH"
+  ]
+
   # Token validity
   access_token_validity  = 60    # 1 hour
   id_token_validity     = 60    # 1 hour
@@ -119,4 +126,12 @@ resource "aws_cognito_user_pool_client" "pickem_user_pool_client" {
 resource "aws_cognito_user_pool_domain" "pickem_domain" {
   domain       = "${var.project_name}-${var.environment}-auth"
   user_pool_id = aws_cognito_user_pool.pickem_user_pool.id
+}
+
+# Admin User Group
+resource "aws_cognito_user_group" "admin_group" {
+  name         = "admin"
+  user_pool_id = aws_cognito_user_pool.pickem_user_pool.id
+  description  = "Administrator group with full access to admin features"
+  precedence   = 1
 }

@@ -17,7 +17,11 @@ interface DatabaseCredentials {
 // Get database credentials from AWS Secrets Manager
 async function getDatabaseCredentials(): Promise<DatabaseCredentials> {
   const secretsClient = new SecretsManagerClient({
-    region: process.env.AWS_REGION || 'us-east-1',
+    region: process.env.AWS_REGION || process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1',
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
   });
 
   try {
@@ -52,14 +56,18 @@ async function initializePool(): Promise<Pool> {
   try {
     const credentials = await getDatabaseCredentials();
     
+    // In development, use localhost through SSH tunnel
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    const host = isDevelopment ? 'localhost' : credentials.host;
+    
     pool = new Pool({
       user: credentials.username,
       password: credentials.password,
-      host: credentials.host,
+      host: host,
       port: credentials.port,
       database: credentials.dbname,
       ssl: {
-        rejectUnauthorized: false, // Required for Aurora
+        rejectUnauthorized: false, // Required for Aurora, works with tunneled connections too
       },
       max: 20, // Maximum number of clients in the pool
       idleTimeoutMillis: 30000, // Close idle clients after 30 seconds

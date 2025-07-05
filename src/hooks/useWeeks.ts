@@ -7,9 +7,12 @@ export function useWeeks() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const getAuthHeaders = () => {
+  const getAuthHeaders = (): Record<string, string> => {
     const token = getCurrentAccessToken();
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    if (token) {
+      return { Authorization: `Bearer ${token}` };
+    }
+    return {};
   };
 
   const fetchWeeks = useCallback(async () => {
@@ -17,7 +20,8 @@ export function useWeeks() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch('/api/admin/weeks', {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+      const response = await fetch(`${baseUrl}/api/admin/weeks`, {
         headers: getAuthHeaders(),
       });
 
@@ -38,7 +42,8 @@ export function useWeeks() {
 
   const createWeek = async (weekData: CreateWeekInput): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch('/api/admin/weeks', {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+      const response = await fetch(`${baseUrl}/api/admin/weeks`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -63,7 +68,8 @@ export function useWeeks() {
 
   const updateWeek = async (id: number, weekData: UpdateWeekInput): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch(`/api/admin/weeks/${id}`, {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+      const response = await fetch(`${baseUrl}/api/admin/weeks/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -88,7 +94,8 @@ export function useWeeks() {
 
   const deleteWeek = async (id: number): Promise<{ success: boolean; error?: string }> => {
     try {
-      const response = await fetch(`/api/admin/weeks/${id}`, {
+      const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+      const response = await fetch(`${baseUrl}/api/admin/weeks/${id}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });

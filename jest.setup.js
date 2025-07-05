@@ -1,17 +1,19 @@
 import '@testing-library/jest-dom'
 
-// Mock localStorage
-const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(),
+// Mock localStorage only in jsdom environment
+if (typeof window !== 'undefined') {
+  const localStorageMock = {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+    clear: jest.fn(),
+  }
+  Object.defineProperty(window, 'localStorage', {
+    value: localStorageMock,
+    writable: true,
+  })
+  global.localStorage = localStorageMock
 }
-Object.defineProperty(window, 'localStorage', {
-  value: localStorageMock,
-  writable: true,
-})
-global.localStorage = localStorageMock
 
 // Mock environment variables for tests
 process.env.NEXT_PUBLIC_AWS_REGION = 'us-east-1'
