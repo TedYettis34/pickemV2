@@ -77,15 +77,15 @@ export async function POST(req: NextRequest) {
     // Parse request body
     const body = await req.json();
     const weekData: CreateWeekInput = {
-      name: body.name,
-      start_date: body.start_date,
-      end_date: body.end_date,
-      description: body.description,
+      name: body?.name || '',
+      start_date: body?.start_date || '',
+      end_date: body?.end_date || '',
+      description: body?.description,
     };
 
     // Validate input
     const validationErrors = WeekValidator.validateCreateInput(weekData);
-    if (validationErrors.length > 0) {
+    if (validationErrors && validationErrors.length > 0) {
       return NextResponse.json(
         {
           success: false,

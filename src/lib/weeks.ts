@@ -184,6 +184,11 @@ export class WeekValidator {
   static validateCreateInput(data: CreateWeekInput): string[] {
     const errors: string[] = [];
 
+    // Handle invalid input
+    if (!data || typeof data !== 'object') {
+      return ['Invalid input data'];
+    }
+
     // Name validation
     if (!data.name || data.name.trim().length === 0) {
       errors.push('Week name is required');
@@ -227,6 +232,11 @@ export class WeekValidator {
 
   static validateUpdateInput(data: UpdateWeekInput): string[] {
     const errors: string[] = [];
+
+    // Handle invalid input
+    if (!data || typeof data !== 'object') {
+      return ['Invalid input data'];
+    }
 
     // Name validation (if provided)
     if (data.name !== undefined) {
