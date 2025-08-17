@@ -13,7 +13,7 @@ const client = new CognitoIdentityProviderClient({
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_USER_POOL_CLIENT_ID;
 
-if (!CLIENT_ID) {
+if (!CLIENT_ID && process.env.NODE_ENV !== 'test') {
   throw new Error('NEXT_PUBLIC_USER_POOL_CLIENT_ID environment variable is required');
 }
 

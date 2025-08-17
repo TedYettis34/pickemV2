@@ -17,6 +17,7 @@ const customJestConfig = {
     '!src/**/*.d.ts',
     '!src/app/layout.tsx',
     '!src/app/globals.css',
+    '!src/**/__mocks__/**',
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'html'],

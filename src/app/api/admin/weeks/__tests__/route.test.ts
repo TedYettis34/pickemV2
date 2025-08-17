@@ -2,18 +2,57 @@
  * @jest-environment node
  */
 
+// Mock dependencies BEFORE imports
+jest.mock('../../../../../lib/database', () => ({
+  getDatabase: jest.fn(),
+  closeDatabasePool: jest.fn(),
+  query: jest.fn(),
+  transaction: jest.fn(),
+}));
+
+jest.mock('../../../../../lib/weeks', () => ({
+  WeekRepository: {
+    findAll: jest.fn(),
+    findById: jest.fn(),
+    findByName: jest.fn(),
+    findActive: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    isNameTaken: jest.fn(),
+    hasDateConflict: jest.fn(),
+  },
+  WeekValidator: {
+    validateCreateInput: jest.fn(),
+    validateUpdateInput: jest.fn(),
+  },
+}));
+
+jest.mock('../../../../../lib/adminAuth');
+
 import { NextRequest } from 'next/server';
 import { GET, POST } from '../route';
-import { WeekRepository } from '../../../../../lib/weeks';
+import { WeekRepository, WeekValidator } from '../../../../../lib/weeks';
 import { requireAdmin } from '../../../../../lib/adminAuth';
 import { Week, CreateWeekInput } from '../../../../../types/week';
 
-// Mock dependencies
-jest.mock('../../../../../lib/weeks');
-jest.mock('../../../../../lib/adminAuth');
-jest.mock('../../../../../lib/database');
+const mockWeekRepository = WeekRepository as {
+  findAll: jest.MockedFunction<(filters?: unknown) => Promise<Week[]>>;
+  findById: jest.MockedFunction<(id: number) => Promise<Week | null>>;
+  findByName: jest.MockedFunction<(name: string) => Promise<Week | null>>;
+  findActive: jest.MockedFunction<(date?: string) => Promise<Week[]>>;
+  create: jest.MockedFunction<(data: CreateWeekInput) => Promise<Week>>;
+  update: jest.MockedFunction<(id: number, data: unknown) => Promise<Week | null>>;
+  delete: jest.MockedFunction<(id: number) => Promise<boolean>>;
+  isNameTaken: jest.MockedFunction<(name: string, excludeId?: number) => Promise<boolean>>;
+  hasDateConflict: jest.MockedFunction<(startDate: string, endDate: string, excludeId?: number) => Promise<Week | null>>;
+};
 
-const mockWeekRepository = WeekRepository as jest.Mocked<typeof WeekRepository>;
+const mockWeekValidator = WeekValidator as {
+  validateCreateInput: jest.MockedFunction<(data: CreateWeekInput) => string[]>;
+  validateUpdateInput: jest.MockedFunction<(data: unknown) => string[]>;
+};
+
 const mockRequireAdmin = requireAdmin as jest.MockedFunction<typeof requireAdmin>;
 
 describe('/api/admin/weeks', () => {
@@ -143,6 +182,9 @@ describe('/api/admin/weeks', () => {
         isAuthorized: true,
       });
 
+      // Mock validation to return errors
+      mockWeekValidator.validateCreateInput.mockReturnValue(['Week name is required']);
+
       const requestBody = {
         name: '', // Invalid: empty name
         start_date: '2024-01-01',
@@ -178,6 +220,8 @@ describe('/api/admin/weeks', () => {
       mockAdminAuth.mockResolvedValue({
         isAuthorized: true,
       });
+      // Mock validation to pass
+      mockWeekValidator.validateCreateInput.mockReturnValue([]);
       mockWeekRepository.findByName.mockResolvedValue(existingWeek);
 
       const requestBody = {
@@ -214,6 +258,8 @@ describe('/api/admin/weeks', () => {
       mockAdminAuth.mockResolvedValue({
         isAuthorized: true,
       });
+      // Mock validation to pass
+      mockWeekValidator.validateCreateInput.mockReturnValue([]);
       mockWeekRepository.findByName.mockResolvedValue(null);
       mockWeekRepository.hasDateConflict.mockResolvedValue(conflictingWeek);
 
@@ -255,6 +301,8 @@ describe('/api/admin/weeks', () => {
       mockAdminAuth.mockResolvedValue({
         isAuthorized: true,
       });
+      // Mock validation to pass
+      mockWeekValidator.validateCreateInput.mockReturnValue([]);
       mockWeekRepository.findByName.mockResolvedValue(null);
       mockWeekRepository.hasDateConflict.mockResolvedValue(null);
       mockWeekRepository.create.mockResolvedValue(createdWeek);
@@ -297,6 +345,8 @@ describe('/api/admin/weeks', () => {
       mockAdminAuth.mockResolvedValue({
         isAuthorized: true,
       });
+      // Mock validation to pass
+      mockWeekValidator.validateCreateInput.mockReturnValue([]);
       mockWeekRepository.findByName.mockResolvedValue(null);
       mockWeekRepository.hasDateConflict.mockResolvedValue(null);
       mockWeekRepository.create.mockResolvedValue(createdWeek);
@@ -324,6 +374,8 @@ describe('/api/admin/weeks', () => {
       mockAdminAuth.mockResolvedValue({
         isAuthorized: true,
       });
+      // Mock validation to pass
+      mockWeekValidator.validateCreateInput.mockReturnValue([]);
       mockWeekRepository.findByName.mockResolvedValue(null);
       mockWeekRepository.hasDateConflict.mockResolvedValue(null);
       mockWeekRepository.create.mockRejectedValue(new Error('Database connection failed'));

@@ -1,11 +1,11 @@
-import { WeekValidator, WeekRepository } from '../weeks';
-import { CreateWeekInput, UpdateWeekInput, Week } from '../../types/week';
-import { query } from '../database';
-
-// Mock the database module
+// Mock the database module BEFORE imports
 jest.mock('../database', () => ({
   query: jest.fn(),
 }));
+
+import { WeekValidator, WeekRepository } from '../weeks';
+import { CreateWeekInput, UpdateWeekInput, Week } from '../../types/week';
+import { query } from '../database';
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 
