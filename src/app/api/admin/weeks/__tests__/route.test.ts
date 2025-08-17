@@ -11,6 +11,7 @@ import { Week, CreateWeekInput } from '../../../../../types/week';
 // Mock dependencies
 jest.mock('../../../../../lib/weeks');
 jest.mock('../../../../../lib/adminAuth');
+jest.mock('../../../../../lib/database');
 
 const mockWeekRepository = WeekRepository as jest.Mocked<typeof WeekRepository>;
 const mockRequireAdmin = requireAdmin as jest.MockedFunction<typeof requireAdmin>;
