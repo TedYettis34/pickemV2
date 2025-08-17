@@ -20,5 +20,5 @@ transaction.mockImplementation(async (callback) => {
   const mockClient = {
     query: jest.fn(),
   };
-  return await callback(mockClient as any);
+  return await callback(mockClient as unknown as import('pg').Pool);
 });

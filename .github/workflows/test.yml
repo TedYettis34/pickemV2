@@ -36,14 +36,11 @@ jobs:
     - name: Run linting
       run: npm run lint
 
-    - name: Run tests
-      run: npm test
+    - name: Run tests with coverage
+      run: npm run test:coverage
 
     - name: Run build
       run: npm run build
-
-    - name: Generate test coverage
-      run: npm run test:coverage
 
     - name: Upload coverage reports
       uses: codecov/codecov-action@v4

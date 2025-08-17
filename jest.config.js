@@ -18,6 +18,8 @@ const customJestConfig = {
     '!src/app/layout.tsx',
     '!src/app/globals.css',
   ],
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov', 'html'],
   testPathIgnorePatterns: ['<rootDir>/.next/', '<rootDir>/node_modules/'],
   moduleDirectories: ['node_modules', '<rootDir>/'],
 }
