@@ -6,7 +6,7 @@ import { UpdateWeekInput, ApiResponse, Week } from '../../../../../types/week';
 // GET /api/admin/weeks/[id] - Get a specific week by ID
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check admin authorization
@@ -20,7 +20,8 @@ export async function GET(
       );
     }
 
-    const weekId = parseInt(params.id);
+    const resolvedParams = await params;
+    const weekId = parseInt(resolvedParams.id);
     if (isNaN(weekId)) {
       return NextResponse.json(
         { success: false, error: 'Invalid week ID' },
@@ -56,7 +57,7 @@ export async function GET(
 // PUT /api/admin/weeks/[id] - Update a specific week
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check admin authorization
@@ -70,7 +71,8 @@ export async function PUT(
       );
     }
 
-    const weekId = parseInt(params.id);
+    const resolvedParams = await params;
+    const weekId = parseInt(resolvedParams.id);
     if (isNaN(weekId)) {
       return NextResponse.json(
         { success: false, error: 'Invalid week ID' },
@@ -175,7 +177,7 @@ export async function PUT(
 // DELETE /api/admin/weeks/[id] - Delete a specific week
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // Check admin authorization
@@ -189,7 +191,8 @@ export async function DELETE(
       );
     }
 
-    const weekId = parseInt(params.id);
+    const resolvedParams = await params;
+    const weekId = parseInt(resolvedParams.id);
     if (isNaN(weekId)) {
       return NextResponse.json(
         { success: false, error: 'Invalid week ID' },
