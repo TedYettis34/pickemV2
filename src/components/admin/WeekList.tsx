@@ -54,7 +54,7 @@ export function WeekList({ weeks, onEdit, onDelete, onPreviewGames }: WeekListPr
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden" data-testid="week-list">
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white">
           All Weeks ({weeks.length})

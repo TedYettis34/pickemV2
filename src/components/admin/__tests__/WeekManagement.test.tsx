@@ -141,7 +141,7 @@ describe('WeekManagement', () => {
     const user = userEvent.setup();
     render(<WeekManagement />);
 
-    const createButton = screen.getByRole('button', { name: 'Create New Week' });
+    const createButton = screen.getByRole('button', { name: 'Quick Create (No Games)' });
     await user.click(createButton);
 
     expect(screen.getByTestId('week-form')).toBeInTheDocument();
@@ -153,10 +153,11 @@ describe('WeekManagement', () => {
     const user = userEvent.setup();
     render(<WeekManagement />);
 
-    const createButton = screen.getByRole('button', { name: 'Create New Week' });
+    const createButton = screen.getByRole('button', { name: 'Quick Create (No Games)' });
     await user.click(createButton);
 
     expect(screen.queryByRole('button', { name: 'Create New Week' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Quick Create (No Games)' })).not.toBeInTheDocument();
   });
 
   it('should show edit form when edit button is clicked', async () => {
@@ -209,7 +210,7 @@ describe('WeekManagement', () => {
     render(<WeekManagement />);
 
     // Open create form
-    const createButton = screen.getByRole('button', { name: 'Create New Week' });
+    const createButton = screen.getByRole('button', { name: 'Quick Create (No Games)' });
     await user.click(createButton);
 
     // Submit form
@@ -240,7 +241,7 @@ describe('WeekManagement', () => {
     render(<WeekManagement />);
 
     // Open create form
-    const createButton = screen.getByRole('button', { name: 'Create New Week' });
+    const createButton = screen.getByRole('button', { name: 'Quick Create (No Games)' });
     await user.click(createButton);
 
     // Submit form
