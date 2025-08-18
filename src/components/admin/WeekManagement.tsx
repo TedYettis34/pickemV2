@@ -47,6 +47,16 @@ export function WeekManagement() {
     setFormLoading(false);
   };
 
+  const handleFormSubmit = async (data: CreateWeekInput | UpdateWeekInput) => {
+    if (editingWeek) {
+      // For editing, we can safely cast since the form will provide all fields
+      await handleUpdateWeek(data as UpdateWeekInput);
+    } else {
+      // For creating, we need all required fields
+      await handleCreateWeek(data as CreateWeekInput);
+    }
+  };
+
   const handleDeleteWeek = async (week: Week) => {
     if (!confirm(`Are you sure you want to delete "${week.name}"? This action cannot be undone.`)) {
       return;
@@ -143,7 +153,7 @@ export function WeekManagement() {
               end_date: editingWeek.end_date.slice(0, 16),
               description: editingWeek.description || '',
             } : undefined}
-            onSubmit={editingWeek ? handleUpdateWeek : handleCreateWeek}
+            onSubmit={handleFormSubmit}
             isSubmitting={formLoading}
             submitLabel={editingWeek ? 'Update Week' : 'Create Week'}
           />
