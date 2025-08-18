@@ -4,14 +4,33 @@ import { useState } from 'react';
 import { useWeeks } from '../../hooks/useWeeks';
 import { WeekForm } from './WeekForm';
 import { WeekList } from './WeekList';
+import { GamesPreview } from './GamesPreview';
+import { WeekCreationWizard } from './WeekCreationWizard';
 import { Week, CreateWeekInput, UpdateWeekInput } from '../../types/week';
 
+interface GameData {
+  external_id: string;
+  home_team: string;
+  away_team: string;
+  commence_time: string;
+  sport: string;
+  spread_home?: number;
+  spread_away?: number;
+}
+
+interface PreviewGames {
+  nfl: GameData[];
+  college: GameData[];
+}
+
 export function WeekManagement() {
-  const { weeks, loading, error, createWeek, updateWeek, deleteWeek } = useWeeks();
+  const { weeks, loading, error, createWeek, updateWeek, deleteWeek, refetch: refreshWeeks } = useWeeks();
   const [showForm, setShowForm] = useState(false);
+  const [showWizard, setShowWizard] = useState(false);
   const [editingWeek, setEditingWeek] = useState<Week | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const [formLoading, setFormLoading] = useState(false);
+  const [previewingWeek, setPreviewingWeek] = useState<Week | null>(null);
 
   const handleCreateWeek = async (weekData: CreateWeekInput) => {
     setFormLoading(true);
@@ -20,6 +39,7 @@ export function WeekManagement() {
     const result = await createWeek(weekData);
     
     if (result.success) {
+      // After creating week successfully, go back to main view
       setShowForm(false);
       setFormError(null);
     } else {
@@ -81,6 +101,72 @@ export function WeekManagement() {
     setFormError(null);
   };
 
+  const handleWizardComplete = async (weekData: CreateWeekInput, gamesData: PreviewGames) => {
+    setFormLoading(true);
+    setFormError(null);
+
+    try {
+      // Call the API directly to create week with games
+      const response = await fetch('/api/admin/weeks', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          ...weekData,
+          games: gamesData, // Include games data for saving
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.data) {
+        console.log(`Week created with ${result.data.savedGamesCount || 0} games saved`);
+        setShowWizard(false);
+        setFormError(null);
+        // Refresh the weeks list to show the new week
+        refreshWeeks();
+      } else {
+        setFormError(result.error || 'Failed to create week');
+      }
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Network error occurred');
+    }
+    
+    setFormLoading(false);
+  };
+
+  const getAuthHeaders = (): Record<string, string> => {
+    // Import this from adminAuth if not already available
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    if (token) {
+      return { Authorization: `Bearer ${token}` };
+    }
+    return {};
+  };
+
+  const handleWizardCancel = () => {
+    setShowWizard(false);
+    setFormError(null);
+  };
+
+  const handleGamesSaved = () => {
+    // Games have been saved, refresh the weeks list and return to main view
+    setPreviewingWeek(null);
+    refreshWeeks();
+  };
+
+  const handlePreviewCancel = () => {
+    // Cancel games preview and return to main view
+    setPreviewingWeek(null);
+  };
+
+  const handlePreviewGames = (week: Week) => {
+    // Show games preview for an existing week
+    setPreviewingWeek(week);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -102,13 +188,21 @@ export function WeekManagement() {
           </p>
         </div>
         
-        {!showForm && !editingWeek && (
-          <button
-            onClick={() => setShowForm(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
-          >
-            Create New Week
-          </button>
+        {!showForm && !editingWeek && !showWizard && (
+          <div className="flex space-x-3">
+            <button
+              onClick={() => setShowWizard(true)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+            >
+              Create New Week
+            </button>
+            <button
+              onClick={() => setShowForm(true)}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-md font-medium transition-colors"
+            >
+              Quick Create (No Games)
+            </button>
+          </div>
         )}
       </div>
 
@@ -118,6 +212,23 @@ export function WeekManagement() {
           <div className="text-red-700 dark:text-red-400">
             <strong>Error:</strong> {error}
           </div>
+        </div>
+      )}
+
+      {/* Wizard Display */}
+      {showWizard && (
+        <div>
+          {formError && (
+            <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md p-4 mb-6">
+              <div className="text-red-700 dark:text-red-400">
+                {formError}
+              </div>
+            </div>
+          )}
+          <WeekCreationWizard
+            onWeekCreated={handleWizardComplete}
+            onCancel={handleWizardCancel}
+          />
         </div>
       )}
 
@@ -160,12 +271,22 @@ export function WeekManagement() {
         </div>
       )}
 
+      {/* Games Preview */}
+      {previewingWeek && (
+        <GamesPreview
+          week={previewingWeek}
+          onGamesSaved={handleGamesSaved}
+          onCancel={handlePreviewCancel}
+        />
+      )}
+
       {/* Weeks List */}
-      {!showForm && !editingWeek && (
+      {!showForm && !editingWeek && !previewingWeek && !showWizard && (
         <WeekList
           weeks={weeks}
           onEdit={handleEditWeek}
           onDelete={handleDeleteWeek}
+          onPreviewGames={handlePreviewGames}
         />
       )}
     </div>

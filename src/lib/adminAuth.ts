@@ -12,9 +12,62 @@ export interface AdminAuthResult {
   error?: string;
 }
 
+// Auth event system for token expiration notifications
+type AuthEventType = 'token-expired' | 'auth-error' | 'logout';
+
+interface AuthEvent {
+  type: AuthEventType;
+  message?: string;
+}
+
+type AuthEventListener = (event: AuthEvent) => void;
+
+class AuthEventEmitter {
+  private listeners: AuthEventListener[] = [];
+
+  subscribe(listener: AuthEventListener) {
+    this.listeners.push(listener);
+    return () => {
+      this.listeners = this.listeners.filter(l => l !== listener);
+    };
+  }
+
+  emit(event: AuthEvent) {
+    this.listeners.forEach(listener => listener(event));
+  }
+}
+
+export const authEventEmitter = new AuthEventEmitter();
+
+// Utility to handle token expiration
+function handleTokenExpiration(): AdminAuthResult {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('accessToken');
+    // Emit token expiration event
+    authEventEmitter.emit({ 
+      type: 'token-expired', 
+      message: 'Your session has expired. Please log in again.' 
+    });
+  }
+  return {
+    isAdmin: false,
+    user: null,
+    error: 'Session expired. Please log in again.',
+  };
+}
+
 // Check if user is authenticated and is an admin
 export async function validateAdminAuth(accessToken: string): Promise<AdminAuthResult> {
   try {
+    // Validate input
+    if (!accessToken || typeof accessToken !== 'string') {
+      return {
+        isAdmin: false,
+        user: null,
+        error: 'Invalid access token',
+      };
+    }
+
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
     const response = await fetch(`${baseUrl}/api/auth/admin`, {
       method: 'GET',
@@ -42,6 +95,109 @@ export async function validateAdminAuth(accessToken: string): Promise<AdminAuthR
 
   } catch (error) {
     console.error('Error validating admin auth:', error);
+    
+    // If token is expired, handle it properly
+    if (error instanceof Error && 
+        (error.name === 'NotAuthorizedException' || 
+         error.message.includes('expired') ||
+         error.message.includes('Access Token has expired'))) {
+      return handleTokenExpiration();
+    }
+    
+    // For other errors, emit auth error event
+    authEventEmitter.emit({ 
+      type: 'auth-error', 
+      message: error instanceof Error ? error.message : 'Authentication failed' 
+    });
+    
+    return {
+      isAdmin: false,
+      user: null,
+      error: error instanceof Error ? error.message : 'Authentication failed',
+    };
+  }
+}
+
+// Direct validation function for server-side use (avoids HTTP calls)
+async function validateAdminAuthDirect(accessToken: string): Promise<AdminAuthResult> {
+  try {
+    const { CognitoIdentityProviderClient, GetUserCommand, AdminListGroupsForUserCommand } = await import('@aws-sdk/client-cognito-identity-provider');
+    
+    const client = new CognitoIdentityProviderClient({
+      region: process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1',
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+      },
+    });
+
+    const USER_POOL_ID = process.env.NEXT_PUBLIC_USER_POOL_ID;
+    
+    if (!USER_POOL_ID) {
+      return {
+        isAdmin: false,
+        user: null,
+        error: 'USER_POOL_ID not configured',
+      };
+    }
+
+    // Get user info from access token
+    const getUserCommand = new GetUserCommand({
+      AccessToken: accessToken,
+    });
+
+    const userResult = await client.send(getUserCommand);
+    
+    if (!userResult || !userResult.Username) {
+      return {
+        isAdmin: false,
+        user: null,
+        error: 'Invalid user token',
+      };
+    }
+
+    // Get user's groups
+    const getGroupsCommand = new AdminListGroupsForUserCommand({
+      UserPoolId: USER_POOL_ID,
+      Username: userResult.Username,
+    });
+
+    const groupsResult = await client.send(getGroupsCommand);
+    const groups = groupsResult.Groups?.map(group => group.GroupName || '') || [];
+    
+    // Extract user attributes
+    const attributes = userResult.UserAttributes || [];
+    const email = attributes.find(attr => attr.Name === 'email')?.Value || '';
+    const name = attributes.find(attr => attr.Name === 'name')?.Value || '';
+    
+    // Check if user is in admin group (case-insensitive)
+    const isAdmin = groups.some(group => group.toLowerCase() === 'admin');
+
+    const user = {
+      username: userResult.Username,
+      email,
+      name,
+      groups,
+    };
+
+    return {
+      isAdmin,
+      user,
+    };
+
+  } catch (error) {
+    // Handle token expiration for server-side validation too
+    if (error instanceof Error && 
+        (error.name === 'NotAuthorizedException' || 
+         error.message.includes('expired') ||
+         error.message.includes('Access Token has expired'))) {
+      return {
+        isAdmin: false,
+        user: null,
+        error: 'Session expired. Please log in again.',
+      };
+    }
+    
     return {
       isAdmin: false,
       user: null,
@@ -62,8 +218,17 @@ export function requireAdmin() {
       };
     }
 
-    const accessToken = authHeader.substring(7); // Remove 'Bearer ' prefix
-    const authResult = await validateAdminAuth(accessToken);
+    const accessToken = authHeader.substring(7).trim(); // Remove 'Bearer ' prefix
+    
+    // Validate access token format
+    if (!accessToken || !/^[A-Za-z0-9\-_.=]+$/.test(accessToken)) {
+      return {
+        isAuthorized: false,
+        error: 'Invalid access token format',
+      };
+    }
+
+    const authResult = await validateAdminAuthDirect(accessToken);
 
     if (!authResult.isAdmin) {
       return {

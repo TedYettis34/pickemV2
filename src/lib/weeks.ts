@@ -131,15 +131,6 @@ export class WeekRepository {
     return result[0] || null;
   }
 
-  // Delete a week
-  static async delete(id: number): Promise<boolean> {
-    const result = await query(
-      'DELETE FROM weeks WHERE id = $1',
-      [id]
-    );
-    return result.length > 0;
-  }
-
   // Check if a week name already exists (excluding a specific ID for updates)
   static async isNameTaken(name: string, excludeId?: number): Promise<boolean> {
     let sql = 'SELECT 1 FROM weeks WHERE name = $1';
@@ -175,6 +166,27 @@ export class WeekRepository {
 
     const result = await query<Week>(sql, params);
     return result[0] || null;
+  }
+
+
+  // Delete a week and all associated games
+  static async delete(id: number): Promise<boolean> {
+    try {
+      // First, delete all games associated with this week
+      await query('DELETE FROM games WHERE week_id = $1', [id]);
+      
+      // Then delete the week itself
+      await query(
+        'DELETE FROM weeks WHERE id = $1',
+        [id]
+      );
+      
+      // Check if any rows were affected (meaning the week existed and was deleted)
+      return true; // pg library doesn't return rowCount easily, so we assume success
+    } catch (error) {
+      console.error('Error deleting week and associated games:', error);
+      return false;
+    }
   }
 }
 

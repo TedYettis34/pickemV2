@@ -6,9 +6,10 @@ interface WeekListProps {
   weeks: Week[];
   onEdit: (week: Week) => void;
   onDelete: (week: Week) => void;
+  onPreviewGames: (week: Week) => void;
 }
 
-export function WeekList({ weeks, onEdit, onDelete }: WeekListProps) {
+export function WeekList({ weeks, onEdit, onDelete, onPreviewGames }: WeekListProps) {
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('en-US', {
       year: 'numeric',
@@ -53,7 +54,7 @@ export function WeekList({ weeks, onEdit, onDelete }: WeekListProps) {
   }
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden" data-testid="week-list">
       <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white">
           All Weeks ({weeks.length})
@@ -115,7 +116,13 @@ export function WeekList({ weeks, onEdit, onDelete }: WeekListProps) {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex space-x-2">
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        onClick={() => onPreviewGames(week)}
+                        className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 text-sm font-medium transition-colors"
+                      >
+                        Manage Games
+                      </button>
                       <button
                         onClick={() => onEdit(week)}
                         className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium transition-colors"
@@ -162,6 +169,12 @@ export function WeekList({ weeks, onEdit, onDelete }: WeekListProps) {
                 </div>
                 
                 <div className="flex space-x-4">
+                  <button
+                    onClick={() => onPreviewGames(week)}
+                    className="text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 text-sm font-medium"
+                  >
+                    Manage Games
+                  </button>
                   <button
                     onClick={() => onEdit(week)}
                     className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm font-medium"

@@ -19,8 +19,36 @@ pickemV2 is a pick'em/prediction web application built with Next.js and TypeScri
 ### Prerequisites
 
 - Node.js and npm
+- PostgreSQL (for local development)
 - AWS credentials configured
 - Linear API key (for MCP integration)
+
+### Database Setup (Local Development)
+
+1. Install and start PostgreSQL:
+```bash
+brew install postgresql@14
+brew services start postgresql@14
+```
+
+2. Create database and run schema:
+```bash
+createdb pickem
+psql -d pickem -f database/schema/001_create_weeks_table.sql
+psql -d pickem -f database/schema/002_create_users_table.sql
+psql -d pickem -f database/schema/003_create_games_table.sql
+psql -d pickem -f database/schema/004_add_week_locked_status.sql
+psql -d pickem -f database/seeds/weeks_sample_data.sql
+```
+
+3. Configure `.env.local` for local database (comment out `DB_CREDENTIALS_SECRET_ARN`):
+```bash
+# Local database configuration
+DB_NAME=pickem
+DB_PORT=5432
+DB_USER=
+DB_PASSWORD=
+```
 
 ### Getting Started
 
@@ -49,7 +77,8 @@ export AWS_REGION=your_preferred_region
 ## Architecture
 
 - **Frontend**: Next.js with TypeScript and Tailwind CSS
-- **Cloud**: AWS services (S3, DynamoDB, Lambda)
+- **Database**: PostgreSQL (local development) / AWS RDS Aurora (production)
+- **Cloud**: AWS services (S3, DynamoDB, Lambda, Secrets Manager)
 - **Infrastructure**: Terraform for AWS resource management
 - **Project Management**: Linear integration via MCP server
 

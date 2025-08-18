@@ -5,6 +5,10 @@ import { useAdminAuth } from '../useAdminAuth';
 jest.mock('../../lib/adminAuth', () => ({
   isCurrentUserAdmin: jest.fn(),
   getCurrentAccessToken: jest.fn(),
+  authEventEmitter: {
+    subscribe: jest.fn(() => jest.fn()), // Returns unsubscribe function
+    emit: jest.fn(),
+  },
 }));
 
 import { isCurrentUserAdmin, getCurrentAccessToken } from '../../lib/adminAuth';

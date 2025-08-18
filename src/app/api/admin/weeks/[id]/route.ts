@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { WeekRepository, WeekValidator } from '../../../../../lib/weeks';
 import { requireAdmin } from '../../../../../lib/adminAuth';
 import { UpdateWeekInput, ApiResponse, Week } from '../../../../../types/week';
+import { getGamesByWeekId } from '../../../../../lib/games';
 
 // GET /api/admin/weeks/[id] - Get a specific week by ID
 export async function GET(
@@ -209,7 +210,11 @@ export async function DELETE(
       );
     }
 
-    // Delete the week
+    // Get count of games that will be deleted
+    const existingGames = await getGamesByWeekId(weekId);
+    const gamesCount = existingGames.length;
+
+    // Delete the week (and associated games)
     const deleted = await WeekRepository.delete(weekId);
     if (!deleted) {
       return NextResponse.json(
@@ -220,7 +225,7 @@ export async function DELETE(
 
     const response: ApiResponse<never> = {
       success: true,
-      message: 'Week deleted successfully',
+      message: `Week "${existingWeek.name}" and ${gamesCount} associated games deleted successfully`,
     };
 
     return NextResponse.json(response);
