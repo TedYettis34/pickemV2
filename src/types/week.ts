@@ -6,6 +6,9 @@ export interface Week {
   start_date: string; // ISO date string
   end_date: string;   // ISO date string
   description?: string;
+  is_locked: boolean;
+  locked_at?: string; // ISO date string
+  locked_by?: string; // Admin who locked the week
   created_at: string; // ISO date string
   updated_at: string; // ISO date string
 }

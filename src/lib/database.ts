@@ -54,11 +54,26 @@ async function initializePool(): Promise<Pool> {
   }
 
   try {
-    const credentials = await getDatabaseCredentials();
-    
-    // In development, use localhost through SSH tunnel
     const isDevelopment = process.env.NODE_ENV === 'development';
-    const host = isDevelopment ? 'localhost' : credentials.host;
+    
+    let credentials: DatabaseCredentials;
+    
+    if (isDevelopment && !process.env.DB_CREDENTIALS_SECRET_ARN) {
+      // Use local PostgreSQL credentials in development
+      credentials = {
+        username: process.env.DB_USER || process.env.USER || 'postgres',
+        password: process.env.DB_PASSWORD || '',
+        engine: 'postgres',
+        host: 'localhost',
+        port: parseInt(process.env.DB_PORT || '5432'),
+        dbname: process.env.DB_NAME || 'pickem',
+      };
+    } else {
+      // Use AWS Secrets Manager in production or when explicitly configured
+      credentials = await getDatabaseCredentials();
+    }
+    
+    const host = isDevelopment && !process.env.DB_CREDENTIALS_SECRET_ARN ? 'localhost' : credentials.host;
     
     pool = new Pool({
       user: credentials.username,
@@ -66,7 +81,7 @@ async function initializePool(): Promise<Pool> {
       host: host,
       port: credentials.port,
       database: credentials.dbname,
-      ssl: {
+      ssl: isDevelopment && !process.env.DB_CREDENTIALS_SECRET_ARN ? false : {
         rejectUnauthorized: false, // Required for Aurora, works with tunneled connections too
       },
       max: 20, // Maximum number of clients in the pool

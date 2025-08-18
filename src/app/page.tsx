@@ -5,25 +5,56 @@ import AuthForm from '../components/auth/AuthForm';
 import AdminDashboard from '../components/admin/AdminDashboard';
 import { isAuthenticated, signOut } from '../lib/auth';
 import { useAdminAuth } from '../hooks/useAdminAuth';
+import { authEventEmitter } from '../lib/adminAuth';
 
 export default function Home() {
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+  const [authMessage, setAuthMessage] = useState<string | null>(null);
   const { isAdmin, isLoading: adminLoading } = useAdminAuth();
 
   useEffect(() => {
     setAuthenticated(isAuthenticated());
     setLoading(false);
+    
+    // Subscribe to auth events
+    const unsubscribe = authEventEmitter.subscribe((event) => {
+      switch (event.type) {
+        case 'token-expired':
+          console.log('Main page: Token expired, forcing re-authentication');
+          setAuthenticated(false);
+          setShowAdminDashboard(false);
+          setAuthMessage(event.message || 'Your session has expired. Please log in again.');
+          break;
+        case 'auth-error':
+          console.log('Main page: Auth error received');
+          setAuthMessage(event.message || 'Authentication error occurred.');
+          break;
+        case 'logout':
+          console.log('Main page: Logout event received');
+          setAuthenticated(false);
+          setShowAdminDashboard(false);
+          setAuthMessage(null);
+          break;
+      }
+    });
+
+    return unsubscribe;
   }, []);
 
   const handleAuthSuccess = () => {
     setAuthenticated(true);
+    setAuthMessage(null); // Clear any auth messages on successful login
   };
 
   const handleSignOut = () => {
     signOut();
     setAuthenticated(false);
+    setShowAdminDashboard(false);
+    setAuthMessage(null);
+    // Emit logout event
+    authEventEmitter.emit({ type: 'logout' });
   };
 
   if (loading || adminLoading) {
@@ -61,6 +92,13 @@ export default function Home() {
             </div>
           </div>
           <div className="flex-1 w-full max-w-md">
+            {authMessage && (
+              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                <div className="text-sm text-yellow-800 text-center">
+                  {authMessage}
+                </div>
+              </div>
+            )}
             <AuthForm onAuthSuccess={handleAuthSuccess} />
           </div>
         </div>

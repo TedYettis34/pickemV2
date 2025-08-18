@@ -19,6 +19,15 @@ import { NextRequest } from 'next/server';
 import { GET } from '../route';
 import { GetUserCommand, AdminListGroupsForUserCommand } from '@aws-sdk/client-cognito-identity-provider';
 
+// Mock the auth event emitter
+jest.mock('../../../../../lib/adminAuth', () => {
+  const actual = jest.requireActual('../../../../../lib/adminAuth');
+  return {
+    ...actual,
+    handleTokenExpiration: jest.fn(),
+  };
+});
+
 // Get access to the mock
 const mockModule = jest.requireMock('@aws-sdk/client-cognito-identity-provider');
 const mockSend = mockModule.__mockSend;
@@ -130,7 +139,7 @@ describe('/api/auth/admin', () => {
     const data = await response.json();
 
     expect(response.status).toBe(401);
-    expect(data.error).toBe('Authorization header required');
+    expect(data.error).toBe('Authorization header must start with Bearer');
     expect(mockSend).not.toHaveBeenCalled();
   });
 
@@ -268,7 +277,7 @@ describe('/api/auth/admin', () => {
     const data = await response.json();
 
     expect(response.status).toBe(401);
-    expect(data.error).toBe('Invalid user token');
+    expect(data.error).toBe('Token expired');
   });
 
   it('should handle UserNotFoundException', async () => {
@@ -306,7 +315,7 @@ describe('/api/auth/admin', () => {
     const data = await response.json();
 
     expect(response.status).toBe(401);
-    expect(data.error).toBe('Invalid user token');
+    expect(data.error).toBe('Token expired');
   });
 
   it('should return 500 on unexpected server error', async () => {
