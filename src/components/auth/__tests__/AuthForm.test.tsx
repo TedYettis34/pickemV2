@@ -182,7 +182,7 @@ describe('AuthForm', () => {
       await user.click(screen.getByRole('button', { name: 'Confirm Account' }))
 
       await waitFor(() => {
-        expect(mockConfirmSignUp).toHaveBeenCalledWith('test@example.com', '123456')
+        expect(mockConfirmSignUp).toHaveBeenCalledWith('Test User', '123456')
         expect(screen.getByRole('heading', { name: 'Sign In' })).toBeInTheDocument()
         expect(screen.getByText('Account confirmed! Please log in.')).toBeInTheDocument()
       })
@@ -195,7 +195,7 @@ describe('AuthForm', () => {
       await user.click(screen.getByText('Resend confirmation code'))
 
       await waitFor(() => {
-        expect(mockResendConfirmationCode).toHaveBeenCalledWith('test@example.com')
+        expect(mockResendConfirmationCode).toHaveBeenCalledWith('Test User')
         expect(screen.getByText('Confirmation code resent!')).toBeInTheDocument()
       })
     })

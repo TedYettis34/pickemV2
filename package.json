@@ -9,15 +9,20 @@
     "lint": "next lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "db:migrate": "node scripts/run-migrations.js",
+    "db:seed": "node scripts/run-migrations.js && node database/seeds/run-seeds.js"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.835.0",
     "@aws-sdk/client-dynamodb": "^3.835.0",
     "@aws-sdk/client-lambda": "^3.835.0",
+    "@aws-sdk/client-rds-data": "^3.835.0",
     "@aws-sdk/client-s3": "^3.837.0",
+    "@aws-sdk/client-secrets-manager": "^3.835.0",
     "aws-sdk": "^2.1692.0",
     "next": "15.3.4",
+    "pg": "^8.11.3",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },
@@ -28,6 +33,7 @@
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20",
+    "@types/pg": "^8.10.9",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",

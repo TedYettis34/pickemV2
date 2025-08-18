@@ -5,19 +5,19 @@ export const CognitoIdentityProviderClient = jest.fn().mockImplementation(() => 
 }))
 
 export class SignUpCommand {
-  constructor(public input: any) {}
+  constructor(public input: unknown) {}
 }
 
 export class ConfirmSignUpCommand {
-  constructor(public input: any) {}
+  constructor(public input: unknown) {}
 }
 
 export class InitiateAuthCommand {
-  constructor(public input: any) {}
+  constructor(public input: unknown) {}
 }
 
 export class ResendConfirmationCodeCommand {
-  constructor(public input: any) {}
+  constructor(public input: unknown) {}
 }
 
 export const AuthFlowType = {

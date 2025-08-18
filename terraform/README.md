@@ -92,7 +92,52 @@ For production use, configure remote state storage:
 - Never commit `terraform.tfvars` to version control
 - Use IAM roles with least privilege principle
 
+## Database Connection Guide
+
+### Connecting to RDS through Bastion Host
+
+#### Prerequisites
+- AWS credentials configured
+- Private key file: `~/.ssh/pickem-bastion-key.pem`
+- DBeaver or PostgreSQL client
+
+#### Connection Steps
+
+1. **Start SSH Tunnel**
+   ```bash
+   ssh -i ~/.ssh/pickem-bastion-key.pem -L 5433:pickem-dev-cost-optimized-db.ck92c4ks40r0.us-east-1.rds.amazonaws.com:5432 ec2-user@44.216.237.95
+   ```
+
+2. **Get Database Password**
+   ```bash
+   aws secretsmanager get-secret-value --region us-east-1 --secret-id "arn:aws:secretsmanager:us-east-1:768238136942:secret:pickem-dev-db-credentials-Kg2Zix" --query SecretString --output text
+   ```
+
+3. **DBeaver Configuration**
+   - **Host**: `localhost`
+   - **Port**: `5433`
+   - **Database**: `pickem`
+   - **Username**: `pickemadmin`
+   - **Password**: [from step 2]
+   - **Driver Properties**: `sslmode=require`
+   - **SSH Tab**: Leave disabled (manual tunnel used)
+
+4. **PostgreSQL CLI Connection**
+   ```bash
+   psql "postgresql://pickemadmin:PASSWORD@localhost:5433/pickem?sslmode=require"
+   ```
+
+#### Notes
+- Keep SSH tunnel running while connected to database
+- No SSH tunnel configuration needed in DBeaver when using manual tunnel
+- Bastion host public IP: `44.216.237.95`
+
 ## Troubleshooting
+
+### Database Connection Issues
+1. **Connection refused**: Ensure SSH tunnel is running
+2. **Authentication failed**: Verify password from AWS Secrets Manager
+3. **SSL errors**: Add `sslmode=require` to connection properties
 
 ### Common Issues
 

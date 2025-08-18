@@ -1,0 +1,13 @@
+{
+    "BudgetName": "PickEm-Monthly-Budget",
+    "BudgetLimit": {
+        "Amount": "65",
+        "Unit": "USD"
+    },
+    "TimeUnit": "MONTHLY",
+    "BudgetType": "COST",
+    "CostFilters": {
+        "TagKey": ["Project"],
+        "TagValue": ["pickem"]
+    }
+}

@@ -1,0 +1,59 @@
+# Cost-Optimized Terraform Variables for 50 Users
+# Copy this file to terraform.tfvars and customize as needed
+
+# Basic Configuration
+aws_region  = "us-east-1"  # Typically the cheapest region
+environment = "dev"        # Use dev settings even for small production workloads
+
+# Cost Optimization Flags
+cost_optimized_mode       = true   # Enable cost optimizations
+ultra_cost_optimized_mode = false  # Set to true for maximum savings (not recommended for production)
+
+# Database Configuration (Cost Optimized)
+db_username = "pickemadmin"
+
+# Network Configuration (already using 10.0.0.0/16 from your existing setup)
+vpc_cidr              = "10.0.0.0/16"
+public_subnet_1_cidr  = "10.0.1.0/24"
+public_subnet_2_cidr  = "10.0.2.0/24"
+private_subnet_1_cidr = "10.0.3.0/24"
+private_subnet_2_cidr = "10.0.4.0/24"
+
+# Aurora Serverless Configuration (if you keep Aurora instead of RDS)
+serverless_min_capacity = 0.5
+serverless_max_capacity = 1    # Reduced from 4-16 to 1 for cost savings
+
+# Backup Configuration (Cost Optimized)
+backup_retention_days = 3  # Reduced from 7-35 to save costs
+
+# Monitoring and Security (Cost Optimized)
+enable_deletion_protection = false  # Disable for cost flexibility
+enable_multi_az           = false   # Single AZ for cost savings
+
+# Development Optimizations
+dev_skip_backups      = true   # Skip backups in dev
+dev_disable_encryption = false # Keep encryption for security (minimal cost impact)
+
+# Production Optimizations (for small production workloads)
+prod_minimal_monitoring = true  # Reduce monitoring costs
+prod_single_az         = true   # Use single AZ even in prod (not recommended for critical apps)
+
+# Tagging for Cost Allocation
+cost_center = "pickem-app"
+owner       = "admin"
+
+# Key Pair (required if using ultra_cost_optimized_mode with NAT instance)
+# key_pair_name = "your-key-pair-name"  # Uncomment and set if using NAT instance
+
+# Alternative Ultra Cost-Optimized Settings (uncomment for maximum savings)
+# ultra_cost_optimized_mode = true
+# dev_disable_encryption   = true
+# backup_retention_days    = 1
+
+# Cost Optimization Notes:
+# 1. This configuration prioritizes cost over performance and availability
+# 2. Suitable for development, staging, and small production workloads (< 100 users)
+# 3. Monitor your application performance after applying these changes
+# 4. Consider upgrading instance sizes if performance becomes an issue
+# 5. For production workloads with higher availability requirements, 
+#    use cost_optimized_mode = true but keep ultra_cost_optimized_mode = false

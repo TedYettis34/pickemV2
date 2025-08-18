@@ -11,26 +11,21 @@ const client = new CognitoIdentityProviderClient({
   region: process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1',
 });
 
-//const USER_POOL_ID = process.env.NEXT_PUBLIC_USER_POOL_ID || 'us-east-1_pGEqzqfTn';
 const CLIENT_ID = process.env.NEXT_PUBLIC_USER_POOL_CLIENT_ID;
 
-if (!CLIENT_ID) {
+if (!CLIENT_ID && process.env.NODE_ENV !== 'test') {
   throw new Error('NEXT_PUBLIC_USER_POOL_CLIENT_ID environment variable is required');
 }
 
 export async function signUp(email: string, password: string, name: string) {
   const command = new SignUpCommand({
     ClientId: CLIENT_ID,
-    Username: email,
+    Username: name, // Use name as username since email is an alias
     Password: password,
     UserAttributes: [
       {
         Name: 'email',
         Value: email,
-      },
-      {
-        Name: 'name',
-        Value: name,
       },
     ],
   });
@@ -44,10 +39,10 @@ export async function signUp(email: string, password: string, name: string) {
   }
 }
 
-export async function confirmSignUp(email: string, confirmationCode: string) {
+export async function confirmSignUp(username: string, confirmationCode: string) {
   const command = new ConfirmSignUpCommand({
     ClientId: CLIENT_ID,
-    Username: email,
+    Username: username,
     ConfirmationCode: confirmationCode,
   });
 
@@ -87,10 +82,10 @@ export async function signIn(email: string, password: string) {
   }
 }
 
-export async function resendConfirmationCode(email: string) {
+export async function resendConfirmationCode(username: string) {
   const command = new ResendConfirmationCodeCommand({
     ClientId: CLIENT_ID,
-    Username: email,
+    Username: username,
   });
 
   try {

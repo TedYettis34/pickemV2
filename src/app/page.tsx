@@ -2,11 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import AuthForm from '../components/auth/AuthForm';
+import AdminDashboard from '../components/admin/AdminDashboard';
 import { isAuthenticated, signOut } from '../lib/auth';
+import { useAdminAuth } from '../hooks/useAdminAuth';
 
 export default function Home() {
   const [authenticated, setAuthenticated] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showAdminDashboard, setShowAdminDashboard] = useState(false);
+  const { isAdmin, isLoading: adminLoading } = useAdminAuth();
 
   useEffect(() => {
     setAuthenticated(isAuthenticated());
@@ -22,7 +26,7 @@ export default function Home() {
     setAuthenticated(false);
   };
 
-  if (loading) {
+  if (loading || adminLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-lg">Loading...</div>
@@ -64,6 +68,12 @@ export default function Home() {
     );
   }
 
+  // If user chose to view admin dashboard
+  if (showAdminDashboard && isAdmin) {
+    return <AdminDashboard onBackToDashboard={() => setShowAdminDashboard(false)} />;
+  }
+
+  // Regular user dashboard
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       <header className="bg-white dark:bg-gray-800 shadow-sm">
@@ -72,12 +82,22 @@ export default function Home() {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
               PickEm Dashboard
             </h1>
-            <button
-              onClick={handleSignOut}
-              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-            >
-              Sign Out
-            </button>
+            <div className="flex items-center gap-3">
+              {isAdmin && (
+                <button
+                  onClick={() => setShowAdminDashboard(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Admin Panel
+                </button>
+              )}
+              <button
+                onClick={handleSignOut}
+                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+              >
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>

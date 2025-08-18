@@ -1,8 +1,8 @@
+// Mock the entire module BEFORE imports
+jest.mock('@aws-sdk/client-cognito-identity-provider')
+
 import { signUp, signIn, confirmSignUp, resendConfirmationCode, signOut, isAuthenticated } from '../auth'
 import { mockSend } from '@aws-sdk/client-cognito-identity-provider'
-
-// Mock the entire module
-jest.mock('@aws-sdk/client-cognito-identity-provider')
 
 // Get the mocked localStorage functions
 const mockLocalStorage = localStorage as jest.Mocked<typeof localStorage>
@@ -29,11 +29,10 @@ describe('Auth Functions', () => {
         expect.objectContaining({
           input: {
             ClientId: 'test-client-id',
-            Username: 'test@example.com',
+            Username: 'Test User', // Username is now the name parameter
             Password: 'TempPass123!',
             UserAttributes: [
-              { Name: 'email', Value: 'test@example.com' },
-              { Name: 'name', Value: 'Test User' }
+              { Name: 'email', Value: 'test@example.com' }
             ]
           }
         })
@@ -55,13 +54,13 @@ describe('Auth Functions', () => {
       const mockResponse = {}
       mockSend.mockResolvedValueOnce(mockResponse)
 
-      const result = await confirmSignUp('test@example.com', '123456')
+      const result = await confirmSignUp('Test User', '123456')
 
       expect(mockSend).toHaveBeenCalledWith(
         expect.objectContaining({
           input: {
             ClientId: 'test-client-id',
-            Username: 'test@example.com',
+            Username: 'Test User',
             ConfirmationCode: '123456'
           }
         })
@@ -73,7 +72,7 @@ describe('Auth Functions', () => {
       const mockError = new Error('CodeMismatchException')
       mockSend.mockRejectedValueOnce(mockError)
 
-      await expect(confirmSignUp('test@example.com', '123456'))
+      await expect(confirmSignUp('Test User', '123456'))
         .rejects.toThrow('CodeMismatchException')
     })
   })
@@ -139,13 +138,13 @@ describe('Auth Functions', () => {
       }
       mockSend.mockResolvedValueOnce(mockResponse)
 
-      const result = await resendConfirmationCode('test@example.com')
+      const result = await resendConfirmationCode('Test User')
 
       expect(mockSend).toHaveBeenCalledWith(
         expect.objectContaining({
           input: {
             ClientId: 'test-client-id',
-            Username: 'test@example.com'
+            Username: 'Test User'
           }
         })
       )
