@@ -34,6 +34,30 @@ jest.mock('../../components/admin/AdminDashboard', () => {
   };
 });
 
+jest.mock('../../components/user/UserDashboard', () => ({
+  UserDashboard: function MockUserDashboard({ 
+    onSignOut, 
+    isAdmin, 
+    onShowAdminPanel 
+  }: { 
+    onSignOut: () => void; 
+    isAdmin: boolean; 
+    onShowAdminPanel: () => void; 
+  }) {
+    return (
+      <div data-testid="user-dashboard">
+        <h1>PickEm Dashboard</h1>
+        <div>Welcome to your dashboard!</div>
+        <div>Your pick&apos;em features will be built here.</div>
+        {isAdmin && (
+          <button onClick={onShowAdminPanel}>Admin Panel</button>
+        )}
+        <button onClick={onSignOut}>Sign Out</button>
+      </div>
+    );
+  },
+}));
+
 import { isAuthenticated, signOut } from '../../lib/auth';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
@@ -83,7 +107,7 @@ describe('Home Page', () => {
 
     await waitFor(() => {
       expect(screen.getByText('Welcome to your dashboard!')).toBeInTheDocument();
-      expect(screen.getByText("Your pick'em features will be built here.")).toBeInTheDocument();
+      expect(screen.getByText("Your pick&apos;em features will be built here.")).toBeInTheDocument();
     });
   });
 

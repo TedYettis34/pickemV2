@@ -190,6 +190,12 @@ export class WeekRepository {
   }
 }
 
+// Convenience functions
+export async function getActiveWeek(date?: string): Promise<Week | null> {
+  const activeWeeks = await WeekRepository.findActive(date);
+  return activeWeeks[0] || null;
+}
+
 // Week validation utilities
 export class WeekValidator {
   
