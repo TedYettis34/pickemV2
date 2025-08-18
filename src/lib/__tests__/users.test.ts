@@ -4,12 +4,16 @@ jest.mock('../database', () => ({
 }));
 
 // Mock AWS SDK
-jest.mock('@aws-sdk/client-cognito-identity-provider', () => ({
-  CognitoIdentityProviderClient: jest.fn().mockImplementation(() => ({
-    send: jest.fn(),
-  })),
-  GetUserCommand: jest.fn(),
-}));
+jest.mock('@aws-sdk/client-cognito-identity-provider', () => {
+  const mockSend = jest.fn();
+  return {
+    CognitoIdentityProviderClient: jest.fn(() => ({
+      send: mockSend,
+    })),
+    GetUserCommand: jest.fn(),
+    __mockSend: mockSend,
+  };
+});
 
 import { 
   getUserByCognitoId, 
@@ -20,19 +24,21 @@ import {
   User 
 } from '../users';
 import { query } from '../database';
-import { CognitoIdentityProviderClient, GetUserCommand } from '@aws-sdk/client-cognito-identity-provider';
+import { GetUserCommand } from '@aws-sdk/client-cognito-identity-provider';
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
-const mockSend = jest.fn();
 
-// Mock the CognitoIdentityProviderClient
-(CognitoIdentityProviderClient as jest.Mock).mockImplementation(() => ({
-  send: mockSend,
-}));
+// Get access to the mock
+const mockModule = jest.requireMock('@aws-sdk/client-cognito-identity-provider');
+const mockSend = mockModule.__mockSend;
 
 describe('Users Module', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    // Set required environment variables for tests
+    process.env.AWS_ACCESS_KEY_ID = 'test-access-key';
+    process.env.AWS_SECRET_ACCESS_KEY = 'test-secret-key';
+    process.env.NEXT_PUBLIC_AWS_REGION = 'us-east-1';
   });
 
   describe('getUserByCognitoId', () => {
@@ -176,6 +182,12 @@ describe('Users Module', () => {
       const result = await syncUserFromCognito('access-token');
 
       expect(result).toEqual(newUser);
+    });
+
+    it('should throw error when cognitoUser is undefined', async () => {
+      mockSend.mockResolvedValue(undefined);
+
+      await expect(syncUserFromCognito('access-token')).rejects.toThrow('No username found in Cognito response');
     });
 
     it('should throw error when missing username', async () => {

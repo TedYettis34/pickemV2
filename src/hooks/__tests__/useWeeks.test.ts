@@ -16,6 +16,8 @@ const mockGetCurrentAccessToken = getCurrentAccessToken as jest.MockedFunction<t
 const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
 
 describe('useWeeks Hook', () => {
+  // No mocking needed - tests will work with actual window.location
+
   const mockWeeks: Week[] = [
     {
       id: 1,
@@ -65,7 +67,7 @@ describe('useWeeks Hook', () => {
     expect(result.current.weeks).toEqual(mockWeeks);
     expect(result.current.error).toBeNull();
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:3000/api/admin/weeks',
+      'http://localhost/api/admin/weeks',
       {
         headers: {
           Authorization: 'Bearer test-access-token',
@@ -116,7 +118,7 @@ describe('useWeeks Hook', () => {
     });
 
     expect(mockFetch).toHaveBeenCalledWith(
-      'http://localhost:3000/api/admin/weeks',
+      'http://localhost/api/admin/weeks',
       {
         headers: {},
       }
@@ -172,7 +174,7 @@ describe('useWeeks Hook', () => {
 
       expect(createResult!.success).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3000/api/admin/weeks',
+        'http://localhost/api/admin/weeks',
         {
           method: 'POST',
           headers: {
@@ -265,7 +267,7 @@ describe('useWeeks Hook', () => {
 
       expect(updateResult!.success).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3000/api/admin/weeks/1',
+        'http://localhost/api/admin/weeks/1',
         {
           method: 'PUT',
           headers: {
@@ -316,7 +318,7 @@ describe('useWeeks Hook', () => {
 
       expect(deleteResult!.success).toBe(true);
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3000/api/admin/weeks/1',
+        'http://localhost/api/admin/weeks/1',
         {
           method: 'DELETE',
           headers: {
@@ -343,7 +345,7 @@ describe('useWeeks Hook', () => {
       });
 
       expect(mockFetch).toHaveBeenCalledWith(
-        'http://localhost:3000/api/admin/weeks',
+        'http://localhost/api/admin/weeks',
         {
           headers: {
             Authorization: 'Bearer test-access-token',

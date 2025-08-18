@@ -97,10 +97,14 @@ describe('WeekForm', () => {
     await user.click(submitButton);
 
     await waitFor(() => {
+      // Calculate expected dates considering timezone conversion
+      const expectedStartDate = new Date('2024-09-01T00:00').toISOString();
+      const expectedEndDate = new Date('2024-09-08T23:59').toISOString();
+      
       expect(mockOnSubmit).toHaveBeenCalledWith({
         name: 'Test Week',
-        start_date: '2024-09-01T00:00:00.000Z',
-        end_date: '2024-09-08T23:59:00.000Z',
+        start_date: expectedStartDate,
+        end_date: expectedEndDate,
         description: 'Test description',
       });
     });
@@ -122,10 +126,14 @@ describe('WeekForm', () => {
     await user.click(submitButton);
 
     await waitFor(() => {
+      // Calculate expected dates considering timezone conversion
+      const expectedStartDate = new Date('2024-09-01T00:00').toISOString();
+      const expectedEndDate = new Date('2024-09-08T23:59').toISOString();
+      
       expect(mockOnSubmit).toHaveBeenCalledWith({
         name: 'Test Week',
-        start_date: '2024-09-01T00:00:00.000Z',
-        end_date: '2024-09-08T23:59:00.000Z',
+        start_date: expectedStartDate,
+        end_date: expectedEndDate,
         description: undefined,
       });
     });

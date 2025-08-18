@@ -62,7 +62,7 @@ export async function syncUserFromCognito(accessToken: string): Promise<User> {
     
     const cognitoUser = await client.send(getUserCommand);
     
-    if (!cognitoUser.Username) {
+    if (!cognitoUser || !cognitoUser.Username) {
       throw new Error('No username found in Cognito response');
     }
 

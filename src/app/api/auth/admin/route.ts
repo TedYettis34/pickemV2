@@ -15,7 +15,11 @@ export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get('authorization');
     
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (!authHeader) {
+      return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
+    }
+    
+    if (!authHeader.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Authorization header required' }, { status: 401 });
     }
 
@@ -32,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     const userResult = await client.send(getUserCommand);
     
-    if (!userResult.Username) {
+    if (!userResult || !userResult.Username) {
       return NextResponse.json({ error: 'Invalid user token' }, { status: 401 });
     }
 
@@ -67,8 +71,18 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Error validating admin auth:', error);
+    
+    // Handle common Cognito errors with appropriate status codes
+    if (error instanceof Error) {
+      if (error.name === 'NotAuthorizedException' || 
+          error.name === 'UserNotFoundException' ||
+          error.name === 'TokenExpiredException') {
+        return NextResponse.json({ error: 'Invalid user token' }, { status: 401 });
+      }
+    }
+    
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Authentication failed' },
+      { error: 'Authentication failed' },
       { status: 500 }
     );
   }

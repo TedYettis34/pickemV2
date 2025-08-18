@@ -3,13 +3,13 @@ import { useAdminAuth } from '../useAdminAuth';
 
 // Mock adminAuth
 jest.mock('../../lib/adminAuth', () => ({
-  isAdmin: jest.fn(),
+  isCurrentUserAdmin: jest.fn(),
   getCurrentAccessToken: jest.fn(),
 }));
 
-import { isAdmin, getCurrentAccessToken } from '../../lib/adminAuth';
+import { isCurrentUserAdmin, getCurrentAccessToken } from '../../lib/adminAuth';
 
-const mockIsAdmin = isAdmin as jest.MockedFunction<typeof isAdmin>;
+const mockIsCurrentUserAdmin = isCurrentUserAdmin as jest.MockedFunction<typeof isCurrentUserAdmin>;
 const mockGetCurrentAccessToken = getCurrentAccessToken as jest.MockedFunction<typeof getCurrentAccessToken>;
 
 describe('useAdminAuth Hook', () => {
@@ -19,7 +19,7 @@ describe('useAdminAuth Hook', () => {
 
   it('should return admin status when user is admin', async () => {
     mockGetCurrentAccessToken.mockReturnValue('test-access-token');
-    mockIsAdmin.mockResolvedValue(true);
+    mockIsCurrentUserAdmin.mockResolvedValue(true);
 
     const { result } = renderHook(() => useAdminAuth());
 
@@ -31,12 +31,12 @@ describe('useAdminAuth Hook', () => {
     });
 
     expect(result.current.isAdmin).toBe(true);
-    expect(mockIsAdmin).toHaveBeenCalledTimes(1);
+    expect(mockIsCurrentUserAdmin).toHaveBeenCalledTimes(1);
   });
 
   it('should return false when user is not admin', async () => {
     mockGetCurrentAccessToken.mockReturnValue('test-access-token');
-    mockIsAdmin.mockResolvedValue(false);
+    mockIsCurrentUserAdmin.mockResolvedValue(false);
 
     const { result } = renderHook(() => useAdminAuth());
 
@@ -57,12 +57,12 @@ describe('useAdminAuth Hook', () => {
     });
 
     expect(result.current.isAdmin).toBe(false);
-    expect(mockIsAdmin).not.toHaveBeenCalled();
+    expect(mockIsCurrentUserAdmin).not.toHaveBeenCalled();
   });
 
   it('should handle isAdmin error gracefully', async () => {
     mockGetCurrentAccessToken.mockReturnValue('test-access-token');
-    mockIsAdmin.mockRejectedValue(new Error('Network error'));
+    mockIsCurrentUserAdmin.mockRejectedValue(new Error('Network error'));
 
     const { result } = renderHook(() => useAdminAuth());
 
@@ -87,7 +87,7 @@ describe('useAdminAuth Hook', () => {
     });
 
     expect(result.current.isAdmin).toBe(false);
-    expect(mockIsAdmin).not.toHaveBeenCalled();
+    expect(mockIsCurrentUserAdmin).not.toHaveBeenCalled();
 
     // Restore window
     global.window = originalWindow;
