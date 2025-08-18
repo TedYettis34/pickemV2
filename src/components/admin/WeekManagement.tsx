@@ -151,8 +151,8 @@ export function WeekManagement() {
     setFormError(null);
   };
 
-  const handleGamesLocked = () => {
-    // Week has been locked with games, refresh the weeks list and return to main view
+  const handleGamesSaved = () => {
+    // Games have been saved, refresh the weeks list and return to main view
     setPreviewingWeek(null);
     refreshWeeks();
   };
@@ -275,7 +275,7 @@ export function WeekManagement() {
       {previewingWeek && (
         <GamesPreview
           week={previewingWeek}
-          onGamesLocked={handleGamesLocked}
+          onGamesSaved={handleGamesSaved}
           onCancel={handlePreviewCancel}
         />
       )}

@@ -168,38 +168,6 @@ export class WeekRepository {
     return result[0] || null;
   }
 
-  // Lock a week (prevents further modifications)
-  static async lockWeek(id: number, lockedBy: string): Promise<Week | null> {
-    const result = await query<Week>(
-      `UPDATE weeks 
-       SET is_locked = true, locked_at = CURRENT_TIMESTAMP, locked_by = $2, updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $1 AND is_locked = false
-       RETURNING *`,
-      [id, lockedBy]
-    );
-    return result[0] || null;
-  }
-
-  // Unlock a week (allows modifications again)
-  static async unlockWeek(id: number): Promise<Week | null> {
-    const result = await query<Week>(
-      `UPDATE weeks 
-       SET is_locked = false, locked_at = NULL, locked_by = NULL, updated_at = CURRENT_TIMESTAMP 
-       WHERE id = $1
-       RETURNING *`,
-      [id]
-    );
-    return result[0] || null;
-  }
-
-  // Check if a week is locked
-  static async isLocked(id: number): Promise<boolean> {
-    const result = await query<{ is_locked: boolean }>(
-      'SELECT is_locked FROM weeks WHERE id = $1',
-      [id]
-    );
-    return result[0]?.is_locked || false;
-  }
 
   // Delete a week and all associated games
   static async delete(id: number): Promise<boolean> {

@@ -25,10 +25,15 @@ jest.mock('../../../../../../lib/weeks', () => ({
 
 jest.mock('../../../../../../lib/adminAuth');
 
+jest.mock('../../../../../../lib/games', () => ({
+  getGamesByWeekId: jest.fn(),
+}));
+
 import { NextRequest } from 'next/server';
 import { GET, PUT, DELETE } from '../route';
 import { WeekRepository, WeekValidator } from '../../../../../../lib/weeks';
 import { requireAdmin } from '../../../../../../lib/adminAuth';
+import { getGamesByWeekId } from '../../../../../../lib/games';
 import { Week, UpdateWeekInput } from '../../../../../../types/week';
 
 const mockWeekRepository = WeekRepository as {
@@ -44,6 +49,8 @@ const mockWeekValidator = WeekValidator as {
 };
 
 const mockRequireAdmin = requireAdmin as jest.MockedFunction<typeof requireAdmin>;
+
+const mockGetGamesByWeekId = getGamesByWeekId as jest.MockedFunction<typeof getGamesByWeekId>;
 
 describe('/api/admin/weeks/[id]', () => {
   const mockWeek: Week = {
@@ -300,6 +307,7 @@ describe('/api/admin/weeks/[id]', () => {
         isAuthorized: true,
       });
       mockWeekRepository.findById.mockResolvedValue(mockWeek);
+      mockGetGamesByWeekId.mockResolvedValue([]); // Mock empty games array
       mockWeekRepository.delete.mockResolvedValue(true);
 
       const request = new NextRequest('http://localhost:3000/api/admin/weeks/1', {
@@ -311,7 +319,7 @@ describe('/api/admin/weeks/[id]', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.message).toBe('Week deleted successfully');
+      expect(data.message).toBe('Week "Week 1" and 0 associated games deleted successfully');
       expect(mockWeekRepository.delete).toHaveBeenCalledWith(1);
     });
 
@@ -338,6 +346,7 @@ describe('/api/admin/weeks/[id]', () => {
         isAuthorized: true,
       });
       mockWeekRepository.findById.mockResolvedValue(mockWeek);
+      mockGetGamesByWeekId.mockResolvedValue([]); // Mock empty games array
       mockWeekRepository.delete.mockResolvedValue(false);
 
       const request = new NextRequest('http://localhost:3000/api/admin/weeks/1', {

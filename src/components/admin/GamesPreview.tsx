@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Game } from '../../types/game';
 import { Week } from '../../types/week';
 import { getCurrentAccessToken } from '../../lib/adminAuth';
 
 interface GamesPreviewProps {
   week: Week;
-  onGamesLocked: (week: Week) => void;
+  onGamesSaved: () => void;
   onCancel: () => void;
 }
 
@@ -16,11 +16,12 @@ interface PreviewGames {
   college: Partial<Game>[];
 }
 
-export function GamesPreview({ week, onGamesLocked, onCancel }: GamesPreviewProps) {
+export function GamesPreview({ week, onGamesSaved, onCancel }: GamesPreviewProps) {
   const [loading, setLoading] = useState(false);
   const [previewGames, setPreviewGames] = useState<PreviewGames | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLocking, setIsLocking] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasExistingGames, setHasExistingGames] = useState(false);
 
   const getAuthHeaders = (): Record<string, string> => {
     const token = getCurrentAccessToken();
@@ -28,6 +29,54 @@ export function GamesPreview({ week, onGamesLocked, onCancel }: GamesPreviewProp
       return { Authorization: `Bearer ${token}` };
     }
     return {};
+  };
+
+  // Load existing games from database on component mount
+  useEffect(() => {
+    loadExistingGames();
+  }, [week.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const loadExistingGames = async () => {
+    setLoading(true);
+    setError(null);
+    
+    try {
+      // Fetch existing games from the database
+      const response = await fetch(`/api/admin/weeks/${week.id}/games`, {
+        method: 'GET',
+        headers: {
+          ...getAuthHeaders(),
+        },
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to fetch existing games');
+      }
+
+      const games = data.data || [];
+      
+      if (games.length > 0) {
+        // Convert database games to preview format
+        const nflGames = games.filter((game: Game) => game.sport === 'americanfootball_nfl');
+        const collegeGames = games.filter((game: Game) => game.sport === 'americanfootball_ncaaf');
+        
+        setPreviewGames({
+          nfl: nflGames,
+          college: collegeGames
+        });
+        setHasExistingGames(true);
+      } else {
+        setHasExistingGames(false);
+      }
+    } catch (err) {
+      console.error('Error loading existing games:', err);
+      setHasExistingGames(false);
+      // Don't set error here, just fall back to no existing games
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchGamesPreview = async () => {
@@ -51,6 +100,7 @@ export function GamesPreview({ week, onGamesLocked, onCancel }: GamesPreviewProp
       }
 
       setPreviewGames(data.data);
+      setHasExistingGames(false); // These are new games from API, not existing
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch games');
     } finally {
@@ -58,10 +108,10 @@ export function GamesPreview({ week, onGamesLocked, onCancel }: GamesPreviewProp
     }
   };
 
-  const lockWeekWithGames = async () => {
+  const saveGamesToWeek = async () => {
     if (!previewGames) return;
 
-    setIsLocking(true);
+    setIsSaving(true);
     setError(null);
 
     try {
@@ -72,24 +122,58 @@ export function GamesPreview({ week, onGamesLocked, onCancel }: GamesPreviewProp
           ...getAuthHeaders(),
         },
         body: JSON.stringify({
-          action: 'lock',
+          action: 'save',
           nflGames: previewGames.nfl,
           collegeGames: previewGames.college,
-          lockedBy: 'admin', // TODO: Get actual admin username
         }),
       });
 
       const data = await response.json();
 
       if (!data.success) {
-        throw new Error(data.error || 'Failed to lock week');
+        throw new Error(data.error || 'Failed to save games');
       }
 
-      onGamesLocked(data.data.week);
+      // After saving, reload existing games and mark as having existing games
+      await loadExistingGames();
+      setHasExistingGames(true);
+      onGamesSaved();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to lock week');
+      setError(err instanceof Error ? err.message : 'Failed to save games');
     } finally {
-      setIsLocking(false);
+      setIsSaving(false);
+    }
+  };
+
+  const deleteExistingGames = async () => {
+    if (!confirm('Are you sure you want to delete all games for this week? This action cannot be undone.')) {
+      return;
+    }
+
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/admin/weeks/${week.id}/games`, {
+        method: 'DELETE',
+        headers: {
+          ...getAuthHeaders(),
+        },
+      });
+
+      const data = await response.json();
+
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to delete games');
+      }
+
+      // Clear the preview and reload
+      setPreviewGames(null);
+      setHasExistingGames(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete games');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -114,10 +198,6 @@ export function GamesPreview({ week, onGamesLocked, onCancel }: GamesPreviewProp
     return 'N/A';
   };
 
-  const formatMoneyline = (odds?: number) => {
-    if (odds === undefined) return 'N/A';
-    return odds > 0 ? `+${odds}` : `${odds}`;
-  };
 
   return (
     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -134,14 +214,17 @@ export function GamesPreview({ week, onGamesLocked, onCancel }: GamesPreviewProp
         {!previewGames && !loading && (
           <div className="text-center py-8">
             <p className="text-gray-500 dark:text-gray-400 mb-4">
-              Click the button below to fetch games from The Odds API for this week.
+              {hasExistingGames 
+                ? "No games found in database. Click the button below to fetch new games from The Odds API."
+                : "Click the button below to fetch games from The Odds API for this week."
+              }
             </p>
             <button
               onClick={fetchGamesPreview}
               disabled={loading}
               className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Fetch Games
+              Fetch New Games from API
             </button>
           </div>
         )}
@@ -186,20 +269,10 @@ export function GamesPreview({ week, onGamesLocked, onCancel }: GamesPreviewProp
                           {game.commence_time && formatDateTime(game.commence_time)}
                         </span>
                       </div>
-                      <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="text-sm">
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">Spread:</span>
-                          <div className="font-medium">{formatSpread(game.spread_home, game.spread_away)}</div>
-                        </div>
-                        <div>
-                          <span className="text-gray-500 dark:text-gray-400">O/U:</span>
-                          <div className="font-medium">{game.total_over_under || 'N/A'}</div>
-                        </div>
-                        <div>
-                          <span className="text-gray-500 dark:text-gray-400">Moneyline:</span>
-                          <div className="font-medium text-xs">
-                            {formatMoneyline(game.moneyline_away)} / {formatMoneyline(game.moneyline_home)}
-                          </div>
+                          <span className="font-medium ml-2">{formatSpread(game.spread_home, game.spread_away)}</span>
                         </div>
                       </div>
                     </div>
@@ -229,20 +302,10 @@ export function GamesPreview({ week, onGamesLocked, onCancel }: GamesPreviewProp
                           {game.commence_time && formatDateTime(game.commence_time)}
                         </span>
                       </div>
-                      <div className="grid grid-cols-3 gap-4 text-sm">
+                      <div className="text-sm">
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">Spread:</span>
-                          <div className="font-medium">{formatSpread(game.spread_home, game.spread_away)}</div>
-                        </div>
-                        <div>
-                          <span className="text-gray-500 dark:text-gray-400">O/U:</span>
-                          <div className="font-medium">{game.total_over_under || 'N/A'}</div>
-                        </div>
-                        <div>
-                          <span className="text-gray-500 dark:text-gray-400">Moneyline:</span>
-                          <div className="font-medium text-xs">
-                            {formatMoneyline(game.moneyline_away)} / {formatMoneyline(game.moneyline_home)}
-                          </div>
+                          <span className="font-medium ml-2">{formatSpread(game.spread_home, game.spread_away)}</span>
                         </div>
                       </div>
                     </div>
@@ -267,15 +330,26 @@ export function GamesPreview({ week, onGamesLocked, onCancel }: GamesPreviewProp
                   disabled={loading}
                   className="px-4 py-2 text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/50 hover:bg-blue-100 dark:hover:bg-blue-900/70 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Refresh Games
+                  {hasExistingGames ? 'Fetch New Games from API' : 'Refresh Games'}
                 </button>
-                <button
-                  onClick={lockWeekWithGames}
-                  disabled={isLocking}
-                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isLocking ? 'Locking...' : 'Lock Week with Games'}
-                </button>
+                {!hasExistingGames && (
+                  <button
+                    onClick={saveGamesToWeek}
+                    disabled={isSaving}
+                    className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSaving ? 'Saving...' : 'Save Games'}
+                  </button>
+                )}
+                {hasExistingGames && (
+                  <button
+                    onClick={deleteExistingGames}
+                    disabled={isSaving}
+                    className="px-4 py-2 text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/50 hover:bg-red-100 dark:hover:bg-red-900/70 rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSaving ? 'Deleting...' : 'Delete Games'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

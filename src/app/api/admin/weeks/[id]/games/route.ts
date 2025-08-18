@@ -97,12 +97,6 @@ export async function POST(
         );
       }
 
-      if (week.is_locked) {
-        return NextResponse.json(
-          { success: false, error: 'Week is already locked' },
-          { status: 400 }
-        );
-      }
 
       // Fetch games from Odds API
       const gamesData = await oddsApiService.getAllFootballGames(
@@ -124,30 +118,16 @@ export async function POST(
 
       return NextResponse.json(response);
 
-    } else if (action === 'lock') {
-      // Lock the week and save the games
-      const { nflGames, collegeGames, lockedBy } = body;
+    } else if (action === 'save') {
+      // Save the games to the week
+      const { nflGames, collegeGames } = body;
 
-      if (!lockedBy) {
-        return NextResponse.json(
-          { success: false, error: 'Admin identifier required for locking' },
-          { status: 400 }
-        );
-      }
-
-      // Check if week exists and is not locked
+      // Check if week exists
       const week = await WeekRepository.findById(weekId);
       if (!week) {
         return NextResponse.json(
           { success: false, error: 'Week not found' },
           { status: 404 }
-        );
-      }
-
-      if (week.is_locked) {
-        return NextResponse.json(
-          { success: false, error: 'Week is already locked' },
-          { status: 400 }
         );
       }
 
@@ -157,20 +137,17 @@ export async function POST(
       const allGames = [...(nflGames || []), ...(collegeGames || [])];
       const savedGames = await createGamesForWeek(allGames);
 
-      // Lock the week
-      const lockedWeek = await WeekRepository.lockWeek(weekId, lockedBy);
-
-      const response: ApiResponse<{ week: typeof lockedWeek; games: typeof savedGames }> = {
+      const response: ApiResponse<{ games: typeof savedGames }> = {
         success: true,
-        data: { week: lockedWeek, games: savedGames },
-        message: `Week locked with ${savedGames.length} games`
+        data: { games: savedGames },
+        message: `Saved ${savedGames.length} games to week`
       };
 
       return NextResponse.json(response);
 
     } else {
       return NextResponse.json(
-        { success: false, error: 'Invalid action. Use "preview" or "lock"' },
+        { success: false, error: 'Invalid action. Use "preview" or "save"' },
         { status: 400 }
       );
     }
@@ -180,6 +157,61 @@ export async function POST(
     const response: ApiResponse<never> = {
       success: false,
       error: 'Failed to process games operation',
+    };
+    return NextResponse.json(response, { status: 500 });
+  }
+}
+
+// DELETE /api/admin/weeks/[id]/games - Delete all games for a week
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    // Validate admin auth
+    const adminCheck = await requireAdmin();
+    const authResult = await adminCheck(request);
+    if (!authResult.isAuthorized) {
+      return NextResponse.json(
+        { success: false, error: authResult.error },
+        { status: 401 }
+      );
+    }
+
+    const { id } = await params;
+    const weekId = parseInt(id);
+    if (isNaN(weekId)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid week ID' },
+        { status: 400 }
+      );
+    }
+
+    // Check if week exists
+    const week = await WeekRepository.findById(weekId);
+    if (!week) {
+      return NextResponse.json(
+        { success: false, error: 'Week not found' },
+        { status: 404 }
+      );
+    }
+
+    // Delete all games for this week
+    await deleteGamesByWeekId(weekId);
+
+    const response: ApiResponse<{ deleted: boolean }> = {
+      success: true,
+      data: { deleted: true },
+      message: 'All games deleted for this week'
+    };
+
+    return NextResponse.json(response);
+
+  } catch (error) {
+    console.error('Error deleting games for week:', error);
+    const response: ApiResponse<never> = {
+      success: false,
+      error: 'Failed to delete games',
     };
     return NextResponse.json(response, { status: 500 });
   }
