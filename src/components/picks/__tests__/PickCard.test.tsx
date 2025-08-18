@@ -1,0 +1,221 @@
+import { render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { PickCard } from '../PickCard';
+import { Game } from '../../../types/game';
+import { Pick } from '../../../types/pick';
+
+describe('PickCard', () => {
+  const mockGame: Game = {
+    id: 1,
+    week_id: 1,
+    sport: 'americanfootball_nfl',
+    external_id: 'game1',
+    home_team: 'Chiefs',
+    away_team: 'Bills',
+    commence_time: '2024-01-01T18:00:00Z',
+    spread_home: -3.5,
+    spread_away: 3.5,
+    total_over_under: 47.5,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+  };
+
+  const mockPick: Pick = {
+    id: 1,
+    user_id: 'user123',
+    game_id: 1,
+    pick_type: 'home_spread',
+    spread_value: -3.5,
+    submitted: false,
+    created_at: '2024-01-01T00:00:00Z',
+    updated_at: '2024-01-01T00:00:00Z',
+  };
+
+  const mockProps = {
+    game: mockGame,
+    onPickChange: jest.fn(),
+    onPickDelete: jest.fn(),
+    disabled: false,
+    submitted: false,
+  };
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should render game information correctly', () => {
+    render(<PickCard {...mockProps} />);
+
+    expect(screen.getByText('NFL')).toBeInTheDocument();
+    expect(screen.getByText('Bills @ Chiefs')).toBeInTheDocument();
+    expect(screen.getByText('O/U: 47.5')).toBeInTheDocument();
+  });
+
+  it('should show pick options with spreads', () => {
+    render(<PickCard {...mockProps} />);
+
+    expect(screen.getByText('Chiefs -3.5')).toBeInTheDocument();
+    expect(screen.getByText('Bills +3.5')).toBeInTheDocument();
+    expect(screen.getByText('Make your pick:')).toBeInTheDocument();
+  });
+
+  it('should handle pick selection', async () => {
+    const user = userEvent.setup();
+    const onPickChange = jest.fn().mockResolvedValue(undefined);
+    
+    render(<PickCard {...mockProps} onPickChange={onPickChange} />);
+
+    const homeSpreadOption = screen.getByLabelText('Chiefs -3.5');
+    await user.click(homeSpreadOption);
+
+    expect(onPickChange).toHaveBeenCalledWith(1, 'home_spread', -3.5);
+  });
+
+  it('should show current pick when user has made a pick', () => {
+    render(<PickCard {...mockProps} currentPick={mockPick} />);
+
+    expect(screen.getByText('Current pick:')).toBeInTheDocument();
+    expect(screen.getByText('Chiefs -3.5')).toBeInTheDocument();
+    expect(screen.getByText('Remove')).toBeInTheDocument();
+  });
+
+  it('should handle pick deletion', async () => {
+    const user = userEvent.setup();
+    const onPickDelete = jest.fn().mockResolvedValue(undefined);
+    
+    render(<PickCard {...mockProps} currentPick={mockPick} onPickDelete={onPickDelete} />);
+
+    const removeButton = screen.getByText('Remove');
+    await user.click(removeButton);
+
+    expect(onPickDelete).toHaveBeenCalledWith(1);
+  });
+
+  it('should disable picks when game has started', () => {
+    const pastGame = {
+      ...mockGame,
+      commence_time: '2020-01-01T18:00:00Z', // Past date
+    };
+
+    render(<PickCard {...mockProps} game={pastGame} />);
+
+    expect(screen.getByText('Started')).toBeInTheDocument();
+    expect(screen.getByText('This game has already started')).toBeInTheDocument();
+    
+    const radioButtons = screen.getAllByRole('radio');
+    radioButtons.forEach(button => {
+      expect(button).toBeDisabled();
+    });
+  });
+
+  it('should disable picks when submitted', () => {
+    render(<PickCard {...mockProps} submitted={true} />);
+
+    expect(screen.getByText('Submitted')).toBeInTheDocument();
+    expect(screen.getByText('Picks have been submitted')).toBeInTheDocument();
+    
+    const radioButtons = screen.getAllByRole('radio');
+    radioButtons.forEach(button => {
+      expect(button).toBeDisabled();
+    });
+  });
+
+  it('should disable picks when disabled prop is true', () => {
+    render(<PickCard {...mockProps} disabled={true} />);
+
+    expect(screen.getByText('Picking is currently disabled')).toBeInTheDocument();
+    
+    const radioButtons = screen.getAllByRole('radio');
+    radioButtons.forEach(button => {
+      expect(button).toBeDisabled();
+    });
+  });
+
+  it('should show no spread available when game has no spreads', () => {
+    const gameWithoutSpreads = {
+      ...mockGame,
+      spread_home: undefined,
+      spread_away: undefined,
+    };
+
+    render(<PickCard {...mockProps} game={gameWithoutSpreads} />);
+
+    expect(screen.getByText('No spread available for this game')).toBeInTheDocument();
+  });
+
+  it('should show loading state during pick save', async () => {
+    const user = userEvent.setup();
+    const onPickChange = jest.fn().mockImplementation(() => new Promise(resolve => setTimeout(resolve, 100)));
+    
+    render(<PickCard {...mockProps} onPickChange={onPickChange} />);
+
+    const homeSpreadOption = screen.getByLabelText('Chiefs -3.5');
+    await user.click(homeSpreadOption);
+
+    expect(screen.getByText('Saving...')).toBeInTheDocument();
+    
+    await waitFor(() => {
+      expect(screen.queryByText('Saving...')).not.toBeInTheDocument();
+    });
+  });
+
+  it('should show error message when pick save fails', async () => {
+    const user = userEvent.setup();
+    const onPickChange = jest.fn().mockRejectedValue(new Error('Save failed'));
+    
+    render(<PickCard {...mockProps} onPickChange={onPickChange} />);
+
+    const homeSpreadOption = screen.getByLabelText('Chiefs -3.5');
+    await user.click(homeSpreadOption);
+
+    await waitFor(() => {
+      expect(screen.getByText('Save failed')).toBeInTheDocument();
+    });
+  });
+
+  it('should format game time correctly', () => {
+    render(<PickCard {...mockProps} />);
+
+    // Should show formatted date (format may vary by locale)
+    expect(screen.getByText(/Mon, Jan 1/)).toBeInTheDocument();
+  });
+
+  it('should show correct sport display name', () => {
+    const collegeGame = {
+      ...mockGame,
+      sport: 'americanfootball_ncaaf' as const,
+    };
+
+    render(<PickCard {...mockProps} game={collegeGame} />);
+
+    expect(screen.getByText('College')).toBeInTheDocument();
+  });
+
+  it('should handle positive spreads correctly', () => {
+    const gameWithPositiveHomeSpread = {
+      ...mockGame,
+      spread_home: 3.5,
+    };
+
+    render(<PickCard {...mockProps} game={gameWithPositiveHomeSpread} />);
+
+    expect(screen.getByText('Chiefs +3.5')).toBeInTheDocument();
+    expect(screen.getByText('Bills -3.5')).toBeInTheDocument();
+  });
+
+  it('should not show remove button when onPickDelete is not provided', () => {
+    render(<PickCard {...mockProps} currentPick={mockPick} onPickDelete={undefined} />);
+
+    expect(screen.queryByText('Remove')).not.toBeInTheDocument();
+  });
+
+  it('should show correct pick selection when current pick exists', () => {
+    render(<PickCard {...mockProps} currentPick={mockPick} />);
+
+    const homeSpreadRadio = screen.getByLabelText('Chiefs -3.5') as HTMLInputElement;
+    const awaySpreadRadio = screen.getByLabelText('Bills +3.5') as HTMLInputElement;
+
+    expect(homeSpreadRadio.checked).toBe(true);
+    expect(awaySpreadRadio.checked).toBe(false);
+  });
+});
