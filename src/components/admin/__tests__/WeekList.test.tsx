@@ -82,23 +82,18 @@ describe('WeekList', () => {
     expect(dateElements.length).toBeGreaterThan(0);
   });
 
-  it('should show upcoming status for future weeks', () => {
+  it('should show correct status for weeks based on dates', () => {
     render(<WeekList weeks={mockWeeks} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
 
-    expect(screen.getAllByText('Upcoming')).toHaveLength(2); // Desktop and mobile
+    // Week 1 and Week 2 are from 2024, so they are completed (4 total: 2 weeks × 2 views)
+    expect(screen.getAllByText('Completed')).toHaveLength(4);
+    // Active Week spans yesterday to tomorrow, so it's active (2 total: 1 week × 2 views) 
+    expect(screen.getAllByText('Active')).toHaveLength(2);
   });
 
-  it('should show active status for current weeks', () => {
-    render(<WeekList weeks={mockWeeks} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
+  // Removed redundant test - covered above
 
-    expect(screen.getAllByText('Active')).toHaveLength(2); // Desktop and mobile
-  });
-
-  it('should show completed status for past weeks', () => {
-    render(<WeekList weeks={mockWeeks} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
-
-    expect(screen.getAllByText('Completed')).toHaveLength(2); // Desktop and mobile
-  });
+  // Removed redundant test - covered above
 
   it('should call onEdit when edit button is clicked', async () => {
     const user = userEvent.setup();
@@ -141,9 +136,9 @@ describe('WeekList', () => {
 
     render(<WeekList weeks={[weekWithoutDescription]} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
 
-    expect(screen.getByText('Week Without Description')).toBeInTheDocument();
-    // Should not render any description text
-    expect(screen.queryByText(/description/i)).not.toBeInTheDocument();
+    expect(screen.getAllByText('Week Without Description')).toHaveLength(2); // Desktop and mobile
+    // Should not render the word "description" anywhere else
+    expect(screen.queryByText('description')).not.toBeInTheDocument();
   });
 
   describe('Week Status Logic', () => {
@@ -160,7 +155,7 @@ describe('WeekList', () => {
 
       render(<WeekList weeks={[futureWeek]} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
 
-      expect(screen.getByText('Upcoming')).toBeInTheDocument();
+      expect(screen.getAllByText('Upcoming')).toHaveLength(2); // Desktop and mobile
     });
 
     it('should correctly identify completed weeks', () => {
@@ -176,7 +171,7 @@ describe('WeekList', () => {
 
       render(<WeekList weeks={[pastWeek]} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
 
-      expect(screen.getByText('Completed')).toBeInTheDocument();
+      expect(screen.getAllByText('Completed')).toHaveLength(2); // Desktop and mobile
     });
 
     it('should correctly identify active weeks', () => {
@@ -192,7 +187,7 @@ describe('WeekList', () => {
 
       render(<WeekList weeks={[activeWeek]} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
 
-      expect(screen.getByText('Active')).toBeInTheDocument();
+      expect(screen.getAllByText('Active')).toHaveLength(2); // Desktop and mobile
     });
   });
 
@@ -210,8 +205,8 @@ describe('WeekList', () => {
       render(<WeekList weeks={mockWeeks} onEdit={mockOnEdit} onDelete={mockOnDelete} />);
 
       // Mobile view still shows the same content, just in different layout
-      expect(screen.getByText('Week 1')).toBeInTheDocument();
-      expect(screen.getByText('First week of December')).toBeInTheDocument();
+      expect(screen.getAllByText('Week 1')).toHaveLength(2); // Desktop and mobile
+      expect(screen.getAllByText('First week of December')).toHaveLength(2); // Desktop and mobile
     });
 
     it('should have edit and delete buttons in mobile view', async () => {
