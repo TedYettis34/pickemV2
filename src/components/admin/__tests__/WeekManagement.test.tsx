@@ -1,4 +1,4 @@
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WeekManagement } from '../WeekManagement';
 
@@ -9,7 +9,12 @@ jest.mock('../../../hooks/useWeeks', () => ({
 
 // Mock the WeekForm component
 jest.mock('../WeekForm', () => ({
-  WeekForm: ({ onSubmit, isSubmitting, submitLabel, initialData }: any) => (
+  WeekForm: ({ onSubmit, isSubmitting, submitLabel, initialData }: {
+    onSubmit: (data: { name: string; start_date: string; end_date: string; description: string }) => void;
+    isSubmitting: boolean;
+    submitLabel: string;
+    initialData?: { name: string; start_date: string; end_date: string; description: string };
+  }) => (
     <div data-testid="week-form">
       <form onSubmit={(e) => {
         e.preventDefault();
@@ -31,9 +36,13 @@ jest.mock('../WeekForm', () => ({
 
 // Mock the WeekList component
 jest.mock('../WeekList', () => ({
-  WeekList: ({ weeks, onEdit, onDelete }: any) => (
+  WeekList: ({ weeks, onEdit, onDelete }: {
+    weeks: Array<{ id: number; name: string }>;
+    onEdit: (week: { id: number; name: string }) => void;
+    onDelete: (week: { id: number; name: string }) => void;
+  }) => (
     <div data-testid="week-list">
-      {weeks.map((week: any) => (
+      {weeks.map((week) => (
         <div key={week.id} data-testid={`week-${week.id}`}>
           <span>{week.name}</span>
           <button onClick={() => onEdit(week)}>Edit</button>

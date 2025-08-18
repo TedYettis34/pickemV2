@@ -15,7 +15,7 @@ jest.mock('../../hooks/useAdminAuth', () => ({
 
 // Mock the components
 jest.mock('../../components/auth/AuthForm', () => {
-  return function MockAuthForm({ onAuthSuccess }: any) {
+  return function MockAuthForm({ onAuthSuccess }: { onAuthSuccess: () => void }) {
     return (
       <div data-testid="auth-form">
         <button onClick={() => onAuthSuccess()}>Login</button>
@@ -25,7 +25,7 @@ jest.mock('../../components/auth/AuthForm', () => {
 });
 
 jest.mock('../../components/admin/AdminDashboard', () => {
-  return function MockAdminDashboard({ onBackToDashboard }: any) {
+  return function MockAdminDashboard({ onBackToDashboard }: { onBackToDashboard?: () => void }) {
     return (
       <div data-testid="admin-dashboard">
         <button onClick={onBackToDashboard}>Back to Dashboard</button>

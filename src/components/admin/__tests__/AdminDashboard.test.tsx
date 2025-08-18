@@ -30,10 +30,10 @@ describe('AdminDashboard', () => {
     jest.clearAllMocks();
     mockReload.mockClear();
     // Mock window.location.reload
-    delete (window as any).location;
+    delete (window as unknown as { location?: unknown }).location;
     window.location = {
       reload: mockReload,
-    } as any;
+    } as Location;
   });
 
   it('should render loading state when admin auth is loading', () => {

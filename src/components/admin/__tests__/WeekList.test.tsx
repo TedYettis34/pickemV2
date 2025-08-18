@@ -22,7 +22,7 @@ describe('WeekList', () => {
       name: 'Week 2',
       start_date: '2024-01-01T00:00:00Z',
       end_date: '2024-01-07T23:59:59Z',
-      description: null as any, // Test without description
+      description: null as string | undefined, // Test without description
       created_at: '2024-01-02T00:00:00Z',
       updated_at: '2024-01-02T00:00:00Z',
     },
