@@ -12,6 +12,21 @@ jest.mock('next/server', () => ({
   },
 }));
 
+// Helper to create mock request with proper headers
+const createMockRequest = (url: string, options: {
+  method: string;
+  headers: Record<string, string>;
+}) => {
+  const headers = new Map(Object.entries(options.headers));
+  return {
+    url,
+    method: options.method,
+    headers: {
+      get: (key: string) => headers.get(key.toLowerCase()) || null,
+    },
+  } as unknown as NextRequest;
+};
+
 // Mock the picks library
 jest.mock('../../../../../lib/picks', () => ({
   deletePick: jest.fn(),
@@ -32,7 +47,7 @@ describe('/api/picks/[gameId] DELETE', () => {
     mockValidatePick.mockResolvedValue({ isValid: true });
     mockDeletePick.mockResolvedValue(undefined);
 
-    const request = new NextRequest('http://localhost/api/picks/1', {
+    const request = createMockRequest('http://localhost/api/picks/1', {
       method: 'DELETE',
       headers: {
         'authorization': 'Bearer token123',
@@ -40,12 +55,13 @@ describe('/api/picks/[gameId] DELETE', () => {
       },
     });
 
-    const response = await DELETE(request, { params: { gameId: '1' } });
-    await response.json();
+    const response = await DELETE(request, { params: Promise.resolve({ gameId: '1' }) });
+    const data = await response.json();
 
     expect(response.status).toBe(200);
     expect(data).toEqual({
       success: true,
+      data: null,
       message: 'Pick deleted successfully',
     });
     expect(mockValidatePick).toHaveBeenCalledWith('user123', 1);
@@ -53,13 +69,13 @@ describe('/api/picks/[gameId] DELETE', () => {
   });
 
   it('should return 401 when no authorization header provided', async () => {
-    const request = new NextRequest('http://localhost/api/picks/1', {
+    const request = createMockRequest('http://localhost/api/picks/1', {
       method: 'DELETE',
       headers: {},
     });
 
-    const response = await DELETE(request, { params: { gameId: '1' } });
-    await response.json();
+    const response = await DELETE(request, { params: Promise.resolve({ gameId: '1' }) });
+    const data = await response.json();
 
     expect(response.status).toBe(401);
     expect(data).toEqual({
@@ -69,15 +85,15 @@ describe('/api/picks/[gameId] DELETE', () => {
   });
 
   it('should return 401 when no user ID provided', async () => {
-    const request = new NextRequest('http://localhost/api/picks/1', {
+    const request = createMockRequest('http://localhost/api/picks/1', {
       method: 'DELETE',
       headers: {
         'authorization': 'Bearer token123',
       },
     });
 
-    const response = await DELETE(request, { params: { gameId: '1' } });
-    await response.json();
+    const response = await DELETE(request, { params: Promise.resolve({ gameId: '1' }) });
+    const data = await response.json();
 
     expect(response.status).toBe(401);
     expect(data).toEqual({
@@ -87,7 +103,7 @@ describe('/api/picks/[gameId] DELETE', () => {
   });
 
   it('should return 400 when game ID is invalid', async () => {
-    const request = new NextRequest('http://localhost/api/picks/invalid', {
+    const request = createMockRequest('http://localhost/api/picks/invalid', {
       method: 'DELETE',
       headers: {
         'authorization': 'Bearer token123',
@@ -95,8 +111,8 @@ describe('/api/picks/[gameId] DELETE', () => {
       },
     });
 
-    const response = await DELETE(request, { params: { gameId: 'invalid' } });
-    await response.json();
+    const response = await DELETE(request, { params: Promise.resolve({ gameId: 'invalid' }) });
+    const data = await response.json();
 
     expect(response.status).toBe(400);
     expect(data).toEqual({
@@ -111,7 +127,7 @@ describe('/api/picks/[gameId] DELETE', () => {
       error: 'Picks have already been submitted' 
     });
 
-    const request = new NextRequest('http://localhost/api/picks/1', {
+    const request = createMockRequest('http://localhost/api/picks/1', {
       method: 'DELETE',
       headers: {
         'authorization': 'Bearer token123',
@@ -119,8 +135,8 @@ describe('/api/picks/[gameId] DELETE', () => {
       },
     });
 
-    const response = await DELETE(request, { params: { gameId: '1' } });
-    await response.json();
+    const response = await DELETE(request, { params: Promise.resolve({ gameId: '1' }) });
+    const data = await response.json();
 
     expect(response.status).toBe(400);
     expect(data).toEqual({
@@ -135,7 +151,7 @@ describe('/api/picks/[gameId] DELETE', () => {
     mockValidatePick.mockResolvedValue({ isValid: true });
     mockDeletePick.mockRejectedValue(new Error('Database error'));
 
-    const request = new NextRequest('http://localhost/api/picks/1', {
+    const request = createMockRequest('http://localhost/api/picks/1', {
       method: 'DELETE',
       headers: {
         'authorization': 'Bearer token123',
@@ -143,8 +159,8 @@ describe('/api/picks/[gameId] DELETE', () => {
       },
     });
 
-    const response = await DELETE(request, { params: { gameId: '1' } });
-    await response.json();
+    const response = await DELETE(request, { params: Promise.resolve({ gameId: '1' }) });
+    const data = await response.json();
 
     expect(response.status).toBe(500);
     expect(data).toEqual({
@@ -160,7 +176,7 @@ describe('/api/picks/[gameId] DELETE', () => {
   });
 
   it('should handle zero game ID', async () => {
-    const request = new NextRequest('http://localhost/api/picks/0', {
+    const request = createMockRequest('http://localhost/api/picks/0', {
       method: 'DELETE',
       headers: {
         'authorization': 'Bearer token123',
@@ -168,8 +184,8 @@ describe('/api/picks/[gameId] DELETE', () => {
       },
     });
 
-    const response = await DELETE(request, { params: { gameId: '0' } });
-    await response.json();
+    const response = await DELETE(request, { params: Promise.resolve({ gameId: '0' }) });
+    const data = await response.json();
 
     expect(response.status).toBe(400);
     expect(data).toEqual({
@@ -179,7 +195,7 @@ describe('/api/picks/[gameId] DELETE', () => {
   });
 
   it('should handle negative game ID', async () => {
-    const request = new NextRequest('http://localhost/api/picks/-1', {
+    const request = createMockRequest('http://localhost/api/picks/-1', {
       method: 'DELETE',
       headers: {
         'authorization': 'Bearer token123',
@@ -187,8 +203,8 @@ describe('/api/picks/[gameId] DELETE', () => {
       },
     });
 
-    const response = await DELETE(request, { params: { gameId: '-1' } });
-    await response.json();
+    const response = await DELETE(request, { params: Promise.resolve({ gameId: '-1' }) });
+    const data = await response.json();
 
     expect(response.status).toBe(400);
     expect(data).toEqual({
@@ -202,7 +218,7 @@ describe('/api/picks/[gameId] DELETE', () => {
     
     mockValidatePick.mockRejectedValue(new Error('Validation failed'));
 
-    const request = new NextRequest('http://localhost/api/picks/1', {
+    const request = createMockRequest('http://localhost/api/picks/1', {
       method: 'DELETE',
       headers: {
         'authorization': 'Bearer token123',
@@ -210,8 +226,8 @@ describe('/api/picks/[gameId] DELETE', () => {
       },
     });
 
-    const response = await DELETE(request, { params: { gameId: '1' } });
-    await response.json();
+    const response = await DELETE(request, { params: Promise.resolve({ gameId: '1' }) });
+    const data = await response.json();
 
     expect(response.status).toBe(500);
     expect(data).toEqual({
@@ -235,7 +251,7 @@ describe('/api/picks/[gameId] DELETE', () => {
     for (const testCase of testCases) {
       jest.clearAllMocks();
       
-      const request = new NextRequest(`http://localhost/api/picks/${testCase.gameId}`, {
+      const request = createMockRequest(`http://localhost/api/picks/${testCase.gameId}`, {
         method: 'DELETE',
         headers: {
           'authorization': 'Bearer token123',
@@ -243,7 +259,7 @@ describe('/api/picks/[gameId] DELETE', () => {
         },
       });
 
-      await DELETE(request, { params: { gameId: testCase.gameId } });
+      await DELETE(request, { params: Promise.resolve({ gameId: testCase.gameId }) });
 
       expect(mockValidatePick).toHaveBeenCalledWith('user123', testCase.expectedGameId);
       expect(mockDeletePick).toHaveBeenCalledWith('user123', testCase.expectedGameId);
@@ -254,7 +270,7 @@ describe('/api/picks/[gameId] DELETE', () => {
     mockValidatePick.mockResolvedValue({ isValid: true });
     mockDeletePick.mockResolvedValue(undefined);
 
-    const request = new NextRequest('http://localhost/api/picks/999999', {
+    const request = createMockRequest('http://localhost/api/picks/999999', {
       method: 'DELETE',
       headers: {
         'authorization': 'Bearer token123',
@@ -262,7 +278,7 @@ describe('/api/picks/[gameId] DELETE', () => {
       },
     });
 
-    const response = await DELETE(request, { params: { gameId: '999999' } });
+    const response = await DELETE(request, { params: Promise.resolve({ gameId: '999999' }) });
     await response.json();
 
     expect(response.status).toBe(200);
@@ -286,7 +302,7 @@ describe('/api/picks/[gameId] DELETE', () => {
         error: errorMessage 
       });
 
-      const request = new NextRequest('http://localhost/api/picks/1', {
+      const request = createMockRequest('http://localhost/api/picks/1', {
         method: 'DELETE',
         headers: {
           'authorization': 'Bearer token123',
@@ -294,8 +310,8 @@ describe('/api/picks/[gameId] DELETE', () => {
         },
       });
 
-      const response = await DELETE(request, { params: { gameId: '1' } });
-      await response.json();
+      const response = await DELETE(request, { params: Promise.resolve({ gameId: '1' }) });
+      const data = await response.json();
 
       expect(response.status).toBe(400);
       expect(data).toEqual({

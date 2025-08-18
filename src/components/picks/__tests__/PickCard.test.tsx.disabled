@@ -109,7 +109,13 @@ describe('PickCard', () => {
   });
 
   it('should disable picks when submitted', () => {
-    render(<PickCard {...mockProps} submitted={true} />);
+    // Use a future game time so the game hasn't started
+    const futureGame: Game = {
+      ...mockGame,
+      commence_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours from now
+    };
+
+    render(<PickCard {...mockProps} game={futureGame} submitted={true} />);
 
     expect(screen.getByText('Submitted')).toBeInTheDocument();
     expect(screen.getByText('Picks have been submitted')).toBeInTheDocument();

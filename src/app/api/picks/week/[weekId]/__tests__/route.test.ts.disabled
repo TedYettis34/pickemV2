@@ -12,6 +12,11 @@ jest.mock('next/server', () => ({
   },
 }));
 
+// Mock database library first to prevent pg loading issues
+jest.mock('../../../../../lib/database', () => ({
+  query: jest.fn(),
+}));
+
 // Mock the picks library
 jest.mock('../../../../../lib/picks', () => ({
   getUserPicksForWeek: jest.fn(),
@@ -22,6 +27,25 @@ import { getUserPicksForWeek, getPicksSummaryForWeek } from '../../../../../lib/
 
 const mockGetUserPicksForWeek = getUserPicksForWeek as jest.MockedFunction<typeof getUserPicksForWeek>;
 const mockGetPicksSummaryForWeek = getPicksSummaryForWeek as jest.MockedFunction<typeof getPicksSummaryForWeek>;
+
+// Helper to create mock request with proper headers and URL
+const createMockRequest = (url: string, options: {
+  method: string;
+  headers: Record<string, string>;
+}) => {
+  const headers = new Map(Object.entries(options.headers));
+  const parsedUrl = new URL(url);
+  return {
+    url,
+    method: options.method,
+    headers: {
+      get: (key: string) => headers.get(key.toLowerCase()) || null,
+    },
+    nextUrl: {
+      searchParams: parsedUrl.searchParams,
+    },
+  } as unknown as NextRequest;
+};
 
 describe('/api/picks/week/[weekId] GET', () => {
   beforeEach(() => {
@@ -62,7 +86,7 @@ describe('/api/picks/week/[weekId] GET', () => {
 
     mockGetUserPicksForWeek.mockResolvedValue(mockPicks);
 
-    const request = new NextRequest('http://localhost/api/picks/week/1', {
+    const request = createMockRequest('http://localhost/api/picks/week/1', {
       method: 'GET',
       headers: {
         'authorization': 'Bearer token123',
@@ -70,7 +94,7 @@ describe('/api/picks/week/[weekId] GET', () => {
       },
     });
 
-    const response = await GET(request, { params: { weekId: '1' } });
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -122,7 +146,7 @@ describe('/api/picks/week/[weekId] GET', () => {
 
     mockGetPicksSummaryForWeek.mockResolvedValue(mockSummary);
 
-    const request = new NextRequest('http://localhost/api/picks/week/1?summary=true', {
+    const request = createMockRequest('http://localhost/api/picks/week/1?summary=true', {
       method: 'GET',
       headers: {
         'authorization': 'Bearer token123',
@@ -130,7 +154,7 @@ describe('/api/picks/week/[weekId] GET', () => {
       },
     });
 
-    const response = await GET(request, { params: { weekId: '1' } });
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -142,12 +166,12 @@ describe('/api/picks/week/[weekId] GET', () => {
   });
 
   it('should return 401 when no authorization header provided', async () => {
-    const request = new NextRequest('http://localhost/api/picks/week/1', {
+    const request = createMockRequest('http://localhost/api/picks/week/1', {
       method: 'GET',
       headers: {},
     });
 
-    const response = await GET(request, { params: { weekId: '1' } });
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
     const data = await response.json();
 
     expect(response.status).toBe(401);
@@ -158,14 +182,14 @@ describe('/api/picks/week/[weekId] GET', () => {
   });
 
   it('should return 401 when no user ID provided', async () => {
-    const request = new NextRequest('http://localhost/api/picks/week/1', {
+    const request = createMockRequest('http://localhost/api/picks/week/1', {
       method: 'GET',
       headers: {
         'authorization': 'Bearer token123',
       },
     });
 
-    const response = await GET(request, { params: { weekId: '1' } });
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
     const data = await response.json();
 
     expect(response.status).toBe(401);
@@ -176,7 +200,7 @@ describe('/api/picks/week/[weekId] GET', () => {
   });
 
   it('should return 400 when week ID is invalid', async () => {
-    const request = new NextRequest('http://localhost/api/picks/week/invalid', {
+    const request = createMockRequest('http://localhost/api/picks/week/invalid', {
       method: 'GET',
       headers: {
         'authorization': 'Bearer token123',
@@ -184,7 +208,7 @@ describe('/api/picks/week/[weekId] GET', () => {
       },
     });
 
-    const response = await GET(request, { params: { weekId: 'invalid' } });
+    const response = await GET(request, { params: Promise.resolve({ weekId: 'invalid' }) });
     const data = await response.json();
 
     expect(response.status).toBe(400);
@@ -197,7 +221,7 @@ describe('/api/picks/week/[weekId] GET', () => {
   it('should return empty array when no picks exist', async () => {
     mockGetUserPicksForWeek.mockResolvedValue([]);
 
-    const request = new NextRequest('http://localhost/api/picks/week/1', {
+    const request = createMockRequest('http://localhost/api/picks/week/1', {
       method: 'GET',
       headers: {
         'authorization': 'Bearer token123',
@@ -205,7 +229,7 @@ describe('/api/picks/week/[weekId] GET', () => {
       },
     });
 
-    const response = await GET(request, { params: { weekId: '1' } });
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -220,7 +244,7 @@ describe('/api/picks/week/[weekId] GET', () => {
     
     mockGetUserPicksForWeek.mockRejectedValue(new Error('Database error'));
 
-    const request = new NextRequest('http://localhost/api/picks/week/1', {
+    const request = createMockRequest('http://localhost/api/picks/week/1', {
       method: 'GET',
       headers: {
         'authorization': 'Bearer token123',
@@ -228,7 +252,7 @@ describe('/api/picks/week/[weekId] GET', () => {
       },
     });
 
-    const response = await GET(request, { params: { weekId: '1' } });
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -249,7 +273,7 @@ describe('/api/picks/week/[weekId] GET', () => {
     
     mockGetPicksSummaryForWeek.mockRejectedValue(new Error('Summary error'));
 
-    const request = new NextRequest('http://localhost/api/picks/week/1?summary=true', {
+    const request = createMockRequest('http://localhost/api/picks/week/1?summary=true', {
       method: 'GET',
       headers: {
         'authorization': 'Bearer token123',
@@ -257,7 +281,7 @@ describe('/api/picks/week/[weekId] GET', () => {
       },
     });
 
-    const response = await GET(request, { params: { weekId: '1' } });
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
     const data = await response.json();
 
     expect(response.status).toBe(500);
@@ -283,7 +307,7 @@ describe('/api/picks/week/[weekId] GET', () => {
     ];
 
     for (const testCase of testCases) {
-      const request = new NextRequest(`http://localhost/api/picks/week/${testCase.weekId}`, {
+      const request = createMockRequest(`http://localhost/api/picks/week/${testCase.weekId}`, {
         method: 'GET',
         headers: {
           'authorization': 'Bearer token123',
@@ -291,14 +315,14 @@ describe('/api/picks/week/[weekId] GET', () => {
         },
       });
 
-      await GET(request, { params: { weekId: testCase.weekId } });
+      await GET(request, { params: Promise.resolve({ weekId: testCase.weekId }) });
 
       expect(mockGetUserPicksForWeek).toHaveBeenCalledWith('user123', testCase.expectedWeekId);
     }
   });
 
   it('should handle zero week ID', async () => {
-    const request = new NextRequest('http://localhost/api/picks/week/0', {
+    const request = createMockRequest('http://localhost/api/picks/week/0', {
       method: 'GET',
       headers: {
         'authorization': 'Bearer token123',
@@ -306,7 +330,7 @@ describe('/api/picks/week/[weekId] GET', () => {
       },
     });
 
-    const response = await GET(request, { params: { weekId: '0' } });
+    const response = await GET(request, { params: Promise.resolve({ weekId: '0' }) });
     const data = await response.json();
 
     expect(response.status).toBe(400);
@@ -317,7 +341,7 @@ describe('/api/picks/week/[weekId] GET', () => {
   });
 
   it('should handle negative week ID', async () => {
-    const request = new NextRequest('http://localhost/api/picks/week/-1', {
+    const request = createMockRequest('http://localhost/api/picks/week/-1', {
       method: 'GET',
       headers: {
         'authorization': 'Bearer token123',
@@ -325,7 +349,7 @@ describe('/api/picks/week/[weekId] GET', () => {
       },
     });
 
-    const response = await GET(request, { params: { weekId: '-1' } });
+    const response = await GET(request, { params: Promise.resolve({ weekId: '-1' }) });
     const data = await response.json();
 
     expect(response.status).toBe(400);

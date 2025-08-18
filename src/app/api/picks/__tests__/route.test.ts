@@ -12,6 +12,23 @@ jest.mock('next/server', () => ({
   },
 }));
 
+// Helper to create mock request with proper headers
+const createMockRequest = (url: string, options: {
+  method: string;
+  headers: Record<string, string>;
+  body?: string;
+}) => {
+  const headers = new Map(Object.entries(options.headers));
+  return {
+    url,
+    method: options.method,
+    headers: {
+      get: (key: string) => headers.get(key.toLowerCase()) || null,
+    },
+    json: async () => options.body ? JSON.parse(options.body) : {},
+  } as unknown as NextRequest;
+};
+
 // Mock the picks library
 jest.mock('../../../../lib/picks', () => ({
   createOrUpdatePick: jest.fn(),
@@ -43,7 +60,7 @@ describe('/api/picks POST', () => {
     mockValidatePick.mockResolvedValue({ isValid: true });
     mockCreateOrUpdatePick.mockResolvedValue(mockPick);
 
-    const request = new NextRequest('http://localhost/api/picks', {
+    const request = createMockRequest('http://localhost/api/picks', {
       method: 'POST',
       headers: {
         'authorization': 'Bearer token123',
@@ -74,7 +91,7 @@ describe('/api/picks POST', () => {
   });
 
   it('should return 401 when no authorization header provided', async () => {
-    const request = new NextRequest('http://localhost/api/picks', {
+    const request = createMockRequest('http://localhost/api/picks', {
       method: 'POST',
       headers: {
         'content-type': 'application/json',
@@ -97,7 +114,7 @@ describe('/api/picks POST', () => {
   });
 
   it('should return 401 when no user ID provided', async () => {
-    const request = new NextRequest('http://localhost/api/picks', {
+    const request = createMockRequest('http://localhost/api/picks', {
       method: 'POST',
       headers: {
         'authorization': 'Bearer token123',
@@ -121,7 +138,7 @@ describe('/api/picks POST', () => {
   });
 
   it('should return 400 when required fields are missing', async () => {
-    const request = new NextRequest('http://localhost/api/picks', {
+    const request = createMockRequest('http://localhost/api/picks', {
       method: 'POST',
       headers: {
         'authorization': 'Bearer token123',
@@ -145,7 +162,7 @@ describe('/api/picks POST', () => {
   });
 
   it('should return 400 when pick type is invalid', async () => {
-    const request = new NextRequest('http://localhost/api/picks', {
+    const request = createMockRequest('http://localhost/api/picks', {
       method: 'POST',
       headers: {
         'authorization': 'Bearer token123',
@@ -175,7 +192,7 @@ describe('/api/picks POST', () => {
       error: 'Game has already started' 
     });
 
-    const request = new NextRequest('http://localhost/api/picks', {
+    const request = createMockRequest('http://localhost/api/picks', {
       method: 'POST',
       headers: {
         'authorization': 'Bearer token123',
@@ -205,7 +222,7 @@ describe('/api/picks POST', () => {
     mockValidatePick.mockResolvedValue({ isValid: true });
     mockCreateOrUpdatePick.mockRejectedValue(new Error('Database error'));
 
-    const request = new NextRequest('http://localhost/api/picks', {
+    const request = createMockRequest('http://localhost/api/picks', {
       method: 'POST',
       headers: {
         'authorization': 'Bearer token123',
@@ -250,7 +267,7 @@ describe('/api/picks POST', () => {
     mockValidatePick.mockResolvedValue({ isValid: true });
     mockCreateOrUpdatePick.mockResolvedValue(mockPick);
 
-    const request = new NextRequest('http://localhost/api/picks', {
+    const request = createMockRequest('http://localhost/api/picks', {
       method: 'POST',
       headers: {
         'authorization': 'Bearer token123',
@@ -288,7 +305,7 @@ describe('/api/picks POST', () => {
     mockValidatePick.mockResolvedValue({ isValid: true });
     mockCreateOrUpdatePick.mockResolvedValue(mockPick);
 
-    const request = new NextRequest('http://localhost/api/picks', {
+    const request = createMockRequest('http://localhost/api/picks', {
       method: 'POST',
       headers: {
         'authorization': 'Bearer token123',

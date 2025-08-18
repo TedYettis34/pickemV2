@@ -7,7 +7,13 @@
       "Bash(gh pr checks:*)",
       "Bash(gh run view:*)",
       "Bash(gh run list:*)",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(gh pr list:*)",
+      "Bash(ls:*)",
+      "Bash(grep:*)",
+      "Bash(mv:*)",
+      "Bash(npm run test:coverage:*)",
+      "Bash(npm run lint)"
     ],
     "deny": []
   }
