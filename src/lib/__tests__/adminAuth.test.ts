@@ -2,14 +2,23 @@
  * @jest-environment jsdom
  */
 
-// Request mock is no longer needed since we're not using NextRequest
-
 // Mock fetch globally
 global.fetch = jest.fn();
 
+// Mock AWS SDK components used by validateAdminAuthDirect
+jest.mock('@aws-sdk/client-cognito-identity-provider', () => ({
+  CognitoIdentityProviderClient: jest.fn().mockImplementation(() => ({
+    send: jest.fn(),
+  })),
+  GetUserCommand: jest.fn().mockImplementation((params) => ({ params })),
+  AdminListGroupsForUserCommand: jest.fn().mockImplementation((params) => ({ params })),
+}));
+
 import { isCurrentUserAdmin, getCurrentAccessToken, requireAdmin } from '../adminAuth';
+import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
 
 const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
+const mockCognitoClient = CognitoIdentityProviderClient as jest.MockedClass<typeof CognitoIdentityProviderClient>;
 
 // Mock localStorage
 const mockLocalStorage = {
@@ -24,9 +33,15 @@ Object.defineProperty(window, 'localStorage', {
 });
 
 describe('AdminAuth Module', () => {
+  let mockClientInstance: { send: jest.MockedFunction<(command: unknown) => Promise<unknown>> };
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockLocalStorage.getItem.mockReturnValue(null);
+    
+    // Setup AWS SDK mocks
+    mockClientInstance = { send: jest.fn() };
+    mockCognitoClient.mockImplementation(() => mockClientInstance);
   });
 
   describe('getCurrentAccessToken', () => {
@@ -152,11 +167,20 @@ describe('AdminAuth Module', () => {
     it('should return authorized when user is admin', async () => {
       const adminCheck = requireAdmin();
       
-      // Mock the validateAdminAuth API call
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ isAdmin: true, user: { username: 'testuser' } }),
-      } as Response);
+      // Mock AWS SDK responses for a valid admin user
+      mockClientInstance.send
+        .mockResolvedValueOnce({
+          // GetUserCommand response
+          Username: 'testuser',
+          UserAttributes: [
+            { Name: 'email', Value: 'test@example.com' },
+            { Name: 'name', Value: 'Test User' }
+          ],
+        })
+        .mockResolvedValueOnce({
+          // AdminListGroupsForUserCommand response
+          Groups: [{ GroupName: 'admin' }],
+        });
 
       const mockRequest = {
         headers: {
@@ -167,18 +191,32 @@ describe('AdminAuth Module', () => {
       const result = await adminCheck(mockRequest);
 
       expect(result.isAuthorized).toBe(true);
-      expect(result.user).toEqual({ username: 'testuser' });
+      expect(result.user).toEqual({
+        username: 'testuser',
+        email: 'test@example.com',
+        name: 'Test User',
+        groups: ['admin'],
+      });
       expect(result.error).toBeUndefined();
     });
 
     it('should return unauthorized when user is not admin', async () => {
       const adminCheck = requireAdmin();
       
-      // Mock the validateAdminAuth API call
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ isAdmin: false }),
-      } as Response);
+      // Mock AWS SDK responses for a valid user but not admin
+      mockClientInstance.send
+        .mockResolvedValueOnce({
+          // GetUserCommand response
+          Username: 'regularuser',
+          UserAttributes: [
+            { Name: 'email', Value: 'user@example.com' },
+            { Name: 'name', Value: 'Regular User' }
+          ],
+        })
+        .mockResolvedValueOnce({
+          // AdminListGroupsForUserCommand response - no admin group
+          Groups: [{ GroupName: 'users' }],
+        });
 
       const mockRequest = {
         headers: {
@@ -225,8 +263,8 @@ describe('AdminAuth Module', () => {
     it('should return unauthorized when admin check fails', async () => {
       const adminCheck = requireAdmin();
       
-      // Mock the validateAdminAuth API call to throw error
-      mockFetch.mockRejectedValueOnce(new Error('Network error'));
+      // Mock AWS SDK to throw error
+      mockClientInstance.send.mockRejectedValueOnce(new Error('Network error'));
 
       const mockRequest = {
         headers: {
