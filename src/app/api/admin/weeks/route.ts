@@ -235,7 +235,7 @@ export async function POST(req: NextRequest) {
       },
       message: gamesData 
         ? `Week created successfully with ${savedGamesCount} games saved`
-        : `Week created successfully${gamesPreview ? ` with ${gamesPreview.nfl.length + gamesPreview.college.length} games available` : ''}`,
+        : `Week created successfully with ${(gamesPreview?.nfl.length || 0) + (gamesPreview?.college.length || 0)} games available`,
     };
 
     return NextResponse.json(response, { status: 201 });
