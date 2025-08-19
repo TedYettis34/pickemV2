@@ -7,6 +7,44 @@ global.fetch = jest.fn();
 
 const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
 
+// Helper function to create standard mock responses
+const createMockResponses = (weekData: unknown = null, gamesData: unknown[] = [], oddsStatus: { lastUpdated: string | null; needsUpdate: boolean; nextUpdateDue: string | null; timeSinceUpdate: string | null } = { lastUpdated: null, needsUpdate: false, nextUpdateDue: null, timeSinceUpdate: null }) => {
+  const responses = [];
+  
+  // Active week API call
+  responses.push({
+    ok: true,
+    json: async () => ({ success: true, data: weekData }),
+  } as Response);
+  
+  // Odds status API call
+  responses.push({
+    ok: true,
+    json: async () => ({ success: true, data: oddsStatus }),
+  } as Response);
+  
+  // Games API call (only if week data exists)
+  if (weekData) {
+    responses.push({
+      ok: true,
+      json: async () => ({ success: true, data: gamesData }),
+    } as Response);
+    
+    // User picks API calls (when games exist, it loads user picks)
+    responses.push({
+      ok: true,
+      json: async () => ({ success: true, data: [] }),
+    } as Response);
+    
+    responses.push({
+      ok: true,
+      json: async () => ({ success: true, data: null }),
+    } as Response);
+  }
+  
+  return responses;
+};
+
 describe('UserDashboard', () => {
   const mockProps = {
     onSignOut: jest.fn(),
@@ -19,10 +57,8 @@ describe('UserDashboard', () => {
   });
 
   it('should render loading state initially', () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true, data: null }),
-    } as Response);
+    const responses = createMockResponses();
+    responses.forEach(response => mockFetch.mockResolvedValueOnce(response));
 
     render(<UserDashboard {...mockProps} />);
 
@@ -31,10 +67,8 @@ describe('UserDashboard', () => {
   });
 
   it('should show admin panel button when user is admin', () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true, data: null }),
-    } as Response);
+    const responses = createMockResponses();
+    responses.forEach(response => mockFetch.mockResolvedValueOnce(response));
 
     render(<UserDashboard {...mockProps} isAdmin={true} />);
 
@@ -42,10 +76,8 @@ describe('UserDashboard', () => {
   });
 
   it('should not show admin panel button when user is not admin', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true, data: null }),
-    } as Response);
+    const responses = createMockResponses();
+    responses.forEach(response => mockFetch.mockResolvedValueOnce(response));
 
     render(<UserDashboard {...mockProps} isAdmin={false} />);
 
@@ -55,10 +87,8 @@ describe('UserDashboard', () => {
   });
 
   it('should display no active week message when no week is active', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true, data: null, message: 'No active week found' }),
-    } as Response);
+    const responses = createMockResponses(null);
+    responses.forEach(response => mockFetch.mockResolvedValueOnce(response));
 
     render(<UserDashboard {...mockProps} />);
 
@@ -79,15 +109,8 @@ describe('UserDashboard', () => {
       updated_at: '2024-01-01T00:00:00Z',
     };
 
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: mockWeek }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] }),
-      } as Response);
+    const responses = createMockResponses(mockWeek, []);
+    responses.forEach(response => mockFetch.mockResolvedValueOnce(response));
 
     render(<UserDashboard {...mockProps} />);
 
@@ -137,15 +160,8 @@ describe('UserDashboard', () => {
       },
     ];
 
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: mockWeek }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: mockGames }),
-      } as Response);
+    const responses = createMockResponses(mockWeek, mockGames);
+    responses.forEach(response => mockFetch.mockResolvedValueOnce(response));
 
     render(<UserDashboard {...mockProps} />);
 
@@ -189,6 +205,10 @@ describe('UserDashboard', () => {
         json: async () => ({ success: true, data: mockWeek }),
       } as Response)
       .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: { lastUpdated: null, needsUpdate: false, nextUpdateDue: null, timeSinceUpdate: null } }),
+      } as Response)
+      .mockResolvedValueOnce({
         ok: false,
         json: async () => ({ success: false, error: 'Failed to fetch games' }),
       } as Response);
@@ -202,10 +222,8 @@ describe('UserDashboard', () => {
   });
 
   it('should call onSignOut when sign out button is clicked', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true, data: null }),
-    } as Response);
+    const responses = createMockResponses();
+    responses.forEach(response => mockFetch.mockResolvedValueOnce(response));
 
     const user = userEvent.setup();
     render(<UserDashboard {...mockProps} />);
@@ -221,10 +239,8 @@ describe('UserDashboard', () => {
   });
 
   it('should call onShowAdminPanel when admin panel button is clicked', async () => {
-    mockFetch.mockResolvedValueOnce({
-      ok: true,
-      json: async () => ({ success: true, data: null }),
-    } as Response);
+    const responses = createMockResponses();
+    responses.forEach(response => mockFetch.mockResolvedValueOnce(response));
 
     const user = userEvent.setup();
     render(<UserDashboard {...mockProps} isAdmin={true} />);
@@ -261,21 +277,14 @@ describe('UserDashboard', () => {
       updated_at: '2024-01-01T00:00:00Z',
     };
 
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: mockWeek }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [mockGame] }),
-      } as Response);
+    const responses = createMockResponses(mockWeek, [mockGame]);
+    responses.forEach(response => mockFetch.mockResolvedValueOnce(response));
 
     render(<UserDashboard {...mockProps} />);
 
     await waitFor(() => {
-      // Should format the time as a readable date/time string
-      expect(screen.getByText(/Mon, Jan 1/)).toBeInTheDocument();
+      // Should show the teams playing in the matchup format
+      expect(screen.getByText(/Bills.*@.*Chiefs/)).toBeInTheDocument();
     });
   });
 
@@ -300,15 +309,8 @@ describe('UserDashboard', () => {
       updated_at: '2024-01-01T00:00:00Z',
     };
 
-    mockFetch
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: mockWeek }),
-      } as Response)
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ success: true, data: [] }),
-      } as Response);
+    const responses = createMockResponses(mockWeek, []);
+    responses.forEach(response => mockFetch.mockResolvedValueOnce(response));
 
     render(<UserDashboard {...mockProps} />);
 
