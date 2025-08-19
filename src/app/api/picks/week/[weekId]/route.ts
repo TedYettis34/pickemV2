@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserPicksForWeek, getPicksSummaryForWeek } from '../../../../../lib/picks';
 import { ApiResponse } from '../../../../../types/pick';
+import { withOddsUpdate } from '../../../../../lib/oddsUpdater';
 
 /**
  * Get user picks for a specific week
@@ -43,13 +44,18 @@ export async function GET(
       return NextResponse.json(response, { status: 401 });
     }
 
+    // Get auth token for odds update
+    const authToken = authHeader.substring(7);
+
     // Check if summary is requested
     const url = new URL(request.url);
     const isSummary = url.searchParams.get('summary') === 'true';
 
     if (isSummary) {
-      // Return picks summary
-      const picksSummary = await getPicksSummaryForWeek(userId, weekIdNum);
+      // Return picks summary with odds update check
+      const picksSummary = await withOddsUpdate(authToken, async () => {
+        return await getPicksSummaryForWeek(userId, weekIdNum);
+      });
       
       const response: ApiResponse<typeof picksSummary> = {
         success: true,
@@ -58,8 +64,10 @@ export async function GET(
 
       return NextResponse.json(response);
     } else {
-      // Return raw picks with game data
-      const userPicks = await getUserPicksForWeek(userId, weekIdNum);
+      // Return raw picks with game data with odds update check
+      const userPicks = await withOddsUpdate(authToken, async () => {
+        return await getUserPicksForWeek(userId, weekIdNum);
+      });
       
       const response: ApiResponse<typeof userPicks> = {
         success: true,

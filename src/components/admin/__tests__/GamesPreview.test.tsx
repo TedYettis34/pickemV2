@@ -74,18 +74,17 @@ describe('GamesPreview', () => {
         }),
       });
 
-      render(
-        <GamesPreview
-          week={mockWeek}
-          onGamesSaved={mockOnGamesSaved}
-          onCancel={mockOnCancel}
-        />
-      );
+      await act(async () => {
+        render(
+          <GamesPreview
+            week={mockWeek}
+            onGamesSaved={mockOnGamesSaved}
+            onCancel={mockOnCancel}
+          />
+        );
+      });
 
-      // Should show loading state initially
-      expect(screen.getByText('Fetching games...')).toBeInTheDocument();
-
-      // Wait for games to load
+      // Wait for games to load (no loading state since data loads immediately)
       await waitFor(() => {
         expect(screen.getByText('NFL Games (1)')).toBeInTheDocument();
         expect(screen.getByText('College Football Games (1)')).toBeInTheDocument();
@@ -112,13 +111,15 @@ describe('GamesPreview', () => {
         }),
       });
 
-      render(
-        <GamesPreview
-          week={mockWeek}
-          onGamesSaved={mockOnGamesSaved}
-          onCancel={mockOnCancel}
-        />
-      );
+      await act(async () => {
+        render(
+          <GamesPreview
+            week={mockWeek}
+            onGamesSaved={mockOnGamesSaved}
+            onCancel={mockOnCancel}
+          />
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Click the button below to fetch games from The Odds API for this week.')).toBeInTheDocument();
@@ -132,13 +133,15 @@ describe('GamesPreview', () => {
       // Mock fetch error
       (global.fetch as jest.Mock).mockRejectedValueOnce(new Error('Network error'));
 
-      render(
-        <GamesPreview
-          week={mockWeek}
-          onGamesSaved={mockOnGamesSaved}
-          onCancel={mockOnCancel}
-        />
-      );
+      await act(async () => {
+        render(
+          <GamesPreview
+            week={mockWeek}
+            onGamesSaved={mockOnGamesSaved}
+            onCancel={mockOnCancel}
+          />
+        );
+      });
 
       await waitFor(() => {
         expect(screen.getByText('Click the button below to fetch games from The Odds API for this week.')).toBeInTheDocument();

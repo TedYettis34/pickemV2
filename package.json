@@ -11,7 +11,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "db:migrate": "node scripts/run-migrations.js",
-    "db:seed": "node scripts/run-migrations.js && node database/seeds/run-seeds.js"
+    "db:seed": "node scripts/run-migrations.js && node database/seeds/run-seeds.js",
+    "odds:update": "curl -X POST -H \"Authorization: Bearer $ADMIN_TOKEN\" -H \"Content-Type: application/json\" ${BASE_URL:-http://localhost:3000}/api/admin/odds/update"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.835.0",

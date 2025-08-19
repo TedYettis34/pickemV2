@@ -226,16 +226,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const response: ApiResponse<Week & { gamesPreview?: { nfl: GameData[]; college: GameData[] }; savedGamesCount?: number }> = {
+    const response: ApiResponse<Week & { gamesPreview: { nfl: GameData[]; college: GameData[] }; savedGamesCount?: number }> = {
       success: true,
       data: {
         ...newWeek,
-        gamesPreview: gamesPreview || undefined,
+        gamesPreview: gamesPreview || { nfl: [], college: [] },
         savedGamesCount: gamesData ? savedGamesCount : undefined
       },
       message: gamesData 
         ? `Week created successfully with ${savedGamesCount} games saved`
-        : `Week created successfully${gamesPreview ? ` with ${gamesPreview.nfl.length + gamesPreview.college.length} games available` : ''}`,
+        : `Week created successfully with ${(gamesPreview?.nfl.length || 0) + (gamesPreview?.college.length || 0)} games available`,
     };
 
     return NextResponse.json(response, { status: 201 });

@@ -318,8 +318,11 @@ describe('/api/admin/weeks', () => {
 
       expect(response.status).toBe(201);
       expect(data.success).toBe(true);
-      expect(data.data).toEqual(createdWeek);
-      expect(data.message).toBe('Week created successfully');
+      expect(data.data).toEqual({
+        ...createdWeek,
+        gamesPreview: { nfl: [], college: [] }
+      });
+      expect(data.message).toBe('Week created successfully with 0 games available');
 
       expect(mockWeekRepository.findByName).toHaveBeenCalledWith('Week 1');
       expect(mockWeekRepository.hasDateConflict).toHaveBeenCalledWith('2024-01-01', '2024-01-07');

@@ -6,6 +6,7 @@ import { PicksSummary, PickWithGame } from '../../types/pick';
 interface PicksReviewProps {
   picksSummary: PicksSummary;
   onSubmitPicks: (weekId: number) => Promise<void>;
+  onUnsubmitPicks?: (weekId: number) => Promise<void>;
   onEditPick?: (gameId: number) => void;
   onDeletePick?: (gameId: number) => void;
   isSubmitting?: boolean;
@@ -14,11 +15,13 @@ interface PicksReviewProps {
 export function PicksReview({ 
   picksSummary, 
   onSubmitPicks, 
+  onUnsubmitPicks,
   onEditPick,
   onDeletePick,
   isSubmitting = false 
 }: PicksReviewProps) {
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isUnsubmitting, setIsUnsubmitting] = useState(false);
 
   const { weekId, weekName, picks, totalPicks, totalGames, submittedAt } = picksSummary;
   const isSubmitted = !!submittedAt;
@@ -35,6 +38,25 @@ export function PicksReview({
       await onSubmitPicks(weekId);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : 'Submit failed');
+    }
+  };
+
+  const handleUnsubmitClick = async () => {
+    if (!onUnsubmitPicks || picks.length === 0) return;
+    
+    const confirmed = window.confirm(
+      'Are you sure you want to unsubmit your picks? This will allow you to make changes and resubmit. You can still update to favorable line movements without unsubmitting.'
+    );
+    if (!confirmed) return;
+    
+    try {
+      setSubmitError(null);
+      setIsUnsubmitting(true);
+      await onUnsubmitPicks(weekId);
+    } catch (error) {
+      setSubmitError(error instanceof Error ? error.message : 'Unsubmit failed');
+    } finally {
+      setIsUnsubmitting(false);
     }
   };
 
@@ -126,23 +148,40 @@ export function PicksReview({
         </div>
         
         {isSubmitted ? (
-          <div>
-            <div className="flex items-center space-x-2 mb-2">
-              <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              <span className="text-sm font-medium text-green-600 dark:text-green-400">
-                Picks Submitted
-              </span>
+          <div className="space-y-3">
+            <div>
+              <div className="flex items-center space-x-2 mb-2">
+                <svg className="h-5 w-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                <span className="text-sm font-medium text-green-600 dark:text-green-400">
+                  Picks Submitted
+                </span>
+              </div>
+              <p className="text-xs text-gray-500 dark:text-gray-400">
+                Submitted on {new Date(submittedAt!).toLocaleDateString('en-US', { 
+                  weekday: 'short', 
+                  year: 'numeric', 
+                  month: 'short', 
+                  day: 'numeric' 
+                })}
+              </p>
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Submitted on {new Date(submittedAt!).toLocaleDateString('en-US', { 
-                weekday: 'short', 
-                year: 'numeric', 
-                month: 'short', 
-                day: 'numeric' 
-              })}
-            </p>
+            
+            {onUnsubmitPicks && (
+              <div className="space-y-2">
+                <button
+                  onClick={handleUnsubmitClick}
+                  disabled={isUnsubmitting}
+                  className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:cursor-not-allowed"
+                >
+                  {isUnsubmitting ? 'Unsubmitting...' : 'Unsubmit Picks'}
+                </button>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  You can still update picks to favorable lines without unsubmitting
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <button
