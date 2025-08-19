@@ -25,12 +25,13 @@ export async function getUserPicksForWeek(userId: string, weekId: number): Promi
         g.moneyline_away,
         g.bookmaker,
         g.odds_last_updated,
+        g.must_pick,
         g.created_at as game_created_at,
         g.updated_at as game_updated_at
       FROM picks p
       JOIN games g ON p.game_id = g.id
       WHERE p.user_id = $1 AND g.week_id = $2
-      ORDER BY g.commence_time ASC`,
+      ORDER BY g.must_pick DESC, g.commence_time ASC, g.sport ASC`,
       [userId, weekId]
     );
 
@@ -59,6 +60,7 @@ export async function getUserPicksForWeek(userId: string, weekId: number): Promi
         moneyline_away: row.moneyline_away,
         bookmaker: row.bookmaker,
         odds_last_updated: row.odds_last_updated,
+        must_pick: row.must_pick,
         created_at: row.game_created_at,
         updated_at: row.game_updated_at,
       }

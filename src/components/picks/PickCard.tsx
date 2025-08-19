@@ -152,8 +152,15 @@ export function PickCard({
 
       {/* Game Matchup */}
       <div className="text-center mb-4">
-        <div className="text-lg font-semibold text-gray-900 dark:text-white">
-          {game.away_team} @ {game.home_team}
+        <div className="flex items-center justify-center gap-3 mb-1">
+          <div className="text-lg font-semibold text-gray-900 dark:text-white">
+            {game.away_team} @ {game.home_team}
+          </div>
+          {game.must_pick && (
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 font-medium">
+              Must Pick
+            </span>
+          )}
         </div>
         {game.total_over_under && (
           <div className="text-sm text-gray-500 dark:text-gray-400">

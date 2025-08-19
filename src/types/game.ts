@@ -17,6 +17,7 @@ export interface Game {
   // Metadata
   bookmaker?: string;
   odds_last_updated?: string;
+  must_pick: boolean; // Whether this game is designated as a "must pick"
   
   // System fields
   created_at: string;
@@ -38,6 +39,7 @@ export interface CreateGameInput {
   moneyline_away?: number;
   bookmaker?: string;
   odds_last_updated?: string;
+  must_pick?: boolean;
 }
 
 // Response from The Odds API
