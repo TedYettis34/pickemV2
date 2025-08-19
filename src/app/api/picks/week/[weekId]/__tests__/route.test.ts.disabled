@@ -1,0 +1,361 @@
+import { NextRequest } from 'next/server';
+import { GET } from '../route';
+
+// Mock NextResponse
+jest.mock('next/server', () => ({
+  NextRequest: jest.fn(),
+  NextResponse: {
+    json: jest.fn((data, options) => ({
+      status: options?.status || 200,
+      json: async () => data,
+    })),
+  },
+}));
+
+// Mock database library first to prevent pg loading issues
+jest.mock('../../../../../lib/database', () => ({
+  query: jest.fn(),
+}));
+
+// Mock the picks library
+jest.mock('../../../../../lib/picks', () => ({
+  getUserPicksForWeek: jest.fn(),
+  getPicksSummaryForWeek: jest.fn(),
+}));
+
+import { getUserPicksForWeek, getPicksSummaryForWeek } from '../../../../../lib/picks';
+
+const mockGetUserPicksForWeek = getUserPicksForWeek as jest.MockedFunction<typeof getUserPicksForWeek>;
+const mockGetPicksSummaryForWeek = getPicksSummaryForWeek as jest.MockedFunction<typeof getPicksSummaryForWeek>;
+
+// Helper to create mock request with proper headers and URL
+const createMockRequest = (url: string, options: {
+  method: string;
+  headers: Record<string, string>;
+}) => {
+  const headers = new Map(Object.entries(options.headers));
+  const parsedUrl = new URL(url);
+  return {
+    url,
+    method: options.method,
+    headers: {
+      get: (key: string) => headers.get(key.toLowerCase()) || null,
+    },
+    nextUrl: {
+      searchParams: parsedUrl.searchParams,
+    },
+  } as unknown as NextRequest;
+};
+
+describe('/api/picks/week/[weekId] GET', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('should return user picks for a week', async () => {
+    const mockPicks = [
+      {
+        id: 1,
+        user_id: 'user123',
+        game_id: 1,
+        pick_type: 'home_spread',
+        spread_value: -3.5,
+        submitted: false,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+        game: {
+          id: 1,
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game1',
+          home_team: 'Chiefs',
+          away_team: 'Bills',
+          commence_time: '2024-01-01T18:00:00Z',
+          spread_home: -3.5,
+          spread_away: 3.5,
+          total_over_under: 47.5,
+          moneyline_home: -150,
+          moneyline_away: 130,
+          bookmaker: 'FanDuel',
+          odds_last_updated: '2024-01-01T12:00:00Z',
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        },
+      },
+    ];
+
+    mockGetUserPicksForWeek.mockResolvedValue(mockPicks);
+
+    const request = createMockRequest('http://localhost/api/picks/week/1', {
+      method: 'GET',
+      headers: {
+        'authorization': 'Bearer token123',
+        'x-user-id': 'user123',
+      },
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual({
+      success: true,
+      data: mockPicks,
+    });
+    expect(mockGetUserPicksForWeek).toHaveBeenCalledWith('user123', 1);
+  });
+
+  it('should return picks summary when summary=true', async () => {
+    const mockSummary = {
+      weekId: 1,
+      weekName: 'Week 1',
+      totalGames: 5,
+      totalPicks: 2,
+      submittedAt: null,
+      picks: [
+        {
+          id: 1,
+          user_id: 'user123',
+          game_id: 1,
+          pick_type: 'home_spread',
+          spread_value: -3.5,
+          submitted: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          game: {
+            id: 1,
+            week_id: 1,
+            sport: 'americanfootball_nfl',
+            external_id: 'game1',
+            home_team: 'Chiefs',
+            away_team: 'Bills',
+            commence_time: '2024-01-01T18:00:00Z',
+            spread_home: -3.5,
+            spread_away: 3.5,
+            total_over_under: 47.5,
+            moneyline_home: -150,
+            moneyline_away: 130,
+            bookmaker: 'FanDuel',
+            odds_last_updated: '2024-01-01T12:00:00Z',
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+          },
+        },
+      ],
+    };
+
+    mockGetPicksSummaryForWeek.mockResolvedValue(mockSummary);
+
+    const request = createMockRequest('http://localhost/api/picks/week/1?summary=true', {
+      method: 'GET',
+      headers: {
+        'authorization': 'Bearer token123',
+        'x-user-id': 'user123',
+      },
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual({
+      success: true,
+      data: mockSummary,
+    });
+    expect(mockGetPicksSummaryForWeek).toHaveBeenCalledWith('user123', 1);
+  });
+
+  it('should return 401 when no authorization header provided', async () => {
+    const request = createMockRequest('http://localhost/api/picks/week/1', {
+      method: 'GET',
+      headers: {},
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data).toEqual({
+      success: false,
+      error: 'Authorization header required',
+    });
+  });
+
+  it('should return 401 when no user ID provided', async () => {
+    const request = createMockRequest('http://localhost/api/picks/week/1', {
+      method: 'GET',
+      headers: {
+        'authorization': 'Bearer token123',
+      },
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(401);
+    expect(data).toEqual({
+      success: false,
+      error: 'User ID required',
+    });
+  });
+
+  it('should return 400 when week ID is invalid', async () => {
+    const request = createMockRequest('http://localhost/api/picks/week/invalid', {
+      method: 'GET',
+      headers: {
+        'authorization': 'Bearer token123',
+        'x-user-id': 'user123',
+      },
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ weekId: 'invalid' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data).toEqual({
+      success: false,
+      error: 'Invalid week ID',
+    });
+  });
+
+  it('should return empty array when no picks exist', async () => {
+    mockGetUserPicksForWeek.mockResolvedValue([]);
+
+    const request = createMockRequest('http://localhost/api/picks/week/1', {
+      method: 'GET',
+      headers: {
+        'authorization': 'Bearer token123',
+        'x-user-id': 'user123',
+      },
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(data).toEqual({
+      success: true,
+      data: [],
+    });
+  });
+
+  it('should return 500 when database operation fails', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    
+    mockGetUserPicksForWeek.mockRejectedValue(new Error('Database error'));
+
+    const request = createMockRequest('http://localhost/api/picks/week/1', {
+      method: 'GET',
+      headers: {
+        'authorization': 'Bearer token123',
+        'x-user-id': 'user123',
+      },
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(data).toEqual({
+      success: false,
+      error: 'Failed to fetch picks',
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error fetching user picks for week:',
+      expect.any(Error)
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('should handle summary endpoint failure gracefully', async () => {
+    const consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    
+    mockGetPicksSummaryForWeek.mockRejectedValue(new Error('Summary error'));
+
+    const request = createMockRequest('http://localhost/api/picks/week/1?summary=true', {
+      method: 'GET',
+      headers: {
+        'authorization': 'Bearer token123',
+        'x-user-id': 'user123',
+      },
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ weekId: '1' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(500);
+    expect(data).toEqual({
+      success: false,
+      error: 'Failed to fetch picks summary',
+    });
+    expect(consoleErrorSpy).toHaveBeenCalledWith(
+      'Error fetching picks summary for week:',
+      expect.any(Error)
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  it('should parse week ID correctly for different values', async () => {
+    mockGetUserPicksForWeek.mockResolvedValue([]);
+
+    const testCases = [
+      { weekId: '1', expectedWeekId: 1 },
+      { weekId: '10', expectedWeekId: 10 },
+      { weekId: '999', expectedWeekId: 999 },
+    ];
+
+    for (const testCase of testCases) {
+      const request = createMockRequest(`http://localhost/api/picks/week/${testCase.weekId}`, {
+        method: 'GET',
+        headers: {
+          'authorization': 'Bearer token123',
+          'x-user-id': 'user123',
+        },
+      });
+
+      await GET(request, { params: Promise.resolve({ weekId: testCase.weekId }) });
+
+      expect(mockGetUserPicksForWeek).toHaveBeenCalledWith('user123', testCase.expectedWeekId);
+    }
+  });
+
+  it('should handle zero week ID', async () => {
+    const request = createMockRequest('http://localhost/api/picks/week/0', {
+      method: 'GET',
+      headers: {
+        'authorization': 'Bearer token123',
+        'x-user-id': 'user123',
+      },
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ weekId: '0' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data).toEqual({
+      success: false,
+      error: 'Invalid week ID',
+    });
+  });
+
+  it('should handle negative week ID', async () => {
+    const request = createMockRequest('http://localhost/api/picks/week/-1', {
+      method: 'GET',
+      headers: {
+        'authorization': 'Bearer token123',
+        'x-user-id': 'user123',
+      },
+    });
+
+    const response = await GET(request, { params: Promise.resolve({ weekId: '-1' }) });
+    const data = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(data).toEqual({
+      success: false,
+      error: 'Invalid week ID',
+    });
+  });
+});

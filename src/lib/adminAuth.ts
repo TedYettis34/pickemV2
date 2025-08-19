@@ -79,6 +79,15 @@ export async function validateAdminAuth(accessToken: string): Promise<AdminAuthR
 
     if (!response.ok) {
       const errorData = await response.json();
+      
+      // Check if the error indicates token expiration
+      if (response.status === 401 && 
+          (errorData.error === 'Token expired' || 
+           errorData.error?.includes('expired') ||
+           errorData.error?.includes('Access Token has expired'))) {
+        return handleTokenExpiration();
+      }
+      
       return {
         isAdmin: false,
         user: null,

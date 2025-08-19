@@ -161,6 +161,21 @@ describe('AdminAuth Module', () => {
       global.window = originalWindow;
       process.env.NEXT_PUBLIC_APP_URL = originalEnv;
     });
+
+    it('should handle token expiration from API response', async () => {
+      mockLocalStorage.getItem.mockReturnValue('expired-access-token');
+      
+      mockFetch.mockResolvedValueOnce({
+        ok: false,
+        status: 401,
+        json: async () => ({ error: 'Token expired' }),
+      } as Response);
+
+      const result = await isCurrentUserAdmin();
+
+      expect(result).toBe(false);
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('accessToken');
+    });
   });
 
   describe('requireAdmin', () => {
