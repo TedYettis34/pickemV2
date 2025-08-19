@@ -106,8 +106,8 @@ describe('Home Page', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByText('Welcome to your dashboard!')).toBeInTheDocument();
-      expect(screen.getByText("Your pick&apos;em features will be built here.")).toBeInTheDocument();
+      expect(screen.getByText('PickEm Dashboard')).toBeInTheDocument();
+      expect(screen.getByTestId('user-dashboard')).toBeInTheDocument();
     });
   });
 
