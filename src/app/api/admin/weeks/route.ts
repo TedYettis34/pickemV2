@@ -226,11 +226,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const response: ApiResponse<Week & { gamesPreview?: { nfl: GameData[]; college: GameData[] }; savedGamesCount?: number }> = {
+    const response: ApiResponse<Week & { gamesPreview: { nfl: GameData[]; college: GameData[] }; savedGamesCount?: number }> = {
       success: true,
       data: {
         ...newWeek,
-        gamesPreview: gamesPreview || undefined,
+        gamesPreview: gamesPreview || { nfl: [], college: [] },
         savedGamesCount: gamesData ? savedGamesCount : undefined
       },
       message: gamesData 
