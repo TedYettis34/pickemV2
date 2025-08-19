@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAdmin } from '../../../../../lib/adminAuth';
 import { getDatabase } from '../../../../../lib/database';
-import { ApiResponse } from '../../../../../types/api';
+import { ApiResponse } from '../../../../../types/pick';
 import { Game } from '../../../../../types/game';
 
 // Update individual game properties (like must_pick)
