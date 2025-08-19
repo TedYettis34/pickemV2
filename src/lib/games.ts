@@ -9,7 +9,7 @@ export async function getGamesByWeekId(weekId: number): Promise<Game[]> {
     const result = await query<Game>(
       `SELECT * FROM games 
        WHERE week_id = $1
-       ORDER BY commence_time ASC, sport ASC`,
+       ORDER BY must_pick DESC, commence_time ASC, sport ASC`,
       [weekId]
     );
     
@@ -31,12 +31,12 @@ export async function createGamesForWeek(games: CreateGameInput[]): Promise<Game
 
     // Build the values for bulk insert
     const values = games.map((game, index) => {
-      const baseIndex = index * 14; // 14 fields per game
+      const baseIndex = index * 15; // 15 fields per game (including must_pick)
       return `(
         $${baseIndex + 1}, $${baseIndex + 2}, $${baseIndex + 3}, $${baseIndex + 4}, 
         $${baseIndex + 5}, $${baseIndex + 6}, $${baseIndex + 7}, $${baseIndex + 8}, 
         $${baseIndex + 9}, $${baseIndex + 10}, $${baseIndex + 11}, $${baseIndex + 12}, 
-        $${baseIndex + 13}, $${baseIndex + 14}
+        $${baseIndex + 13}, $${baseIndex + 14}, $${baseIndex + 15}
       )`;
     }).join(',');
 
@@ -55,6 +55,7 @@ export async function createGamesForWeek(games: CreateGameInput[]): Promise<Game
       game.moneyline_away || null,
       game.bookmaker || null,
       game.odds_last_updated || null,
+      game.must_pick || false, // Default to false for new games
       new Date().toISOString() // created_at
     ]);
 
@@ -62,7 +63,7 @@ export async function createGamesForWeek(games: CreateGameInput[]): Promise<Game
       INSERT INTO games (
         week_id, sport, external_id, home_team, away_team, commence_time,
         spread_home, spread_away, total_over_under, moneyline_home, 
-        moneyline_away, bookmaker, odds_last_updated, created_at
+        moneyline_away, bookmaker, odds_last_updated, must_pick, created_at
       ) VALUES ${values}
       RETURNING *
     `;

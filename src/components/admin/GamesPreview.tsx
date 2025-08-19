@@ -31,6 +31,41 @@ export function GamesPreview({ week, onGamesSaved, onCancel }: GamesPreviewProps
     return {};
   };
 
+  // Update must_pick status for a specific game
+  const updateGameMustPick = async (gameId: number, mustPick: boolean) => {
+    try {
+      const response = await fetch(`/api/admin/games/${gameId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ must_pick: mustPick }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to update must pick status');
+      }
+
+      // Update the local state
+      if (previewGames) {
+        const updatedPreviewGames = {
+          nfl: previewGames.nfl.map(game => 
+            game.id === gameId ? { ...game, must_pick: mustPick } : game
+          ),
+          college: previewGames.college.map(game => 
+            game.id === gameId ? { ...game, must_pick: mustPick } : game
+          ),
+        };
+        setPreviewGames(updatedPreviewGames);
+      }
+    } catch (error) {
+      console.error('Error updating must pick status:', error);
+      setError(error instanceof Error ? error.message : 'Failed to update must pick status');
+    }
+  };
+
   // Load existing games from database on component mount
   useEffect(() => {
     loadExistingGames();
@@ -258,23 +293,41 @@ export function GamesPreview({ week, onGamesSaved, onCancel }: GamesPreviewProps
               {previewGames.nfl.length > 0 ? (
                 <div className="grid gap-3">
                   {previewGames.nfl.map((game, index) => (
-                    <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                    <div key={game.id || index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
                       <div className="flex justify-between items-start mb-2">
-                        <div>
+                        <div className="flex items-center gap-3">
                           <span className="font-medium text-gray-900 dark:text-white">
                             {game.away_team} @ {game.home_team}
                           </span>
+                          {game.must_pick && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
+                              Must Pick
+                            </span>
+                          )}
                         </div>
                         <span className="text-sm text-gray-500 dark:text-gray-400">
                           {game.commence_time && formatDateTime(game.commence_time)}
                         </span>
                       </div>
-                      <div className="text-sm">
+                      <div className="text-sm mb-3">
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">Spread:</span>
                           <span className="font-medium ml-2">{formatSpread(game.spread_home, game.spread_away)}</span>
                         </div>
                       </div>
+                      {hasExistingGames && game.id && (
+                        <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-600">
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={game.must_pick || false}
+                              onChange={(e) => updateGameMustPick(game.id!, e.target.checked)}
+                              className="rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-gray-700 dark:text-gray-300">Mark as Must Pick</span>
+                          </label>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -291,23 +344,41 @@ export function GamesPreview({ week, onGamesSaved, onCancel }: GamesPreviewProps
               {previewGames.college.length > 0 ? (
                 <div className="grid gap-3">
                   {previewGames.college.map((game, index) => (
-                    <div key={index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                    <div key={game.id || index} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
                       <div className="flex justify-between items-start mb-2">
-                        <div>
+                        <div className="flex items-center gap-3">
                           <span className="font-medium text-gray-900 dark:text-white">
                             {game.away_team} @ {game.home_team}
                           </span>
+                          {game.must_pick && (
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
+                              Must Pick
+                            </span>
+                          )}
                         </div>
                         <span className="text-sm text-gray-500 dark:text-gray-400">
                           {game.commence_time && formatDateTime(game.commence_time)}
                         </span>
                       </div>
-                      <div className="text-sm">
+                      <div className="text-sm mb-3">
                         <div>
                           <span className="text-gray-500 dark:text-gray-400">Spread:</span>
                           <span className="font-medium ml-2">{formatSpread(game.spread_home, game.spread_away)}</span>
                         </div>
                       </div>
+                      {hasExistingGames && game.id && (
+                        <div className="flex items-center gap-2 pt-2 border-t border-gray-100 dark:border-gray-600">
+                          <label className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              checked={game.must_pick || false}
+                              onChange={(e) => updateGameMustPick(game.id!, e.target.checked)}
+                              className="rounded border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-gray-700 dark:text-gray-300">Mark as Must Pick</span>
+                          </label>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

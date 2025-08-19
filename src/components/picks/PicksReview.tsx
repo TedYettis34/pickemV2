@@ -206,6 +206,11 @@ export function PicksReview({
                 <span className="text-xs font-semibold text-blue-600 dark:text-blue-400 bg-blue-100 dark:bg-blue-900 px-2 py-1 rounded">
                   {getSportDisplayName(pick.game.sport)}
                 </span>
+                {pick.game.must_pick && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 font-medium">
+                    Must Pick
+                  </span>
+                )}
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   {formatGameTime(pick.game.commence_time)}
                 </div>
