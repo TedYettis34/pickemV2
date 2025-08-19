@@ -2,19 +2,32 @@ import { NextRequest } from 'next/server';
 import { GET } from '../route';
 
 // Mock NextResponse and NextRequest
-jest.mock('next/server', () => ({
-  NextRequest: jest.fn(),
-  NextResponse: {
-    json: jest.fn((data, options) => ({
-      status: options?.status || 200,
-      json: async () => data,
+jest.mock('next/server', () => {
+  const mockHeaders = {
+    get: jest.fn(() => null), // Default to null for headers
+  };
+  
+  return {
+    NextRequest: jest.fn().mockImplementation(() => ({
+      headers: mockHeaders,
     })),
-  },
-}));
+    NextResponse: {
+      json: jest.fn((data, options) => ({
+        status: options?.status || 200,
+        json: async () => data,
+      })),
+    },
+  };
+});
 
 // Mock the games library
 jest.mock('../../../../../../lib/games', () => ({
   getGamesByWeekId: jest.fn(),
+}));
+
+// Mock the oddsUpdater
+jest.mock('../../../../../../lib/oddsUpdater', () => ({
+  withOddsUpdate: jest.fn((authToken, fn) => fn()),
 }));
 
 import { getGamesByWeekId } from '../../../../../../lib/games';

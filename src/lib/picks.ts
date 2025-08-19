@@ -1,6 +1,7 @@
 import { query } from './database';
-import { Pick, CreatePickInput, UpdatePickInput, PickWithGame, PickValidation, PicksSummary } from '../types/pick';
+import { Pick, CreatePickInput, UpdatePickInput, PickWithGame, PickValidation, PicksSummary, PickWithSpreadChange } from '../types/pick';
 import { Game } from '../types/game';
+import { enhancePicksWithSpreadChanges } from './spreadChanges';
 
 /**
  * Get all picks for a user in a specific week
@@ -293,6 +294,84 @@ export async function getPicksCountForWeek(userId: string, weekId: number): Prom
     return parseInt(result[0].count);
   } catch (error) {
     console.error('Error getting picks count:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get picks with spread change information
+ */
+export async function getUserPicksWithSpreadChanges(userId: string, weekId: number): Promise<PickWithSpreadChange[]> {
+  try {
+    const picks = await getUserPicksForWeek(userId, weekId);
+    return enhancePicksWithSpreadChanges(picks);
+  } catch (error) {
+    console.error('Error getting picks with spread changes:', error);
+    throw error;
+  }
+}
+
+/**
+ * Update a pick to the current spread (for when user wants to follow line movement)
+ */
+export async function updatePickToCurrentSpread(userId: string, gameId: number): Promise<Pick | null> {
+  try {
+    // First, get the current pick and game info
+    const picks = await query<Pick & Game & { game_id: number; game_created_at: string; game_updated_at: string }>(
+      `SELECT 
+        p.*,
+        g.id as game_id,
+        g.spread_home,
+        g.spread_away,
+        g.commence_time
+      FROM picks p
+      JOIN games g ON p.game_id = g.id
+      WHERE p.user_id = $1 AND p.game_id = $2`,
+      [userId, gameId]
+    );
+
+    if (picks.length === 0) {
+      throw new Error('Pick not found');
+    }
+
+    const pick = picks[0];
+
+    // Check if game has started
+    const gameStartTime = new Date(pick.commence_time);
+    const now = new Date();
+    if (gameStartTime <= now) {
+      throw new Error('Cannot update picks for games that have started');
+    }
+
+    // Check if pick is already submitted
+    if (pick.submitted) {
+      throw new Error('Cannot update submitted picks');
+    }
+
+    // Get the current spread for the pick type
+    let currentSpread: number | null = null;
+    if (pick.pick_type === 'home_spread') {
+      currentSpread = pick.spread_home ?? null;
+    } else if (pick.pick_type === 'away_spread') {
+      currentSpread = pick.spread_away ?? null;
+    }
+
+    if (currentSpread === null) {
+      throw new Error('Current spread not available');
+    }
+
+    // Update the pick with the current spread
+    const result = await query<Pick>(
+      `UPDATE picks 
+       SET spread_value = $1, updated_at = NOW()
+       WHERE user_id = $2 AND game_id = $3
+       RETURNING *`,
+      [currentSpread, userId, gameId]
+    );
+
+    return result[0] || null;
+  } catch (error) {
+    console.error('Error updating pick to current spread:', error);
     throw error;
   }
 }

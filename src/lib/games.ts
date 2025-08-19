@@ -193,3 +193,55 @@ export async function getGamesCountByWeek(weekId: number): Promise<{
     throw error;
   }
 }
+
+/**
+ * Get the most recent odds update timestamp for active weeks
+ */
+export async function getLastOddsUpdateTime(): Promise<Date | null> {
+  try {
+    const now = new Date().toISOString();
+    
+    // Get the most recent odds_last_updated from games in currently active weeks
+    // A week is active if current time is between start_date and end_date
+    const result = await query<{ max_update: string | null }>(
+      `SELECT MAX(g.odds_last_updated) as max_update
+       FROM games g
+       INNER JOIN weeks w ON g.week_id = w.id
+       WHERE w.start_date <= $1 AND w.end_date >= $1
+       AND g.odds_last_updated IS NOT NULL`,
+      [now]
+    );
+    
+    if (result.length > 0 && result[0].max_update) {
+      return new Date(result[0].max_update);
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting last odds update time:', error);
+    throw error;
+  }
+}
+
+/**
+ * Check if odds need updating (older than 3 hours)
+ */
+export async function oddsNeedUpdate(): Promise<boolean> {
+  try {
+    const lastUpdate = await getLastOddsUpdateTime();
+    
+    if (!lastUpdate) {
+      // No odds updates found, definitely need update
+      return true;
+    }
+    
+    const now = new Date();
+    const threeHoursAgo = new Date(now.getTime() - (3 * 60 * 60 * 1000));
+    
+    return lastUpdate < threeHoursAgo;
+  } catch (error) {
+    console.error('Error checking if odds need update:', error);
+    // If we can't check, assume we need update to be safe
+    return true;
+  }
+}

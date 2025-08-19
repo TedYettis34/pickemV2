@@ -14,6 +14,13 @@ interface UserDashboardProps {
   onShowAdminPanel: () => void;
 }
 
+interface OddsStatus {
+  lastUpdated: string | null;
+  needsUpdate: boolean;
+  nextUpdateDue: string | null;
+  timeSinceUpdate: string | null;
+}
+
 export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDashboardProps) {
   const [activeWeek, setActiveWeek] = useState<Week | null>(null);
   const [games, setGames] = useState<Game[]>([]);
@@ -22,11 +29,13 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
   const [picksSummary, setPicksSummary] = useState<PicksSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [oddsStatus, setOddsStatus] = useState<OddsStatus | null>(null);
   const [submittingPicks, setSubmittingPicks] = useState(false);
   const [activeTab, setActiveTab] = useState<'games' | 'review'>('games');
 
   useEffect(() => {
     loadActiveWeekAndGames();
+    loadOddsStatus();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadActiveWeekAndGames = async () => {
@@ -71,6 +80,22 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
       setError(err instanceof Error ? err.message : 'Failed to load data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Load odds status
+  const loadOddsStatus = async () => {
+    try {
+      const response = await fetch('/api/odds/status');
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setOddsStatus(data.data);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading odds status:', error);
+      // Don't set error state for odds status - it's not critical
     }
   };
 
@@ -144,12 +169,49 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
     updatePicksSummaryWithDrafts(newDraftPicks);
   };
 
-  // Handle pick deletion (remove from local state)
-  const handlePickDelete = (gameId: number) => {
-    const newDraftPicks = new Map(draftPicks);
-    newDraftPicks.delete(gameId);
-    setDraftPicks(newDraftPicks);
-    updatePicksSummaryWithDrafts(newDraftPicks);
+  // Handle pick deletion (remove from local state or database)
+  const handlePickDelete = async (gameId: number) => {
+    try {
+      // Check if this is a draft pick (local only) or a database pick
+      const isDraftPick = draftPicks.has(gameId);
+      const existingDatabasePick = userPicks.find(pick => pick.game_id === gameId);
+      
+      if (isDraftPick) {
+        // Remove from local draft picks
+        const newDraftPicks = new Map(draftPicks);
+        newDraftPicks.delete(gameId);
+        setDraftPicks(newDraftPicks);
+        updatePicksSummaryWithDrafts(newDraftPicks);
+      } 
+      
+      if (existingDatabasePick) {
+        // Delete from database
+        const userContext = getCurrentUserContext();
+        if (!userContext) {
+          throw new Error('User not authenticated');
+        }
+
+        const authHeaders = getAuthHeaders();
+        
+        const response = await fetch(`/api/picks/${gameId}`, {
+          method: 'DELETE',
+          headers: authHeaders,
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error || 'Failed to delete pick');
+        }
+        
+        // Reload picks from database to reflect the deletion
+        if (activeWeek) {
+          await loadUserPicks(activeWeek.id);
+        }
+      }
+    } catch (error) {
+      console.error('Error deleting pick:', error);
+      // Don't throw error to avoid breaking the UI - just log it
+    }
   };
 
   // Handle pick submission (write all draft picks to database)
@@ -164,8 +226,21 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
 
       const authHeaders = getAuthHeaders();
       
-      // Convert draft picks to array
-      const picksToSubmit = Array.from(draftPicks.values());
+      // Get all picks to submit: draft picks + unsubmitted database picks
+      const draftPicksArray = Array.from(draftPicks.values());
+      const unsubmittedPicks = userPicks.filter(pick => !pick.submitted);
+      
+      // Convert unsubmitted database picks to the format expected by the API
+      const unsubmittedAsCreateInput = unsubmittedPicks
+        .filter(pick => !draftPicks.has(pick.game_id)) // Don't include if there's a draft version
+        .map(pick => ({
+          game_id: pick.game_id,
+          pick_type: pick.pick_type,
+          spread_value: pick.spread_value,
+        }));
+      
+      // Combine draft picks and unsubmitted picks
+      const picksToSubmit = [...draftPicksArray, ...unsubmittedAsCreateInput];
       
       if (picksToSubmit.length === 0) {
         throw new Error('No picks to submit');
@@ -203,6 +278,42 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
     }
   };
 
+  // Handle pick unsubmission (allow editing submitted picks)
+  const handleUnsubmitPicks = async (weekId: number) => {
+    try {
+      const userContext = getCurrentUserContext();
+      if (!userContext) {
+        throw new Error('User not authenticated');
+      }
+
+      const authHeaders = getAuthHeaders();
+      
+      const response = await fetch('/api/picks/bulk-unsubmit', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify({ weekId }),
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to unsubmit picks');
+      }
+      
+      // Reload picks from database to reflect unsubmitted state
+      await loadUserPicks(weekId);
+      
+      // Switch to games tab to allow editing
+      setActiveTab('games');
+      
+    } catch (error) {
+      console.error('Error unsubmitting picks:', error);
+      throw error;
+    }
+  };
+
   // Get current pick for a game (check draft picks first, then submitted picks)
   const getCurrentPickForGame = (gameId: number): Pick | CreatePickInput | undefined => {
     // Check draft picks first (these take precedence)
@@ -215,11 +326,17 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
     return userPicks.find(pick => pick.game_id === gameId);
   };
   
-  // Update picks summary to include draft picks
+  // Update picks summary to include draft picks and unsubmitted picks
   const updatePicksSummaryWithDrafts = (currentDraftPicks: Map<number, CreatePickInput>) => {
     if (!activeWeek || games.length === 0) return;
     
-    // Create picks summary including draft picks
+    // Get unsubmitted picks from database (these have been unsubmitted)
+    const unsubmittedPicks = userPicks.filter(pick => !pick.submitted);
+    
+    // Create picks summary including both draft picks and unsubmitted picks
+    const allPicksArray: PickWithGame[] = [];
+    
+    // Add draft picks (these take precedence over unsubmitted picks for the same game)
     const draftPicksArray = Array.from(currentDraftPicks.entries()).map(([gameId, draftPick]) => {
       const game = games.find(g => g.id === gameId);
       if (!game) return null;
@@ -237,25 +354,51 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
       };
     }).filter((pick): pick is PickWithGame => pick !== null);
     
+    allPicksArray.push(...draftPicksArray);
+    
+    // Add unsubmitted picks from database (only if no draft pick exists for that game)
+    const draftGameIds = new Set(currentDraftPicks.keys());
+    unsubmittedPicks.forEach(pick => {
+      if (!draftGameIds.has(pick.game_id)) {
+        const game = games.find(g => g.id === pick.game_id);
+        if (game) {
+          allPicksArray.push({
+            ...pick,
+            game,
+          });
+        }
+      }
+    });
+    
     const summary: PicksSummary = {
       weekId: activeWeek.id,
       weekName: activeWeek.name,
       totalGames: games.length,
-      totalPicks: draftPicksArray.length,
-      submittedAt: undefined, // Draft picks are not submitted yet
-      picks: draftPicksArray,
+      totalPicks: allPicksArray.length,
+      submittedAt: undefined, // These are not submitted yet
+      picks: allPicksArray,
     };
     
     setPicksSummary(summary);
   };
   
-  // Update picks summary when games change
+  // Update picks summary when games, userPicks, or draftPicks change
   useEffect(() => {
     updatePicksSummaryWithDrafts(draftPicks);
-  }, [games, activeWeek]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [games, activeWeek, userPicks, draftPicks]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Check if picks have been submitted
   const hasSubmittedPicks = picksSummary?.submittedAt != null;
+  
+  // Get total count of picks for display (draft + unsubmitted database picks)
+  const getTotalPicksCount = () => {
+    if (hasSubmittedPicks) {
+      return userPicks.length;
+    }
+    // Count draft picks + unsubmitted database picks (avoiding duplicates)
+    const unsubmittedDatabasePicks = userPicks.filter(pick => !pick.submitted && !draftPicks.has(pick.game_id));
+    return draftPicks.size + unsubmittedDatabasePicks.length;
+  };
 
 
   if (loading) {
@@ -268,6 +411,12 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                 PickEm Dashboard
               </h1>
               <div className="flex items-center gap-3">
+                {oddsStatus && (
+                  <div className="text-sm text-gray-600 dark:text-gray-300">
+                    <span className="font-medium">Odds updated:</span>{' '}
+                    {oddsStatus.timeSinceUpdate || 'Never'}
+                  </div>
+                )}
                 {isAdmin && (
                   <button
                     onClick={onShowAdminPanel}
@@ -306,6 +455,12 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
               PickEm Dashboard
             </h1>
             <div className="flex items-center gap-3">
+              {oddsStatus && (
+                <div className="text-sm text-gray-600 dark:text-gray-300">
+                  <span className="font-medium">Odds updated:</span>{' '}
+                  {oddsStatus.timeSinceUpdate || 'Never'}
+                </div>
+              )}
               {isAdmin && (
                 <button
                   onClick={onShowAdminPanel}
@@ -393,7 +548,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                             : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
                         }`}
                       >
-                        Review Picks ({hasSubmittedPicks ? userPicks.length : draftPicks.size})
+                        Review Picks ({getTotalPicksCount()})
                         {hasSubmittedPicks && (
                           <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
                             Submitted
@@ -439,6 +594,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                     <PicksReview
                       picksSummary={picksSummary}
                       onSubmitPicks={handleSubmitPicks}
+                      onUnsubmitPicks={handleUnsubmitPicks}
                       onEditPick={() => {
                         setActiveTab('games');
                         // Scroll to the specific game (could be enhanced)

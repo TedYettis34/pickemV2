@@ -67,3 +67,18 @@ export interface GamePickState {
   canPick: boolean; // Based on game start time and submission status
   conflictsWithExisting: boolean;
 }
+
+// Spread change information
+export interface SpreadChange {
+  hasChanged: boolean;
+  originalSpread: number;
+  currentSpread: number;
+  isFavorable: boolean; // True if the change is better for the user's pick
+  improvementAmount?: number; // How much better the spread is (positive number)
+}
+
+// Enhanced pick with spread change info
+export interface PickWithSpreadChange extends PickWithGame {
+  spreadChange?: SpreadChange;
+  canUpdateToCurrentLine: boolean;
+}
