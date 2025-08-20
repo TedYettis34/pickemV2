@@ -98,6 +98,7 @@ export async function PUT(
     if (body.start_date !== undefined) updateData.start_date = body.start_date;
     if (body.end_date !== undefined) updateData.end_date = body.end_date;
     if (body.description !== undefined) updateData.description = body.description;
+    if (body.max_picker_choice_games !== undefined) updateData.max_picker_choice_games = body.max_picker_choice_games;
 
     // Validate input
     const validationErrors = WeekValidator.validateUpdateInput(updateData);

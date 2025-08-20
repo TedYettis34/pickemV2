@@ -293,6 +293,44 @@ describe('/api/admin/weeks/[id]', () => {
       expect(data.success).toBe(false);
       expect(data.error).toBe('Date range conflicts with existing week: Conflicting Week');
     });
+
+    it('should update week with max_picker_choice_games successfully', async () => {
+      const updateData: UpdateWeekInput = {
+        name: 'Updated Week 1',
+        description: 'Updated description',
+        max_picker_choice_games: 7,
+      };
+
+      const updatedWeek: Week = {
+        ...mockWeek,
+        ...updateData,
+        updated_at: '2024-01-02T00:00:00Z',
+      };
+
+      mockAdminAuth.mockResolvedValue({
+        isAuthorized: true,
+      });
+      mockWeekRepository.findById.mockResolvedValue(mockWeek);
+      mockWeekValidator.validateUpdateInput.mockReturnValue([]);
+      mockWeekRepository.isNameTaken.mockResolvedValue(false);
+      mockWeekRepository.hasDateConflict.mockResolvedValue(null);
+      mockWeekRepository.update.mockResolvedValue(updatedWeek);
+
+      const request = new NextRequest('http://localhost:3000/api/admin/weeks/1', {
+        method: 'PUT',
+        body: JSON.stringify(updateData),
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const params = Promise.resolve({ id: '1' });
+      const response = await PUT(request, { params });
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.data).toEqual(updatedWeek);
+      expect(data.message).toBe('Week updated successfully');
+      expect(mockWeekRepository.update).toHaveBeenCalledWith(1, updateData);
+    });
   });
 
   describe('DELETE', () => {

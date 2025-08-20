@@ -156,6 +156,19 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
 
   // Handle pick changes (store locally until submission)
   const handlePickChange = (gameId: number, pickType: 'home_spread' | 'away_spread', spreadValue: number | null) => {
+    const game = games.find(g => g.id === gameId);
+    if (!game) return;
+
+    // Check picker choice limit for non-must-pick games
+    if (!game.must_pick && !draftPicks.has(gameId) && !userPicks.find(p => p.game_id === gameId)) {
+      const pickerChoiceStatus = getPickerChoiceStatus();
+      if (pickerChoiceStatus && !pickerChoiceStatus.canPickMore) {
+        // Show error message to user
+        alert(`You can only pick ${pickerChoiceStatus.max} picker's choice games (excluding must-pick games). You have already picked ${pickerChoiceStatus.current}.`);
+        return;
+      }
+    }
+
     const newDraftPicks = new Map(draftPicks);
     
     // Add or update the draft pick (spreadValue can be null for some bet types)
@@ -400,6 +413,50 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
     return draftPicks.size + unsubmittedDatabasePicks.length;
   };
 
+  // Get picker's choice status (non-must-pick games count and limit)
+  const getPickerChoiceStatus = () => {
+    if (!activeWeek) return null;
+
+    const maxPickerChoiceGames = activeWeek.max_picker_choice_games;
+    if (maxPickerChoiceGames === null || maxPickerChoiceGames === undefined) return null; // No limit set
+
+    // Count current picker's choice picks (non-must-pick games)
+    const mustPickGames = games.filter(game => game.must_pick);
+    const nonMustPickGames = games.filter(game => !game.must_pick);
+
+    let currentPickerChoicePicks = 0;
+
+    if (hasSubmittedPicks) {
+      // Count from userPicks, filtering out must-pick games
+      currentPickerChoicePicks = userPicks.filter(pick => {
+        const game = games.find(g => g.id === pick.game_id);
+        return game && !game.must_pick;
+      }).length;
+    } else {
+      // Count from draft picks + unsubmitted database picks (non-must-pick only)
+      const draftPickerChoiceCount = Array.from(draftPicks.keys()).filter(gameId => {
+        const game = games.find(g => g.id === gameId);
+        return game && !game.must_pick;
+      }).length;
+
+      const unsubmittedPickerChoiceCount = userPicks.filter(pick => {
+        if (pick.submitted || draftPicks.has(pick.game_id)) return false;
+        const game = games.find(g => g.id === pick.game_id);
+        return game && !game.must_pick;
+      }).length;
+
+      currentPickerChoicePicks = draftPickerChoiceCount + unsubmittedPickerChoiceCount;
+    }
+
+    return {
+      current: currentPickerChoicePicks,
+      max: maxPickerChoiceGames,
+      mustPickCount: mustPickGames.length,
+      nonMustPickCount: nonMustPickGames.length,
+      canPickMore: currentPickerChoicePicks < maxPickerChoiceGames
+    };
+  };
+
 
   if (loading) {
     return (
@@ -519,8 +576,28 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                     {new Date(activeWeek.start_date).toLocaleDateString()} -{' '}
                     {new Date(activeWeek.end_date).toLocaleDateString()}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    <span className="font-medium">Games:</span> {games.length}
+                  <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
+                    <div>
+                      <span className="font-medium">Games:</span> {games.length}
+                    </div>
+                    {(() => {
+                      const pickerChoiceStatus = getPickerChoiceStatus();
+                      if (pickerChoiceStatus) {
+                        const { current, max, mustPickCount, canPickMore } = pickerChoiceStatus;
+                        const statusColor = canPickMore ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400';
+                        return (
+                          <div className={`${statusColor}`}>
+                            <span className="font-medium">Picker&apos;s Choice:</span> {current}/{max}
+                            {mustPickCount > 0 && (
+                              <span className="text-yellow-600 dark:text-yellow-400 ml-2">
+                                (+{mustPickCount} must-pick)
+                              </span>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 </div>
               </div>
@@ -576,17 +653,30 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                 <>
                   {activeTab === 'games' && (
                     <div className="space-y-4">
-                      {games.map((game) => (
-                        <PickCard
-                          key={game.id}
-                          game={game}
-                          currentPick={getCurrentPickForGame(game.id)}
-                          onPickChange={handlePickChange}
-                          onPickDelete={handlePickDelete}
-                          disabled={false}
-                          submitted={hasSubmittedPicks}
-                        />
-                      ))}
+                      {games.map((game) => {
+                        const currentPick = getCurrentPickForGame(game.id);
+                        const pickerChoiceStatus = getPickerChoiceStatus();
+                        
+                        // Disable non-must-pick games if picker choice limit is reached and user doesn't already have a pick for this game
+                        const isPickerChoiceLimitReached = Boolean(
+                          !game.must_pick && 
+                          pickerChoiceStatus && 
+                          !pickerChoiceStatus.canPickMore && 
+                          !currentPick
+                        );
+                        
+                        return (
+                          <PickCard
+                            key={game.id}
+                            game={game}
+                            currentPick={currentPick}
+                            onPickChange={handlePickChange}
+                            onPickDelete={handlePickDelete}
+                            disabled={isPickerChoiceLimitReached}
+                            submitted={hasSubmittedPicks}
+                          />
+                        );
+                      })}
                     </div>
                   )}
 

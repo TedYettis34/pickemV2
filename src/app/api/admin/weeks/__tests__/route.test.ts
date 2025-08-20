@@ -329,6 +329,52 @@ describe('/api/admin/weeks', () => {
       expect(mockWeekRepository.create).toHaveBeenCalledWith(requestBody);
     });
 
+    it('should create week with max_picker_choice_games successfully', async () => {
+      const requestBody: CreateWeekInput = {
+        name: 'Week 1',
+        start_date: '2024-01-01',
+        end_date: '2024-01-07',
+        description: 'First week',
+        max_picker_choice_games: 5,
+      };
+
+      const createdWeek: Week = {
+        id: 1,
+        ...requestBody,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+
+      mockAdminAuth.mockResolvedValue({
+        isAuthorized: true,
+      });
+      // Mock validation to pass
+      mockWeekValidator.validateCreateInput.mockReturnValue([]);
+      mockWeekRepository.findByName.mockResolvedValue(null);
+      mockWeekRepository.hasDateConflict.mockResolvedValue(null);
+      mockWeekRepository.create.mockResolvedValue(createdWeek);
+
+      const request = new NextRequest('http://localhost:3000/api/admin/weeks', {
+        method: 'POST',
+        body: JSON.stringify(requestBody),
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(201);
+      expect(data.success).toBe(true);
+      expect(data.data).toEqual({
+        ...createdWeek,
+        gamesPreview: { nfl: [], college: [] }
+      });
+      expect(data.message).toBe('Week created successfully with 0 games available');
+
+      expect(mockWeekRepository.create).toHaveBeenCalledWith(requestBody);
+      expect(createdWeek.max_picker_choice_games).toBe(5);
+    });
+
     it('should handle optional description field', async () => {
       const requestBody = {
         name: 'Week 1',

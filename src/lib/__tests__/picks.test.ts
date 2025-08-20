@@ -303,7 +303,7 @@ describe('Picks Library', () => {
       // Mock no existing pick
       mockQuery.mockResolvedValueOnce([]);
 
-      const result = await validatePick('user123', 1, 'home_spread');
+      const result = await validatePick('user123', 1);
 
       expect(result.isValid).toBe(true);
     });
@@ -311,7 +311,7 @@ describe('Picks Library', () => {
     it('should return invalid when game does not exist', async () => {
       mockQuery.mockResolvedValueOnce([]);
 
-      const result = await validatePick('user123', 999, 'home_spread');
+      const result = await validatePick('user123', 999);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('Game not found');
@@ -332,7 +332,7 @@ describe('Picks Library', () => {
 
       mockQuery.mockResolvedValueOnce([mockGame]);
 
-      const result = await validatePick('user123', 1, 'home_spread');
+      const result = await validatePick('user123', 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('Cannot pick on games that have already started');
@@ -356,10 +356,165 @@ describe('Picks Library', () => {
       // Mock submitted picks exist
       mockQuery.mockResolvedValueOnce([{ count: '1' }]);
 
-      const result = await validatePick('user123', 1, 'home_spread');
+      const result = await validatePick('user123', 1);
 
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('Picks have already been submitted for this week');
+    });
+
+    describe('Picker Choice Limit Validation', () => {
+      it('should allow pick on must_pick game even when picker choice limit reached', async () => {
+        const mockGame = {
+          id: 1,
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game1',
+          home_team: 'Chiefs',
+          away_team: 'Bills',
+          commence_time: new Date(Date.now() + 3600000).toISOString(),
+          must_pick: true,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        // Mock game exists
+        mockQuery.mockResolvedValueOnce([mockGame]);
+        // Mock no submitted picks
+        mockQuery.mockResolvedValueOnce([{ count: '0' }]);
+        // Mock no existing pick
+        mockQuery.mockResolvedValueOnce([]);
+
+        const result = await validatePick('user123', 1);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should allow pick on non-must_pick game when under picker choice limit', async () => {
+        const mockGame = {
+          id: 1,
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game1',
+          home_team: 'Chiefs',
+          away_team: 'Bills',
+          commence_time: new Date(Date.now() + 3600000).toISOString(),
+          must_pick: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        // Mock game exists
+        mockQuery.mockResolvedValueOnce([mockGame]);
+        // Mock no submitted picks
+        mockQuery.mockResolvedValueOnce([{ count: '0' }]);
+        // Mock no existing pick
+        mockQuery.mockResolvedValueOnce([]);
+        // Mock week with picker choice limit
+        mockQuery.mockResolvedValueOnce([{ max_picker_choice_games: 5 }]);
+        // Mock current picker choice picks count (under limit)
+        mockQuery.mockResolvedValueOnce([{ count: '3' }]);
+
+        const result = await validatePick('user123', 1);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should reject pick on non-must_pick game when picker choice limit reached', async () => {
+        const mockGame = {
+          id: 1,
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game1',
+          home_team: 'Chiefs',
+          away_team: 'Bills',
+          commence_time: new Date(Date.now() + 3600000).toISOString(),
+          must_pick: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        // Mock game exists
+        mockQuery.mockResolvedValueOnce([mockGame]);
+        // Mock no submitted picks
+        mockQuery.mockResolvedValueOnce([{ count: '0' }]);
+        // Mock no existing pick
+        mockQuery.mockResolvedValueOnce([]);
+        // Mock week with picker choice limit
+        mockQuery.mockResolvedValueOnce([{ max_picker_choice_games: 3 }]);
+        // Mock current picker choice picks count (at limit)
+        mockQuery.mockResolvedValueOnce([{ count: '3' }]);
+
+        const result = await validatePick('user123', 1);
+
+        expect(result.isValid).toBe(false);
+        expect(result.error).toContain('You can only pick 3 picker\'s choice games');
+        expect(result.error).toContain('You have already picked 3');
+      });
+
+      it('should allow pick on non-must_pick game when no picker choice limit set', async () => {
+        const mockGame = {
+          id: 1,
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game1',
+          home_team: 'Chiefs',
+          away_team: 'Bills',
+          commence_time: new Date(Date.now() + 3600000).toISOString(),
+          must_pick: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        // Mock game exists
+        mockQuery.mockResolvedValueOnce([mockGame]);
+        // Mock no submitted picks
+        mockQuery.mockResolvedValueOnce([{ count: '0' }]);
+        // Mock no existing pick
+        mockQuery.mockResolvedValueOnce([]);
+        // Mock week with no picker choice limit
+        mockQuery.mockResolvedValueOnce([{ max_picker_choice_games: null }]);
+
+        const result = await validatePick('user123', 1);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should allow updating existing pick regardless of picker choice limit', async () => {
+        const mockGame = {
+          id: 1,
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game1',
+          home_team: 'Chiefs',
+          away_team: 'Bills',
+          commence_time: new Date(Date.now() + 3600000).toISOString(),
+          must_pick: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        const existingPick = {
+          id: 1,
+          user_id: 'user123',
+          game_id: 1,
+          pick_type: 'home_spread',
+          spread_value: -3.5,
+          submitted: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        // Mock game exists
+        mockQuery.mockResolvedValueOnce([mockGame]);
+        // Mock no submitted picks
+        mockQuery.mockResolvedValueOnce([{ count: '0' }]);
+        // Mock existing pick
+        mockQuery.mockResolvedValueOnce([existingPick]);
+
+        const result = await validatePick('user123', 1);
+
+        expect(result.isValid).toBe(true);
+      });
     });
   });
 

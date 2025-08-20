@@ -1,6 +1,131 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createOrUpdatePick, validatePick, hasSubmittedPicksForWeek } from '../../../../lib/picks';
 import { ApiResponse, CreatePickInput } from '../../../../types/pick';
+import { query } from '../../../../lib/database';
+
+/**
+ * Validates picker's choice limits for bulk pick submission
+ * This ensures the entire set of picks doesn't exceed the week's picker's choice limit
+ */
+async function validateBulkPickerChoiceLimits(
+  userId: string, 
+  weekId: number, 
+  picks: Array<{ game_id: number; pick_type: string; spread_value?: number }>
+): Promise<void> {
+  // Get all games for the picks being submitted
+  const gameIds = picks.map(p => p.game_id);
+  if (gameIds.length === 0) return;
+
+  // Get game details to determine which are must_pick vs picker's choice
+  const gameDetails = await query<{ id: number; must_pick: boolean; week_id: number }>(
+    `SELECT id, must_pick, week_id FROM games WHERE id = ANY($1)`,
+    [gameIds]
+  );
+
+  // Verify all games belong to the specified week
+  const invalidGames = gameDetails.filter(game => game.week_id !== weekId);
+  if (invalidGames.length > 0) {
+    throw new Error(`Games ${invalidGames.map(g => g.id).join(', ')} do not belong to week ${weekId}`);
+  }
+
+  // Count picker's choice games being submitted (non-must-pick games)
+  const pickerChoiceGamesInSubmission = gameDetails.filter(game => !game.must_pick).length;
+  const mustPickGamesInSubmission = gameDetails.filter(game => game.must_pick).length;
+  
+  console.log(`[PICKER CHOICE DEBUG] Games being submitted:`, {
+    totalGames: gameDetails.length,
+    pickerChoiceGames: pickerChoiceGamesInSubmission,
+    mustPickGames: mustPickGamesInSubmission,
+    gameDetails: gameDetails.map(g => ({ id: g.id, must_pick: g.must_pick }))
+  });
+  
+  if (pickerChoiceGamesInSubmission === 0) {
+    // No picker's choice games in submission, no limit to check
+    console.log(`[PICKER CHOICE DEBUG] No picker's choice games in submission, skipping limit check`);
+    return;
+  }
+
+  // Get week's picker's choice limit
+  const weeks = await query<{ max_picker_choice_games: number | null }>(
+    'SELECT max_picker_choice_games FROM weeks WHERE id = $1',
+    [weekId]
+  );
+
+  if (weeks.length === 0) {
+    throw new Error(`Week ${weekId} not found`);
+  }
+
+  const maxPickerChoiceGames = weeks[0].max_picker_choice_games;
+  if (maxPickerChoiceGames === null) {
+    // No limit set, all picks allowed
+    return;
+  }
+
+  // Get current count of existing picker's choice picks for this user/week
+  // excluding games that are being resubmitted in this bulk operation
+  const currentPicksResult = await query<{ count: string }>(
+    `SELECT COUNT(*) as count 
+     FROM picks p
+     JOIN games g ON p.game_id = g.id
+     WHERE p.user_id = $1 AND g.week_id = $2 AND g.must_pick = false 
+     AND g.id NOT IN (${gameIds.map((_, i) => `$${i + 3}`).join(', ')})`,
+    [userId, weekId, ...gameIds]
+  );
+
+  const currentPickerChoicePicks = parseInt(currentPicksResult[0].count);
+  const totalPickerChoicePicks = currentPickerChoicePicks + pickerChoiceGamesInSubmission;
+
+  console.log(`[PICKER CHOICE DEBUG] Limit check:`, {
+    weekId,
+    userId,
+    maxPickerChoiceGames,
+    currentPickerChoicePicks,
+    pickerChoiceGamesInSubmission,
+    totalPickerChoicePicks
+  });
+
+  if (totalPickerChoicePicks > maxPickerChoiceGames) {
+    throw new Error(
+      `Cannot submit picks: Would exceed picker's choice limit of ${maxPickerChoiceGames} games. ` +
+      `Current: ${currentPickerChoicePicks}, Attempting to add: ${pickerChoiceGamesInSubmission}, ` +
+      `Total would be: ${totalPickerChoicePicks}`
+    );
+  }
+}
+
+/**
+ * Validates that all must-pick games for a week are included in the submission
+ */
+async function validateMustPickGames(
+  weekId: number,
+  picks: Array<{ game_id: number; pick_type: string; spread_value?: number }>
+): Promise<void> {
+  // Get all must-pick games for this week
+  const mustPickGames = await query<{ id: number }>(
+    'SELECT id FROM games WHERE week_id = $1 AND must_pick = true',
+    [weekId]
+  );
+
+  if (mustPickGames.length === 0) {
+    // No must-pick games for this week, validation passes
+    return;
+  }
+
+  // Get game IDs from the submission
+  const submittedGameIds = picks.map(p => p.game_id);
+  
+  // Check if all must-pick games are included
+  const missingMustPickGames = mustPickGames.filter(
+    game => !submittedGameIds.includes(game.id)
+  );
+
+
+  if (missingMustPickGames.length > 0) {
+    throw new Error(
+      `You must pick all required games for this week. Missing must-pick games: ${missingMustPickGames.map(g => g.id).join(', ')}`
+    );
+  }
+}
 
 /**
  * Bulk submit multiple picks for a week
@@ -74,6 +199,28 @@ export async function POST(request: NextRequest) {
       const response: ApiResponse<never> = {
         success: false,
         error: 'Picks have already been submitted for this week',
+      };
+      return NextResponse.json(response, { status: 400 });
+    }
+
+    // Bulk validation: Check picker's choice limits for all picks being submitted
+    try {
+      await validateBulkPickerChoiceLimits(userId, weekIdNum, picks);
+    } catch (validationError) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: validationError instanceof Error ? validationError.message : 'Picker choice limit validation failed',
+      };
+      return NextResponse.json(response, { status: 400 });
+    }
+
+    // Validate that all must-pick games are included
+    try {
+      await validateMustPickGames(weekIdNum, picks);
+    } catch (validationError) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: validationError instanceof Error ? validationError.message : 'Must-pick game validation failed',
       };
       return NextResponse.json(response, { status: 400 });
     }

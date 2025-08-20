@@ -81,10 +81,10 @@ export class WeekRepository {
   // Create a new week
   static async create(data: CreateWeekInput): Promise<Week> {
     const result = await query<Week>(
-      `INSERT INTO weeks (name, start_date, end_date, description)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [data.name, data.start_date, data.end_date, data.description]
+      [data.name, data.start_date, data.end_date, data.description, data.max_picker_choice_games]
     );
     
     if (result.length === 0) {
@@ -118,6 +118,11 @@ export class WeekRepository {
     if (data.description !== undefined) {
       fields.push(`description = $${paramIndex++}`);
       params.push(data.description);
+    }
+
+    if (data.max_picker_choice_games !== undefined) {
+      fields.push(`max_picker_choice_games = $${paramIndex++}`);
+      params.push(data.max_picker_choice_games);
     }
 
     if (fields.length === 0) {
@@ -245,6 +250,15 @@ export class WeekValidator {
       errors.push('Description must be 1000 characters or less');
     }
 
+    // Max picker choice games validation
+    if (data.max_picker_choice_games !== undefined && data.max_picker_choice_games !== null) {
+      if (!Number.isInteger(data.max_picker_choice_games) || data.max_picker_choice_games < 1) {
+        errors.push('Max picker choice games must be a positive integer');
+      } else if (data.max_picker_choice_games > 100) {
+        errors.push('Max picker choice games must be 100 or less');
+      }
+    }
+
     return errors;
   }
 
@@ -293,6 +307,15 @@ export class WeekValidator {
     // Description validation (if provided)
     if (data.description !== undefined && data.description.length > 1000) {
       errors.push('Description must be 1000 characters or less');
+    }
+
+    // Max picker choice games validation (if provided)
+    if (data.max_picker_choice_games !== undefined && data.max_picker_choice_games !== null) {
+      if (!Number.isInteger(data.max_picker_choice_games) || data.max_picker_choice_games < 1) {
+        errors.push('Max picker choice games must be a positive integer');
+      } else if (data.max_picker_choice_games > 100) {
+        errors.push('Max picker choice games must be 100 or less');
+      }
     }
 
     return errors;

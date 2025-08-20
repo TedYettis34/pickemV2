@@ -9,6 +9,7 @@ interface WeekFormProps {
     start_date: string;
     end_date: string;
     description: string;
+    max_picker_choice_games?: number | null;
   };
   onSubmit: (data: CreateWeekInput | UpdateWeekInput) => void;
   isSubmitting: boolean;
@@ -21,13 +22,20 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
     start_date: initialData?.start_date || '',
     end_date: initialData?.end_date || '',
     description: initialData?.description || '',
+    max_picker_choice_games: initialData?.max_picker_choice_games?.toString() || '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (initialData) {
-      setFormData(initialData);
+      setFormData({
+        name: initialData.name,
+        start_date: initialData.start_date,
+        end_date: initialData.end_date,
+        description: initialData.description,
+        max_picker_choice_games: initialData.max_picker_choice_games?.toString() || '',
+      });
     }
   }, [initialData]);
 
@@ -73,6 +81,16 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
       newErrors.description = 'Description must be 1000 characters or less';
     }
 
+    // Max picker choice games validation
+    if (formData.max_picker_choice_games.trim() !== '') {
+      const maxPickerChoiceGames = parseInt(formData.max_picker_choice_games);
+      if (isNaN(maxPickerChoiceGames) || maxPickerChoiceGames < 1) {
+        newErrors.max_picker_choice_games = 'Must be a positive integer';
+      } else if (maxPickerChoiceGames > 100) {
+        newErrors.max_picker_choice_games = 'Must be 100 or less';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -90,6 +108,7 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
       start_date: new Date(formData.start_date).toISOString(),
       end_date: new Date(formData.end_date).toISOString(),
       description: formData.description.trim() || undefined,
+      max_picker_choice_games: formData.max_picker_choice_games.trim() ? parseInt(formData.max_picker_choice_games) : null,
     };
 
     onSubmit(submitData);
@@ -204,6 +223,34 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
         )}
         <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
           {formData.description.length}/1000 characters
+        </p>
+      </div>
+
+      {/* Max Picker Choice Games */}
+      <div>
+        <label htmlFor="max_picker_choice_games" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+          Max Picker&apos;s Choice Games
+        </label>
+        <input
+          type="number"
+          id="max_picker_choice_games"
+          value={formData.max_picker_choice_games}
+          onChange={(e) => handleInputChange('max_picker_choice_games', e.target.value)}
+          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors ${
+            errors.max_picker_choice_games
+              ? 'border-red-300 dark:border-red-600'
+              : 'border-gray-300 dark:border-gray-600'
+          }`}
+          placeholder="Leave empty for no limit"
+          min={1}
+          max={100}
+          disabled={isSubmitting}
+        />
+        {errors.max_picker_choice_games && (
+          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.max_picker_choice_games}</p>
+        )}
+        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          Maximum number of non-must-pick games users can pick (excluding must-pick games)
         </p>
       </div>
 

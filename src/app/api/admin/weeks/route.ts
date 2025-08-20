@@ -98,6 +98,7 @@ export async function POST(req: NextRequest) {
       start_date: body?.start_date || '',
       end_date: body?.end_date || '',
       description: body?.description,
+      max_picker_choice_games: body?.max_picker_choice_games,
     };
     
     // Optional games data from wizard

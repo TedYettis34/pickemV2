@@ -263,6 +263,7 @@ export function WeekManagement() {
               start_date: editingWeek.start_date.slice(0, 16), // Format for datetime-local input
               end_date: editingWeek.end_date.slice(0, 16),
               description: editingWeek.description || '',
+              max_picker_choice_games: editingWeek.max_picker_choice_games,
             } : undefined}
             onSubmit={handleFormSubmit}
             isSubmitting={formLoading}
