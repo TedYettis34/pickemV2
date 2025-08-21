@@ -10,23 +10,23 @@ import { finalizeGameResult } from './gameResults';
 /**
  * Check if a game needs automatic score update
  * Criteria:
- * 1. Game started more than 4 hours ago
+ * 1. Game started more than 5 hours ago
  * 2. Admin hasn't manually set the score (home_score/away_score are null)
  * 3. Game is not already marked as final
  */
 export function shouldFetchScore(game: Game): boolean {
   const now = new Date();
   const gameStartTime = new Date(game.commence_time);
-  const fourHoursInMs = 4 * 60 * 60 * 1000;
+  const fiveHoursInMs = 5 * 60 * 60 * 1000;
   
-  // Check if game started more than 4 hours ago
-  const gameStartedMoreThan4HoursAgo = (now.getTime() - gameStartTime.getTime()) > fourHoursInMs;
+  // Check if game started more than 5 hours ago
+  const gameStartedMoreThan5HoursAgo = (now.getTime() - gameStartTime.getTime()) > fiveHoursInMs;
   
   // Check if admin hasn't set scores manually
   const noManualScoreSet = game.home_score === null && game.away_score === null;
   
-  // Only fetch if game started 4+ hours ago, no manual score, and not already final
-  return gameStartedMoreThan4HoursAgo && noManualScoreSet && game.game_status !== 'final';
+  // Only fetch if game started 5+ hours ago, no manual score, and not already final
+  return gameStartedMoreThan5HoursAgo && noManualScoreSet && game.game_status !== 'final';
 }
 
 /**
@@ -39,7 +39,7 @@ export async function getGamesNeedingScoreUpdates(): Promise<Game[]> {
       WHERE game_status != 'final' 
         AND home_score IS NULL 
         AND away_score IS NULL
-        AND commence_time < NOW() - INTERVAL '4 hours'
+        AND commence_time < NOW() - INTERVAL '5 hours'
       ORDER BY commence_time ASC
     `);
     
