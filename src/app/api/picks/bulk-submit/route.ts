@@ -30,18 +30,10 @@ async function validateBulkPickerChoiceLimits(
 
   // Count picker's choice games being submitted (non-must-pick games)
   const pickerChoiceGamesInSubmission = gameDetails.filter(game => !game.must_pick).length;
-  const mustPickGamesInSubmission = gameDetails.filter(game => game.must_pick).length;
   
-  console.log(`[PICKER CHOICE DEBUG] Games being submitted:`, {
-    totalGames: gameDetails.length,
-    pickerChoiceGames: pickerChoiceGamesInSubmission,
-    mustPickGames: mustPickGamesInSubmission,
-    gameDetails: gameDetails.map(g => ({ id: g.id, must_pick: g.must_pick }))
-  });
   
   if (pickerChoiceGamesInSubmission === 0) {
     // No picker's choice games in submission, no limit to check
-    console.log(`[PICKER CHOICE DEBUG] No picker's choice games in submission, skipping limit check`);
     return;
   }
 
@@ -75,14 +67,6 @@ async function validateBulkPickerChoiceLimits(
   const currentPickerChoicePicks = parseInt(currentPicksResult[0].count);
   const totalPickerChoicePicks = currentPickerChoicePicks + pickerChoiceGamesInSubmission;
 
-  console.log(`[PICKER CHOICE DEBUG] Limit check:`, {
-    weekId,
-    userId,
-    maxPickerChoiceGames,
-    currentPickerChoicePicks,
-    pickerChoiceGamesInSubmission,
-    totalPickerChoicePicks
-  });
 
   if (totalPickerChoicePicks > maxPickerChoiceGames) {
     throw new Error(

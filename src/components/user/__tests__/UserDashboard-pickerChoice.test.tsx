@@ -328,17 +328,63 @@ describe('UserDashboard - Picker Choice Limits', () => {
   });
 
   it('should disable non-must-pick games when picker choice limit is reached', async () => {
+    // Add a fourth game to reach the limit
+    const moreGames = [
+      ...mockGames,
+      {
+        id: 4,
+        week_id: 1,
+        sport: 'americanfootball_ncaaf',
+        external_id: 'game4',
+        home_team: 'Auburn',
+        away_team: 'LSU',
+        commence_time: new Date(Date.now() + 14400000).toISOString(),
+        spread_home: 3.5,
+        spread_away: -3.5,
+        total_over_under: 49.0,
+        moneyline_home: 140,
+        moneyline_away: -160,
+        bookmaker: 'FanDuel',
+        odds_last_updated: '2024-08-19T12:00:00Z',
+        must_pick: false,
+        created_at: '2024-08-19T00:00:00Z',
+        updated_at: '2024-08-19T00:00:00Z',
+      },
+    ];
+    
     // Create picks that reach the limit (3 picker's choice games)
-    const picksAtLimit: Pick[] = Array.from({ length: 3 }, (_, i) => ({
-      id: i + 1,
-      user_id: 'user123',
-      game_id: i + 10, // Use game IDs that don't conflict with our test games
-      pick_type: 'home_spread' as const,
-      spread_value: -1.5,
-      submitted: false,
-      created_at: '2024-08-19T00:00:00Z',
-      updated_at: '2024-08-19T00:00:00Z',
-    }));
+    const picksAtLimit: Pick[] = [
+      {
+        id: 1,
+        user_id: 'user123',
+        game_id: 2, // Eagles @ Cowboys (picker's choice)
+        pick_type: 'home_spread' as const,
+        spread_value: -2.5,
+        submitted: false,
+        created_at: '2024-08-19T00:00:00Z',
+        updated_at: '2024-08-19T00:00:00Z',
+      },
+      {
+        id: 2,
+        user_id: 'user123',
+        game_id: 3, // Georgia @ Alabama (picker's choice)
+        pick_type: 'home_spread' as const,
+        spread_value: -1.5,
+        submitted: false,
+        created_at: '2024-08-19T00:00:00Z',
+        updated_at: '2024-08-19T00:00:00Z',
+      },
+      {
+        id: 3,
+        user_id: 'user123',
+        game_id: 4, // Auburn @ LSU (picker's choice)
+        pick_type: 'home_spread' as const,
+        spread_value: 3.5,
+        submitted: false,
+        created_at: '2024-08-19T00:00:00Z',
+        updated_at: '2024-08-19T00:00:00Z',
+      },
+    ];
 
     mockFetch.mockImplementation((url: string) => {
       if (url.includes('/api/weeks/active')) {
@@ -350,7 +396,7 @@ describe('UserDashboard - Picker Choice Limits', () => {
       if (url.includes('/api/weeks/1/games')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ success: true, data: mockGames }),
+          json: () => Promise.resolve({ success: true, data: moreGames }),
         });
       }
       if (url.includes('/api/picks/week/1')) {
@@ -385,18 +431,63 @@ describe('UserDashboard - Picker Choice Limits', () => {
   });
 
   it('should allow must-pick games even when picker choice limit is reached', async () => {
+    // Add a fourth game to reach the limit
+    const moreGames = [
+      ...mockGames,
+      {
+        id: 4,
+        week_id: 1,
+        sport: 'americanfootball_ncaaf',
+        external_id: 'game4',
+        home_team: 'Auburn',
+        away_team: 'LSU',
+        commence_time: new Date(Date.now() + 14400000).toISOString(),
+        spread_home: 3.5,
+        spread_away: -3.5,
+        total_over_under: 49.0,
+        moneyline_home: 140,
+        moneyline_away: -160,
+        bookmaker: 'FanDuel',
+        odds_last_updated: '2024-08-19T12:00:00Z',
+        must_pick: false,
+        created_at: '2024-08-19T00:00:00Z',
+        updated_at: '2024-08-19T00:00:00Z',
+      },
+    ];
     
     // Create picks that reach the picker choice limit
-    const picksAtLimit: Pick[] = Array.from({ length: 3 }, (_, i) => ({
-      id: i + 1,
-      user_id: 'user123',
-      game_id: i + 10,
-      pick_type: 'home_spread' as const,
-      spread_value: -1.5,
-      submitted: false,
-      created_at: '2024-08-19T00:00:00Z',
-      updated_at: '2024-08-19T00:00:00Z',
-    }));
+    const picksAtLimit: Pick[] = [
+      {
+        id: 1,
+        user_id: 'user123',
+        game_id: 2, // Eagles @ Cowboys (picker's choice)
+        pick_type: 'home_spread' as const,
+        spread_value: -2.5,
+        submitted: false,
+        created_at: '2024-08-19T00:00:00Z',
+        updated_at: '2024-08-19T00:00:00Z',
+      },
+      {
+        id: 2,
+        user_id: 'user123',
+        game_id: 3, // Georgia @ Alabama (picker's choice)
+        pick_type: 'home_spread' as const,
+        spread_value: -1.5,
+        submitted: false,
+        created_at: '2024-08-19T00:00:00Z',
+        updated_at: '2024-08-19T00:00:00Z',
+      },
+      {
+        id: 3,
+        user_id: 'user123',
+        game_id: 4, // Auburn @ LSU (picker's choice)
+        pick_type: 'home_spread' as const,
+        spread_value: 3.5,
+        submitted: false,
+        created_at: '2024-08-19T00:00:00Z',
+        updated_at: '2024-08-19T00:00:00Z',
+      },
+    ];
 
     mockFetch.mockImplementation((url: string) => {
       if (url.includes('/api/weeks/active')) {
@@ -408,7 +499,7 @@ describe('UserDashboard - Picker Choice Limits', () => {
       if (url.includes('/api/weeks/1/games')) {
         return Promise.resolve({
           ok: true,
-          json: () => Promise.resolve({ success: true, data: mockGames }),
+          json: () => Promise.resolve({ success: true, data: moreGames }),
         });
       }
       if (url.includes('/api/picks/week/1')) {

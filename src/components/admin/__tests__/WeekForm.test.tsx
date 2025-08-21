@@ -29,8 +29,8 @@ describe('WeekForm', () => {
   it('should populate form with initial data', () => {
     const initialData = {
       name: 'Test Week',
-      start_date: '2024-09-01T00:00',
-      end_date: '2024-09-08T23:59',
+      start_date: '2025-09-01T00:00',
+      end_date: '2025-09-08T23:59',
       description: 'Test description',
       max_picker_choice_games: 5,
     };
@@ -38,8 +38,8 @@ describe('WeekForm', () => {
     render(<WeekForm {...defaultProps} initialData={initialData} />);
 
     expect(screen.getByDisplayValue('Test Week')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('2024-09-01T00:00')).toBeInTheDocument();
-    expect(screen.getByDisplayValue('2024-09-08T23:59')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('2025-09-01T00:00')).toBeInTheDocument();
+    expect(screen.getByDisplayValue('2025-09-08T23:59')).toBeInTheDocument();
     expect(screen.getByDisplayValue('Test description')).toBeInTheDocument();
     expect(screen.getByDisplayValue('5')).toBeInTheDocument();
   });
@@ -92,8 +92,8 @@ describe('WeekForm', () => {
     const descriptionInput = screen.getByLabelText(/description/i);
 
     await user.type(nameInput, 'Test Week');
-    await user.type(startDateInput, '2024-09-01T00:00');
-    await user.type(endDateInput, '2024-09-08T23:59');
+    await user.type(startDateInput, '2025-09-01T00:00');
+    await user.type(endDateInput, '2025-09-08T23:59');
     await user.type(descriptionInput, 'Test description');
 
     const submitButton = screen.getByRole('button', { name: 'Create Week' });
@@ -101,14 +101,15 @@ describe('WeekForm', () => {
 
     await waitFor(() => {
       // Calculate expected dates considering timezone conversion
-      const expectedStartDate = new Date('2024-09-01T00:00').toISOString();
-      const expectedEndDate = new Date('2024-09-08T23:59').toISOString();
+      const expectedStartDate = new Date('2025-09-01T00:00').toISOString();
+      const expectedEndDate = new Date('2025-09-08T23:59').toISOString();
       
       expect(mockOnSubmit).toHaveBeenCalledWith({
         name: 'Test Week',
         start_date: expectedStartDate,
         end_date: expectedEndDate,
         description: 'Test description',
+        max_picker_choice_games: null,
       });
     });
   });
@@ -122,22 +123,23 @@ describe('WeekForm', () => {
     const endDateInput = screen.getByLabelText(/end date & time/i);
 
     await user.type(nameInput, 'Test Week');
-    await user.type(startDateInput, '2024-09-01T00:00');
-    await user.type(endDateInput, '2024-09-08T23:59');
+    await user.type(startDateInput, '2025-09-01T00:00');
+    await user.type(endDateInput, '2025-09-08T23:59');
 
     const submitButton = screen.getByRole('button', { name: 'Create Week' });
     await user.click(submitButton);
 
     await waitFor(() => {
       // Calculate expected dates considering timezone conversion
-      const expectedStartDate = new Date('2024-09-01T00:00').toISOString();
-      const expectedEndDate = new Date('2024-09-08T23:59').toISOString();
+      const expectedStartDate = new Date('2025-09-01T00:00').toISOString();
+      const expectedEndDate = new Date('2025-09-08T23:59').toISOString();
       
       expect(mockOnSubmit).toHaveBeenCalledWith({
         name: 'Test Week',
         start_date: expectedStartDate,
         end_date: expectedEndDate,
         description: undefined,
+        max_picker_choice_games: null,
       });
     });
   });
@@ -201,10 +203,8 @@ describe('WeekForm', () => {
 
       const field = screen.getByLabelText(/max picker's choice games/i);
       expect(field).toBeInTheDocument();
-      expect(field).toHaveAttribute('type', 'number');
+      expect(field).toHaveAttribute('type', 'text');
       expect(field).toHaveAttribute('placeholder', 'Leave empty for no limit');
-      expect(field).toHaveAttribute('min', '1');
-      expect(field).toHaveAttribute('max', '100');
       
       expect(screen.getByText(/maximum number of non-must-pick games users can pick/i)).toBeInTheDocument();
     });
@@ -218,8 +218,8 @@ describe('WeekForm', () => {
       const endDateInput = screen.getByLabelText(/end date & time/i);
 
       await user.type(nameInput, 'Test Week');
-      await user.type(startDateInput, '2024-09-01T00:00');
-      await user.type(endDateInput, '2024-09-08T23:59');
+      await user.type(startDateInput, '2025-09-01T00:00');
+      await user.type(endDateInput, '2025-09-08T23:59');
 
       const submitButton = screen.getByRole('button', { name: 'Create Week' });
       await user.click(submitButton);
@@ -227,10 +227,10 @@ describe('WeekForm', () => {
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith({
           name: 'Test Week',
-          start_date: new Date('2024-09-01T00:00').toISOString(),
-          end_date: new Date('2024-09-08T23:59').toISOString(),
+          start_date: new Date('2025-09-01T00:00').toISOString(),
+          end_date: new Date('2025-09-08T23:59').toISOString(),
           description: undefined,
-          max_picker_choice_games: undefined,
+          max_picker_choice_games: null,
         });
       });
     });
@@ -245,8 +245,8 @@ describe('WeekForm', () => {
       const maxPickerChoiceInput = screen.getByLabelText(/max picker's choice games/i);
 
       await user.type(nameInput, 'Test Week');
-      await user.type(startDateInput, '2024-09-01T00:00');
-      await user.type(endDateInput, '2024-09-08T23:59');
+      await user.type(startDateInput, '2025-09-01T00:00');
+      await user.type(endDateInput, '2025-09-08T23:59');
       await user.type(maxPickerChoiceInput, '7');
 
       const submitButton = screen.getByRole('button', { name: 'Create Week' });
@@ -255,8 +255,8 @@ describe('WeekForm', () => {
       await waitFor(() => {
         expect(mockOnSubmit).toHaveBeenCalledWith({
           name: 'Test Week',
-          start_date: new Date('2024-09-01T00:00').toISOString(),
-          end_date: new Date('2024-09-08T23:59').toISOString(),
+          start_date: new Date('2025-09-01T00:00').toISOString(),
+          end_date: new Date('2025-09-08T23:59').toISOString(),
           description: undefined,
           max_picker_choice_games: 7,
         });
@@ -267,7 +267,15 @@ describe('WeekForm', () => {
       const user = userEvent.setup();
       render(<WeekForm {...defaultProps} />);
 
+      // Fill in required fields first
+      const nameInput = screen.getByLabelText(/week name/i);
+      const startDateInput = screen.getByLabelText(/start date & time/i);
+      const endDateInput = screen.getByLabelText(/end date & time/i);
       const maxPickerChoiceInput = screen.getByLabelText(/max picker's choice games/i);
+
+      await user.type(nameInput, 'Test Week');
+      await user.type(startDateInput, '2025-09-01T00:00');
+      await user.type(endDateInput, '2025-09-08T23:59');
       await user.type(maxPickerChoiceInput, '0');
 
       const submitButton = screen.getByRole('button', { name: 'Create Week' });
@@ -284,7 +292,15 @@ describe('WeekForm', () => {
       const user = userEvent.setup();
       render(<WeekForm {...defaultProps} />);
 
+      // Fill in required fields first
+      const nameInput = screen.getByLabelText(/week name/i);
+      const startDateInput = screen.getByLabelText(/start date & time/i);
+      const endDateInput = screen.getByLabelText(/end date & time/i);
       const maxPickerChoiceInput = screen.getByLabelText(/max picker's choice games/i);
+
+      await user.type(nameInput, 'Test Week');
+      await user.type(startDateInput, '2025-09-01T00:00');
+      await user.type(endDateInput, '2025-09-08T23:59');
       await user.type(maxPickerChoiceInput, '150');
 
       const submitButton = screen.getByRole('button', { name: 'Create Week' });
@@ -301,7 +317,15 @@ describe('WeekForm', () => {
       const user = userEvent.setup();
       render(<WeekForm {...defaultProps} />);
 
+      // Fill in required fields first
+      const nameInput = screen.getByLabelText(/week name/i);
+      const startDateInput = screen.getByLabelText(/start date & time/i);
+      const endDateInput = screen.getByLabelText(/end date & time/i);
       const maxPickerChoiceInput = screen.getByLabelText(/max picker's choice games/i);
+
+      await user.type(nameInput, 'Test Week');
+      await user.type(startDateInput, '2025-09-01T00:00');
+      await user.type(endDateInput, '2025-09-08T23:59');
       await user.type(maxPickerChoiceInput, 'abc');
 
       const submitButton = screen.getByRole('button', { name: 'Create Week' });
@@ -318,7 +342,15 @@ describe('WeekForm', () => {
       const user = userEvent.setup();
       render(<WeekForm {...defaultProps} />);
 
+      // Fill in required fields first
+      const nameInput = screen.getByLabelText(/week name/i);
+      const startDateInput = screen.getByLabelText(/start date & time/i);
+      const endDateInput = screen.getByLabelText(/end date & time/i);
       const maxPickerChoiceInput = screen.getByLabelText(/max picker's choice games/i);
+
+      await user.type(nameInput, 'Test Week');
+      await user.type(startDateInput, '2025-09-01T00:00');
+      await user.type(endDateInput, '2025-09-08T23:59');
       await user.type(maxPickerChoiceInput, '0');
 
       const submitButton = screen.getByRole('button', { name: 'Create Week' });

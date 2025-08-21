@@ -273,6 +273,9 @@ describe('/api/picks/bulk-submit', () => {
       // but since game 2 is being resubmitted, it should not count toward the existing total
       mockQuery.mockResolvedValueOnce([{ count: '0' }]);
 
+      // Mock must-pick games validation
+      mockQuery.mockResolvedValueOnce([{ id: 1 }]);
+
       // Mock individual pick validation
       mockValidatePick.mockResolvedValue({ isValid: true });
 
@@ -516,11 +519,8 @@ describe('/api/picks/bulk-submit', () => {
         { id: 2, must_pick: true, week_id: 1 },
       ]);
 
-      // Mock week with zero picker's choice limit
-      mockQuery.mockResolvedValueOnce([{ max_picker_choice_games: 0 }]);
-
-      // Since there are no picker's choice games in submission, validation should be skipped
-      // No need to mock picker's choice count query
+      // Since there are no picker's choice games in submission, picker choice validation is skipped
+      // No need to mock week limit or picker's choice count queries
 
       // Mock must-pick games validation
       mockQuery.mockResolvedValueOnce([

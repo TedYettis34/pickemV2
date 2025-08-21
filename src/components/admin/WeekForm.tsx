@@ -232,7 +232,7 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
           Max Picker&apos;s Choice Games
         </label>
         <input
-          type="number"
+          type="text"
           id="max_picker_choice_games"
           value={formData.max_picker_choice_games}
           onChange={(e) => handleInputChange('max_picker_choice_games', e.target.value)}
@@ -242,8 +242,6 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
               : 'border-gray-300 dark:border-gray-600'
           }`}
           placeholder="Leave empty for no limit"
-          min={1}
-          max={100}
           disabled={isSubmitting}
         />
         {errors.max_picker_choice_games && (

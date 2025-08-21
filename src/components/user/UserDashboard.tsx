@@ -578,7 +578,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                   </div>
                   <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                     <div>
-                      <span className="font-medium">Games:</span> {games.length}
+                      <span className="font-medium">Games: {games.length}</span>
                     </div>
                     {(() => {
                       const pickerChoiceStatus = getPickerChoiceStatus();
@@ -587,7 +587,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                         const statusColor = canPickMore ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400';
                         return (
                           <div className={`${statusColor}`}>
-                            <span className="font-medium">Picker&apos;s Choice:</span> {current}/{max}
+                            <span className="font-medium">Picker&apos;s Choice: {current}/{max}</span>
                             {mustPickCount > 0 && (
                               <span className="text-yellow-600 dark:text-yellow-400 ml-2">
                                 (+{mustPickCount} must-pick)
