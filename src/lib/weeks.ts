@@ -81,10 +81,10 @@ export class WeekRepository {
   // Create a new week
   static async create(data: CreateWeekInput): Promise<Week> {
     const result = await query<Week>(
-      `INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games, max_triple_plays)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING *`,
-      [data.name, data.start_date, data.end_date, data.description, data.max_picker_choice_games]
+      [data.name, data.start_date, data.end_date, data.description, data.max_picker_choice_games, data.max_triple_plays]
     );
     
     if (result.length === 0) {
@@ -123,6 +123,11 @@ export class WeekRepository {
     if (data.max_picker_choice_games !== undefined) {
       fields.push(`max_picker_choice_games = $${paramIndex++}`);
       params.push(data.max_picker_choice_games);
+    }
+
+    if (data.max_triple_plays !== undefined) {
+      fields.push(`max_triple_plays = $${paramIndex++}`);
+      params.push(data.max_triple_plays);
     }
 
     if (fields.length === 0) {
@@ -259,6 +264,15 @@ export class WeekValidator {
       }
     }
 
+    // Max triple plays validation
+    if (data.max_triple_plays !== undefined && data.max_triple_plays !== null) {
+      if (!Number.isInteger(data.max_triple_plays) || data.max_triple_plays < 1) {
+        errors.push('Max triple plays must be a positive integer');
+      } else if (data.max_triple_plays > 50) {
+        errors.push('Max triple plays must be 50 or less');
+      }
+    }
+
     return errors;
   }
 
@@ -315,6 +329,15 @@ export class WeekValidator {
         errors.push('Max picker choice games must be a positive integer');
       } else if (data.max_picker_choice_games > 100) {
         errors.push('Max picker choice games must be 100 or less');
+      }
+    }
+
+    // Max triple plays validation (if provided)
+    if (data.max_triple_plays !== undefined && data.max_triple_plays !== null) {
+      if (!Number.isInteger(data.max_triple_plays) || data.max_triple_plays < 1) {
+        errors.push('Max triple plays must be a positive integer');
+      } else if (data.max_triple_plays > 50) {
+        errors.push('Max triple plays must be 50 or less');
       }
     }
 

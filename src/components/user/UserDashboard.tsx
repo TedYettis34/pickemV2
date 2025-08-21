@@ -155,7 +155,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
   };
 
   // Handle pick changes (store locally until submission)
-  const handlePickChange = (gameId: number, pickType: 'home_spread' | 'away_spread', spreadValue: number | null) => {
+  const handlePickChange = (gameId: number, pickType: 'home_spread' | 'away_spread', spreadValue: number | null, isTriplePlay: boolean = false) => {
     const game = games.find(g => g.id === gameId);
     if (!game) return;
 
@@ -169,6 +169,18 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
       }
     }
 
+    // Check triple play limit if marking as triple play
+    if (isTriplePlay && activeWeek?.max_triple_plays !== null && activeWeek?.max_triple_plays !== undefined) {
+      const currentTriplePlayCount = getCurrentTriplePlayCount();
+      const existingPick = draftPicks.get(gameId) || userPicks.find(p => p.game_id === gameId);
+      const countAdjustment = existingPick?.is_triple_play ? -1 : 0; // If updating an existing triple play, subtract it first
+      
+      if (currentTriplePlayCount + countAdjustment >= activeWeek.max_triple_plays) {
+        alert(`You can only mark ${activeWeek.max_triple_plays} picks as triple plays per week. You have already marked ${currentTriplePlayCount}.`);
+        return;
+      }
+    }
+
     const newDraftPicks = new Map(draftPicks);
     
     // Add or update the draft pick (spreadValue can be null for some bet types)
@@ -176,6 +188,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
       game_id: gameId,
       pick_type: pickType,
       spread_value: spreadValue,
+      is_triple_play: isTriplePlay,
     });
     
     setDraftPicks(newDraftPicks);
@@ -361,6 +374,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
         pick_type: draftPick.pick_type,
         spread_value: draftPick.spread_value,
         submitted: false,
+        is_triple_play: draftPick.is_triple_play || false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
         game,
@@ -455,6 +469,27 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
       nonMustPickCount: nonMustPickGames.length,
       canPickMore: currentPickerChoicePicks < maxPickerChoiceGames
     };
+  };
+
+  const getCurrentTriplePlayCount = () => {
+    let currentTriplePlays = 0;
+
+    if (hasSubmittedPicks) {
+      // Count from userPicks
+      currentTriplePlays = userPicks.filter(pick => pick.is_triple_play).length;
+    } else {
+      // Count from draft picks + unsubmitted database picks
+      const draftTriplePlayCount = Array.from(draftPicks.values()).filter(pick => pick.is_triple_play).length;
+      
+      const unsubmittedTriplePlayCount = userPicks.filter(pick => {
+        if (pick.submitted || draftPicks.has(pick.game_id)) return false;
+        return pick.is_triple_play;
+      }).length;
+
+      currentTriplePlays = draftTriplePlayCount + unsubmittedTriplePlayCount;
+    }
+
+    return currentTriplePlays;
   };
 
 
@@ -674,6 +709,8 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                             onPickDelete={handlePickDelete}
                             disabled={isPickerChoiceLimitReached}
                             submitted={hasSubmittedPicks}
+                            maxTriplePlays={activeWeek?.max_triple_plays}
+                            currentTriplePlayCount={getCurrentTriplePlayCount()}
                           />
                         );
                       })}

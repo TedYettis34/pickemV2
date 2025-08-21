@@ -211,6 +211,11 @@ export function PicksReview({
                     Must Pick
                   </span>
                 )}
+                {pick.is_triple_play && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 font-medium">
+                    Triple Play
+                  </span>
+                )}
                 <div className="text-sm text-gray-500 dark:text-gray-400">
                   {formatGameTime(pick.game.commence_time)}
                 </div>

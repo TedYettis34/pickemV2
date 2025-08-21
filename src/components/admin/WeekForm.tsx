@@ -10,6 +10,7 @@ interface WeekFormProps {
     end_date: string;
     description: string;
     max_picker_choice_games?: number | null;
+    max_triple_plays?: number | null;
   };
   onSubmit: (data: CreateWeekInput | UpdateWeekInput) => void;
   isSubmitting: boolean;
@@ -23,6 +24,7 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
     end_date: initialData?.end_date || '',
     description: initialData?.description || '',
     max_picker_choice_games: initialData?.max_picker_choice_games?.toString() || '',
+    max_triple_plays: initialData?.max_triple_plays?.toString() || '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -35,6 +37,7 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
         end_date: initialData.end_date,
         description: initialData.description,
         max_picker_choice_games: initialData.max_picker_choice_games?.toString() || '',
+        max_triple_plays: initialData.max_triple_plays?.toString() || '',
       });
     }
   }, [initialData]);
@@ -91,6 +94,16 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
       }
     }
 
+    // Max triple plays validation
+    if (formData.max_triple_plays.trim() !== '') {
+      const maxTriplePlays = parseInt(formData.max_triple_plays);
+      if (isNaN(maxTriplePlays) || maxTriplePlays < 1) {
+        newErrors.max_triple_plays = 'Must be a positive integer';
+      } else if (maxTriplePlays > 50) {
+        newErrors.max_triple_plays = 'Must be 50 or less';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -109,6 +122,7 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
       end_date: new Date(formData.end_date).toISOString(),
       description: formData.description.trim() || undefined,
       max_picker_choice_games: formData.max_picker_choice_games.trim() ? parseInt(formData.max_picker_choice_games) : null,
+      max_triple_plays: formData.max_triple_plays.trim() ? parseInt(formData.max_triple_plays) : null,
     };
 
     onSubmit(submitData);
@@ -226,30 +240,59 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
         </p>
       </div>
 
-      {/* Max Picker Choice Games */}
-      <div>
-        <label htmlFor="max_picker_choice_games" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          Max Picker&apos;s Choice Games
-        </label>
-        <input
-          type="text"
-          id="max_picker_choice_games"
-          value={formData.max_picker_choice_games}
-          onChange={(e) => handleInputChange('max_picker_choice_games', e.target.value)}
-          className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors ${
-            errors.max_picker_choice_games
-              ? 'border-red-300 dark:border-red-600'
-              : 'border-gray-300 dark:border-gray-600'
-          }`}
-          placeholder="Leave empty for no limit"
-          disabled={isSubmitting}
-        />
-        {errors.max_picker_choice_games && (
-          <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.max_picker_choice_games}</p>
-        )}
-        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-          Maximum number of non-must-pick games users can pick (excluding must-pick games)
-        </p>
+      {/* Game Limits */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Max Picker Choice Games */}
+        <div>
+          <label htmlFor="max_picker_choice_games" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Max Picker&apos;s Choice Games
+          </label>
+          <input
+            type="text"
+            id="max_picker_choice_games"
+            value={formData.max_picker_choice_games}
+            onChange={(e) => handleInputChange('max_picker_choice_games', e.target.value)}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors ${
+              errors.max_picker_choice_games
+                ? 'border-red-300 dark:border-red-600'
+                : 'border-gray-300 dark:border-gray-600'
+            }`}
+            placeholder="Leave empty for no limit"
+            disabled={isSubmitting}
+          />
+          {errors.max_picker_choice_games && (
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.max_picker_choice_games}</p>
+          )}
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Maximum number of non-must-pick games users can pick
+          </p>
+        </div>
+
+        {/* Max Triple Plays */}
+        <div>
+          <label htmlFor="max_triple_plays" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Max Triple Plays
+          </label>
+          <input
+            type="text"
+            id="max_triple_plays"
+            value={formData.max_triple_plays}
+            onChange={(e) => handleInputChange('max_triple_plays', e.target.value)}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors ${
+              errors.max_triple_plays
+                ? 'border-red-300 dark:border-red-600'
+                : 'border-gray-300 dark:border-gray-600'
+            }`}
+            placeholder="Leave empty for no limit"
+            disabled={isSubmitting}
+          />
+          {errors.max_triple_plays && (
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.max_triple_plays}</p>
+          )}
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            Maximum number of picks users can mark as triple plays
+          </p>
+        </div>
       </div>
 
       {/* Submit Button */}

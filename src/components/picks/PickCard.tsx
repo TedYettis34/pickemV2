@@ -8,11 +8,13 @@ import { calculateSpreadChange, getSpreadChangeDisplayText, getSpreadChangeClass
 interface PickCardProps {
   game: Game;
   currentPick?: Pick | CreatePickInput;
-  onPickChange: (gameId: number, pickType: 'home_spread' | 'away_spread', spreadValue: number | null) => void;
+  onPickChange: (gameId: number, pickType: 'home_spread' | 'away_spread', spreadValue: number | null, isTriplePlay?: boolean) => void;
   onPickDelete?: (gameId: number) => void;
   onUpdateToCurrentLine?: (gameId: number) => Promise<void>;
   disabled?: boolean;
   submitted?: boolean;
+  maxTriplePlays?: number | null;
+  currentTriplePlayCount?: number;
 }
 
 export function PickCard({ 
@@ -22,9 +24,12 @@ export function PickCard({
   onPickDelete,
   onUpdateToCurrentLine,
   disabled = false,
-  submitted = false 
+  submitted = false,
+  maxTriplePlays,
+  currentTriplePlayCount = 0
 }: PickCardProps) {
   const [isUpdatingSpread, setIsUpdatingSpread] = useState(false);
+  const [isTriplePlay, setIsTriplePlay] = useState(currentPick?.is_triple_play || false);
 
   // Check if game has started
   const gameStartTime = new Date(game.commence_time);
@@ -83,7 +88,34 @@ export function PickCard({
 
   const handlePickChange = (pickType: 'home_spread' | 'away_spread', spreadValue: number | null) => {
     if (!canPick) return;
-    onPickChange(game.id, pickType, spreadValue);
+    onPickChange(game.id, pickType, spreadValue, isTriplePlay);
+  };
+
+  const handleTriplePlayChange = (checked: boolean) => {
+    if (!canPick || !currentPick) return;
+    
+    // Check if we can add another triple play
+    if (checked && maxTriplePlays !== null && maxTriplePlays !== undefined) {
+      const countWithoutCurrent = currentPick.is_triple_play ? currentTriplePlayCount - 1 : currentTriplePlayCount;
+      if (countWithoutCurrent >= maxTriplePlays) {
+        return; // Can't add more triple plays
+      }
+    }
+    
+    setIsTriplePlay(checked);
+    onPickChange(game.id, currentPick.pick_type, currentPick.spread_value, checked);
+  };
+
+  // Check if we can enable triple play for this pick
+  const canEnableTriplePlay = () => {
+    if (!canPick || !currentPick) return false;
+    if (maxTriplePlays === null || maxTriplePlays === undefined) return true;
+    
+    // If this pick is already a triple play, we can always disable it
+    if (currentPick.is_triple_play) return true;
+    
+    // Otherwise, check if we're under the limit
+    return currentTriplePlayCount < maxTriplePlays;
   };
 
   const handleDeletePick = () => {
@@ -124,6 +156,14 @@ export function PickCard({
       default:
         return sport;
     }
+  };
+
+  // Function to display the user's actual picked spread (not the current game spread)
+  const getCurrentPickDisplayText = (pick: Pick | CreatePickInput) => {
+    const team = pick.pick_type === 'home_spread' ? game.home_team : game.away_team;
+    const spread = pick.spread_value || 0;
+    const spreadText = spread > 0 ? `+${spread}` : `${spread}`;
+    return `${team} ${spreadText}`;
   };
 
   return (
@@ -213,7 +253,12 @@ export function PickCard({
                 <div className="flex justify-between items-center">
                   <div className="text-sm text-blue-800 dark:text-blue-200">
                     <span className="font-medium">Current pick:</span>{' '}
-                    {pickOptions.find(opt => opt.type === currentPick.pick_type)?.displayText}
+                    {getCurrentPickDisplayText(currentPick)}
+                    {currentPick.is_triple_play && (
+                      <span className="ml-2 inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400 font-medium">
+                        Triple Play
+                      </span>
+                    )}
                   </div>
                   {canPick && onPickDelete && (
                     <button
@@ -223,6 +268,32 @@ export function PickCard({
                     >
                       Remove
                     </button>
+                  )}
+                </div>
+
+                {/* Triple Play Checkbox */}
+                <div className="pt-2 border-t border-blue-200 dark:border-blue-700">
+                  <label className="flex items-center space-x-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isTriplePlay}
+                      onChange={(e) => handleTriplePlayChange(e.target.checked)}
+                      disabled={!canEnableTriplePlay()}
+                      className="h-4 w-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500 disabled:opacity-50"
+                    />
+                    <span className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+                      Mark as Triple Play
+                    </span>
+                    {maxTriplePlays !== null && maxTriplePlays !== undefined && (
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        ({currentTriplePlayCount}/{maxTriplePlays} used)
+                      </span>
+                    )}
+                  </label>
+                  {maxTriplePlays !== null && maxTriplePlays !== undefined && !canEnableTriplePlay() && !currentPick.is_triple_play && (
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      You have reached the maximum number of triple plays for this week
+                    </p>
                   )}
                 </div>
                 

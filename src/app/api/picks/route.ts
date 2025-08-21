@@ -29,7 +29,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { game_id, pick_type, spread_value }: CreatePickInput = body;
+    const { game_id, pick_type, spread_value, is_triple_play }: CreatePickInput = body;
 
     // Validate required fields
     if (!game_id || !pick_type) {
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Validate the pick
-    const validation = await validatePick(userId, game_id);
+    const validation = await validatePick(userId, game_id, is_triple_play || false);
     if (!validation.isValid) {
       const response: ApiResponse<never> = {
         success: false,
@@ -63,6 +63,7 @@ export async function POST(request: NextRequest) {
       game_id,
       pick_type,
       spread_value,
+      is_triple_play,
     });
 
     const response: ApiResponse<typeof pick> = {

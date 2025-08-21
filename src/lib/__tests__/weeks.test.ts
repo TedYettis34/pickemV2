@@ -133,6 +133,66 @@ describe('WeekValidator', () => {
       const errors = WeekValidator.validateCreateInput(input);
       expect(errors).toEqual([]);
     });
+
+    it('should validate max_triple_plays when provided', () => {
+      const validInput: CreateWeekInput = {
+        name: 'Week 1',
+        start_date: '2024-09-01T00:00:00.000Z',
+        end_date: '2024-09-08T23:59:59.000Z',
+        max_triple_plays: 3,
+      };
+
+      const errors = WeekValidator.validateCreateInput(validInput);
+      expect(errors).toEqual([]);
+    });
+
+    it('should reject max_triple_plays less than 1', () => {
+      const input: CreateWeekInput = {
+        name: 'Week 1',
+        start_date: '2024-09-01T00:00:00.000Z',
+        end_date: '2024-09-08T23:59:59.000Z',
+        max_triple_plays: 0,
+      };
+
+      const errors = WeekValidator.validateCreateInput(input);
+      expect(errors).toContain('Max triple plays must be a positive integer');
+    });
+
+    it('should reject max_triple_plays greater than 50', () => {
+      const input: CreateWeekInput = {
+        name: 'Week 1',
+        start_date: '2024-09-01T00:00:00.000Z',
+        end_date: '2024-09-08T23:59:59.000Z',
+        max_triple_plays: 51,
+      };
+
+      const errors = WeekValidator.validateCreateInput(input);
+      expect(errors).toContain('Max triple plays must be 50 or less');
+    });
+
+    it('should reject non-integer max_triple_plays', () => {
+      const input: CreateWeekInput = {
+        name: 'Week 1',
+        start_date: '2024-09-01T00:00:00.000Z',
+        end_date: '2024-09-08T23:59:59.000Z',
+        max_triple_plays: 3.5,
+      };
+
+      const errors = WeekValidator.validateCreateInput(input);
+      expect(errors).toContain('Max triple plays must be a positive integer');
+    });
+
+    it('should allow null max_triple_plays', () => {
+      const input: CreateWeekInput = {
+        name: 'Week 1',
+        start_date: '2024-09-01T00:00:00.000Z',
+        end_date: '2024-09-08T23:59:59.000Z',
+        max_triple_plays: null,
+      };
+
+      const errors = WeekValidator.validateCreateInput(input);
+      expect(errors).toEqual([]);
+    });
   });
 
   describe('validateUpdateInput', () => {
@@ -208,6 +268,42 @@ describe('WeekValidator', () => {
 
       const errors = WeekValidator.validateUpdateInput(input);
       expect(errors).toContain('Description must be 1000 characters or less');
+    });
+
+    it('should validate max_triple_plays when provided in update', () => {
+      const input: UpdateWeekInput = {
+        max_triple_plays: 2,
+      };
+
+      const errors = WeekValidator.validateUpdateInput(input);
+      expect(errors).toEqual([]);
+    });
+
+    it('should reject max_triple_plays less than 1 in update', () => {
+      const input: UpdateWeekInput = {
+        max_triple_plays: -1,
+      };
+
+      const errors = WeekValidator.validateUpdateInput(input);
+      expect(errors).toContain('Max triple plays must be a positive integer');
+    });
+
+    it('should reject max_triple_plays greater than 50 in update', () => {
+      const input: UpdateWeekInput = {
+        max_triple_plays: 100,
+      };
+
+      const errors = WeekValidator.validateUpdateInput(input);
+      expect(errors).toContain('Max triple plays must be 50 or less');
+    });
+
+    it('should allow null max_triple_plays in update', () => {
+      const input: UpdateWeekInput = {
+        max_triple_plays: null,
+      };
+
+      const errors = WeekValidator.validateUpdateInput(input);
+      expect(errors).toEqual([]);
     });
 
     it('should allow empty object (no updates)', () => {
@@ -372,19 +468,20 @@ describe('WeekRepository', () => {
       const result = await WeekRepository.create(input);
 
       expect(mockQuery).toHaveBeenCalledWith(
-        'INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games)\n       VALUES ($1, $2, $3, $4, $5)\n       RETURNING *',
-        ['Week 1', '2024-01-01', '2024-01-07', 'First week', undefined]
+        'INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games, max_triple_plays)\n       VALUES ($1, $2, $3, $4, $5, $6)\n       RETURNING *',
+        ['Week 1', '2024-01-01', '2024-01-07', 'First week', undefined, undefined]
       );
       expect(result).toEqual(mockWeek);
     });
 
-    it('should create and return new week with max_picker_choice_games', async () => {
+    it('should create and return new week with max_picker_choice_games and max_triple_plays', async () => {
       const input: CreateWeekInput = {
         name: 'Week 1',
         start_date: '2024-01-01',
         end_date: '2024-01-07',
         description: 'First week',
         max_picker_choice_games: 5,
+        max_triple_plays: 2,
       };
 
       const mockWeek: Week = {
@@ -399,8 +496,38 @@ describe('WeekRepository', () => {
       const result = await WeekRepository.create(input);
 
       expect(mockQuery).toHaveBeenCalledWith(
-        'INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games)\n       VALUES ($1, $2, $3, $4, $5)\n       RETURNING *',
-        ['Week 1', '2024-01-01', '2024-01-07', 'First week', 5]
+        'INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games, max_triple_plays)\n       VALUES ($1, $2, $3, $4, $5, $6)\n       RETURNING *',
+        ['Week 1', '2024-01-01', '2024-01-07', 'First week', 5, 2]
+      );
+      expect(result).toEqual(mockWeek);
+    });
+
+    it('should create and return new week with max_triple_plays only', async () => {
+      const input: CreateWeekInput = {
+        name: 'Week 1',
+        start_date: '2024-01-01',
+        end_date: '2024-01-07',
+        description: 'First week',
+        max_triple_plays: 3,
+      };
+
+      const mockWeek: Week = {
+        id: 1,
+        ...input,
+        max_picker_choice_games: undefined,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+
+      mockQuery.mockResolvedValue([mockWeek]);
+
+      const result = await WeekRepository.create(input);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        `INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games, max_triple_plays)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING *`,
+        ['Week 1', '2024-01-01', '2024-01-07', 'First week', undefined, 3]
       );
       expect(result).toEqual(mockWeek);
     });
@@ -419,10 +546,11 @@ describe('WeekRepository', () => {
   });
 
   describe('update', () => {
-    it('should update week with max_picker_choice_games', async () => {
+    it('should update week with max_picker_choice_games and max_triple_plays', async () => {
       const updateData: UpdateWeekInput = {
         name: 'Updated Week',
         max_picker_choice_games: 7,
+        max_triple_plays: 3,
       };
 
       const expectedWeek: Week = {
@@ -432,6 +560,7 @@ describe('WeekRepository', () => {
         end_date: '2024-09-08T23:59:59Z',
         description: 'Test description',
         max_picker_choice_games: 7,
+        max_triple_plays: 3,
         created_at: '2024-08-19T12:00:00Z',
         updated_at: '2024-08-19T12:30:00Z',
       };
@@ -441,8 +570,8 @@ describe('WeekRepository', () => {
       const result = await WeekRepository.update(1, updateData);
 
       expect(mockQuery).toHaveBeenCalledWith(
-        'UPDATE weeks SET name = $1, max_picker_choice_games = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *',
-        ['Updated Week', 7, 1]
+        'UPDATE weeks SET name = $1, max_picker_choice_games = $2, max_triple_plays = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *',
+        ['Updated Week', 7, 3, 1]
       );
       expect(result).toEqual(expectedWeek);
     });
@@ -474,20 +603,19 @@ describe('WeekRepository', () => {
       expect(result).toEqual(expectedWeek);
     });
 
-    it('should update multiple fields including max_picker_choice_games', async () => {
+    it('should update week with max_triple_plays only', async () => {
       const updateData: UpdateWeekInput = {
-        name: 'Updated Week',
-        description: 'Updated description',
-        max_picker_choice_games: 10,
+        max_triple_plays: 4,
       };
 
       const expectedWeek: Week = {
         id: 1,
-        name: 'Updated Week',
+        name: 'Test Week',
         start_date: '2024-09-01T00:00:00Z',
         end_date: '2024-09-08T23:59:59Z',
-        description: 'Updated description',
-        max_picker_choice_games: 10,
+        description: 'Test description',
+        max_picker_choice_games: undefined,
+        max_triple_plays: 4,
         created_at: '2024-08-19T12:00:00Z',
         updated_at: '2024-08-19T12:30:00Z',
       };
@@ -497,8 +625,67 @@ describe('WeekRepository', () => {
       const result = await WeekRepository.update(1, updateData);
 
       expect(mockQuery).toHaveBeenCalledWith(
-        'UPDATE weeks SET name = $1, description = $2, max_picker_choice_games = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *',
-        ['Updated Week', 'Updated description', 10, 1]
+        'UPDATE weeks SET max_triple_plays = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+        [4, 1]
+      );
+      expect(result).toEqual(expectedWeek);
+    });
+
+    it('should update week and set max_triple_plays to null', async () => {
+      const updateData: UpdateWeekInput = {
+        max_triple_plays: null,
+      };
+
+      const expectedWeek: Week = {
+        id: 1,
+        name: 'Test Week',
+        start_date: '2024-09-01T00:00:00Z',
+        end_date: '2024-09-08T23:59:59Z',
+        description: 'Test description',
+        max_picker_choice_games: undefined,
+        max_triple_plays: null,
+        created_at: '2024-08-19T12:00:00Z',
+        updated_at: '2024-08-19T12:30:00Z',
+      };
+
+      mockQuery.mockResolvedValueOnce([expectedWeek]);
+
+      const result = await WeekRepository.update(1, updateData);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'UPDATE weeks SET max_triple_plays = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+        [null, 1]
+      );
+      expect(result).toEqual(expectedWeek);
+    });
+
+    it('should update multiple fields including max_picker_choice_games and max_triple_plays', async () => {
+      const updateData: UpdateWeekInput = {
+        name: 'Updated Week',
+        description: 'Updated description',
+        max_picker_choice_games: 10,
+        max_triple_plays: 5,
+      };
+
+      const expectedWeek: Week = {
+        id: 1,
+        name: 'Updated Week',
+        start_date: '2024-09-01T00:00:00Z',
+        end_date: '2024-09-08T23:59:59Z',
+        description: 'Updated description',
+        max_picker_choice_games: 10,
+        max_triple_plays: 5,
+        created_at: '2024-08-19T12:00:00Z',
+        updated_at: '2024-08-19T12:30:00Z',
+      };
+
+      mockQuery.mockResolvedValueOnce([expectedWeek]);
+
+      const result = await WeekRepository.update(1, updateData);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'UPDATE weeks SET name = $1, description = $2, max_picker_choice_games = $3, max_triple_plays = $4, updated_at = CURRENT_TIMESTAMP WHERE id = $5 RETURNING *',
+        ['Updated Week', 'Updated description', 10, 5, 1]
       );
       expect(result).toEqual(expectedWeek);
     });

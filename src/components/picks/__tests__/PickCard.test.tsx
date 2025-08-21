@@ -91,15 +91,15 @@ describe('PickCard', () => {
     const homeSpreadRadio = screen.getByDisplayValue('home_spread');
     await user.click(homeSpreadRadio);
 
-    expect(onPickChange).toHaveBeenCalledWith(1, 'home_spread', -3.5);
+    expect(onPickChange).toHaveBeenCalledWith(1, 'home_spread', -3.5, false);
   });
 
   it('should show current pick when user has made a pick', () => {
     render(<PickCard {...mockProps} currentPick={mockPick} />);
 
     expect(screen.getByText('Current pick:')).toBeInTheDocument();
-    // Should show the pick option text that matches the pick type
-    expect(screen.getAllByText('Chiefs -3.5')).toHaveLength(2); // One in options, one in current pick
+    // Should show the current pick display text
+    expect(screen.getByText('Chiefs -3.5')).toBeInTheDocument();
     expect(screen.getByText('Remove')).toBeInTheDocument();
   });
 
