@@ -173,7 +173,8 @@ describe('UserDashboard - Picker Choice Limits', () => {
     render(<UserDashboard {...defaultProps} />);
 
     await waitFor(() => {
-      expect(screen.getByText('Games: 3')).toBeInTheDocument();
+      expect(screen.getByText('Games:')).toBeInTheDocument();
+      expect(screen.getByText('3')).toBeInTheDocument();
       expect(screen.queryByText(/picker's choice:/i)).not.toBeInTheDocument();
     });
   });
