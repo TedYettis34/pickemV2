@@ -1,4 +1,4 @@
-import { OddsApiEvent, SUPPORTED_SPORTS, SupportedSport } from '../types/game';
+import { OddsApiEvent, OddsApiScore, SUPPORTED_SPORTS, SupportedSport } from '../types/game';
 
 type BookmakerData = NonNullable<OddsApiEvent['bookmakers']>[0];
 type MarketOutcome = BookmakerData['markets'][0]['outcomes'][0];
@@ -178,6 +178,80 @@ class OddsApiService {
     } catch (error) {
       console.error('Error fetching all football games:', error);
       throw new Error('Failed to fetch football games');
+    }
+  }
+
+  /**
+   * Fetch scores for completed games
+   */
+  async getScores(sport: SupportedSport, gameIds?: string[]): Promise<OddsApiScore[]> {
+    try {
+      const params: Record<string, string> = {
+        apiKey: this.apiKey!,
+        daysFrom: '3' // Look back 3 days for completed games
+      };
+
+      // If specific game IDs provided, add them as a filter
+      if (gameIds && gameIds.length > 0) {
+        params.eventIds = gameIds.join(',');
+      }
+
+      const queryString = new URLSearchParams(params).toString();
+      const url = `${this.baseUrl}/sports/${sport}/scores?${queryString}`;
+      
+      console.log(`Fetching ${sport} scores from:`, url);
+      
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Score API Error for ${sport}:`, response.status, response.statusText, errorText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      
+      // Check rate limiting headers
+      const requestsRemaining = response.headers.get('x-requests-remaining');
+      if (requestsRemaining) {
+        console.log(`Odds API requests remaining: ${requestsRemaining}`);
+      }
+      
+      const data = await response.json();
+      console.log(`${sport} scores response:`, {
+        count: data?.length || 0,
+        games: data?.slice(0, 3).map((game: OddsApiScore) => ({
+          id: game.id,
+          completed: game.completed,
+          scores: game.scores
+        })) || []
+      });
+      
+      return data || [];
+    } catch (error) {
+      console.error(`Error fetching ${sport} scores:`, error);
+      throw new Error(`Failed to fetch ${sport} scores`);
+    }
+  }
+
+  /**
+   * Fetch all football scores for games that need results
+   */
+  async getAllFootballScores(gameIds?: string[]): Promise<{
+    nfl: OddsApiScore[];
+    college: OddsApiScore[];
+  }> {
+    try {
+      const [nflScores, collegeScores] = await Promise.all([
+        this.getScores(SUPPORTED_SPORTS.NFL, gameIds?.filter(id => id.includes('nfl'))),
+        this.getScores(SUPPORTED_SPORTS.COLLEGE, gameIds?.filter(id => id.includes('ncaaf')))
+      ]);
+
+      return {
+        nfl: nflScores,
+        college: collegeScores
+      };
+    } catch (error) {
+      console.error('Error fetching all football scores:', error);
+      throw new Error('Failed to fetch football scores');
     }
   }
 

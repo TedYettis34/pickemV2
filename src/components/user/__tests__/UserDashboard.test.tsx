@@ -22,6 +22,20 @@ const createMockResponses = (weekData: unknown = null, gamesData: unknown[] = []
     ok: true,
     json: async () => ({ success: true, data: oddsStatus }),
   } as Response);
+
+  // Score update API call (added for new functionality)
+  responses.push({
+    ok: true,
+    json: async () => ({ 
+      success: true, 
+      data: { 
+        gamesChecked: 0, 
+        gamesUpdated: 0, 
+        errors: [] 
+      },
+      message: 'Score update complete: 0/0 games updated'
+    }),
+  } as Response);
   
   // Games API call (only if week data exists)
   if (weekData) {
@@ -224,6 +238,14 @@ describe('UserDashboard', () => {
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({ success: true, data: { lastUpdated: null, needsUpdate: false, nextUpdateDue: null, timeSinceUpdate: null } }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ 
+          success: true, 
+          data: { gamesChecked: 0, gamesUpdated: 0, errors: [] },
+          message: 'Score update complete: 0/0 games updated'
+        }),
       } as Response)
       .mockResolvedValueOnce({
         ok: false,

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Game } from '../../types/game';
 import { Pick, PickOption, CreatePickInput, SpreadChange } from '../../types/pick';
 import { calculateSpreadChange, getSpreadChangeDisplayText, getSpreadChangeClasses } from '../../lib/spreadChanges';
+import { getPickResultExplanation } from '../../lib/pickEvaluation';
 
 interface PickCardProps {
   game: Game;
@@ -158,6 +159,38 @@ export function PickCard({
     }
   };
 
+  // Check if game has final results
+  const gameHasResult = game.game_status === 'final' && 
+                       game.home_score !== null && game.home_score !== undefined &&
+                       game.away_score !== null && game.away_score !== undefined;
+
+  // Get result styling based on pick result
+  const getResultStyling = (result: string) => {
+    switch (result) {
+      case 'win':
+        return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-200 border-green-300 dark:border-green-600';
+      case 'loss':
+        return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-200 border-red-300 dark:border-red-600';
+      case 'push':
+        return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-200 border-yellow-300 dark:border-yellow-600';
+      default:
+        return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600';
+    }
+  };
+
+  const getResultIcon = (result: string) => {
+    switch (result) {
+      case 'win':
+        return '✅';
+      case 'loss':
+        return '❌';
+      case 'push':
+        return '➖';
+      default:
+        return '';
+    }
+  };
+
   // Function to display the user's actual picked spread (not the current game spread)
   const getCurrentPickDisplayText = (pick: Pick | CreatePickInput) => {
     const team = pick.pick_type === 'home_spread' ? game.home_team : game.away_team;
@@ -209,7 +242,51 @@ export function PickCard({
         )}
       </div>
 
-      {/* No error display needed for local picks */}
+      {/* Game Result Display */}
+      {gameHasResult && (
+        <div className="mb-4 p-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-md">
+          <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Final Score
+          </div>
+          <div className="flex justify-between items-center text-lg font-semibold text-gray-900 dark:text-white">
+            <span>{game.away_team}</span>
+            <span className="mx-4 text-2xl">{game.away_score} - {game.home_score}</span>
+            <span>{game.home_team}</span>
+          </div>
+          <div className="text-center text-sm text-gray-500 dark:text-gray-400 mt-1">
+            {game.home_score! > game.away_score! ? `${game.home_team} wins` : 
+             game.away_score! > game.home_score! ? `${game.away_team} wins` : 'Tie game'}
+          </div>
+        </div>
+      )}
+
+      {/* Pick Result Display */}
+      {currentPick && 'id' in currentPick && gameHasResult && currentPick.result && (
+        <div className={`mb-4 p-3 border rounded-md ${getResultStyling(currentPick.result)}`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center space-x-2">
+              <span className="text-lg">{getResultIcon(currentPick.result)}</span>
+              <span className="font-medium text-sm">
+                Your Pick: {currentPick.result === 'win' ? 'WIN' : currentPick.result === 'loss' ? 'LOSS' : 'PUSH'}
+              </span>
+              {currentPick.is_triple_play && (
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs bg-yellow-200 dark:bg-yellow-800 text-yellow-800 dark:text-yellow-200 font-medium">
+                  Triple Play
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="text-sm">
+            {getPickResultExplanation(
+              currentPick,
+              game.home_team,
+              game.away_team,
+              game.home_score!,
+              game.away_score!
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Pick Options */}
       {pickOptions.length > 0 ? (

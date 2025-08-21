@@ -8,6 +8,8 @@ export interface Pick {
   spread_value: number | null; // The spread value at time of pick
   submitted: boolean;
   is_triple_play: boolean; // Indicates if this pick is marked as a triple play
+  result?: 'win' | 'loss' | 'push' | null; // Result of the pick after game completion
+  evaluated_at?: string | null; // When the pick result was determined
   created_at: string;
   updated_at: string;
 }
