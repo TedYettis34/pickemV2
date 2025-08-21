@@ -110,6 +110,7 @@ describe('WeekForm', () => {
         end_date: expectedEndDate,
         description: 'Test description',
         max_picker_choice_games: null,
+        max_triple_plays: null,
       });
     });
   });
@@ -140,6 +141,7 @@ describe('WeekForm', () => {
         end_date: expectedEndDate,
         description: undefined,
         max_picker_choice_games: null,
+        max_triple_plays: null,
       });
     });
   });
@@ -231,6 +233,7 @@ describe('WeekForm', () => {
           end_date: new Date('2025-09-08T23:59').toISOString(),
           description: undefined,
           max_picker_choice_games: null,
+          max_triple_plays: null,
         });
       });
     });
@@ -259,6 +262,7 @@ describe('WeekForm', () => {
           end_date: new Date('2025-09-08T23:59').toISOString(),
           description: undefined,
           max_picker_choice_games: 7,
+          max_triple_plays: null,
         });
       });
     });

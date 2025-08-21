@@ -43,6 +43,7 @@ export async function getUserPicksForWeek(userId: string, weekId: number): Promi
       pick_type: row.pick_type,
       spread_value: row.spread_value,
       submitted: row.submitted,
+      is_triple_play: row.is_triple_play,
       created_at: row.created_at,
       updated_at: row.updated_at,
       game: {
@@ -100,24 +101,25 @@ export async function createOrUpdatePick(
     const existingPick = await getUserPickForGame(userId, gameId);
     
     const submitted = (pickData as CreatePickInput & { submitted?: boolean }).submitted ?? false;
+    const isTriplePlay = pickData.is_triple_play ?? false;
     
     if (existingPick) {
       // Update existing pick
       const updatedPicks = await query<Pick>(
         `UPDATE picks 
-         SET pick_type = $1, spread_value = $2, submitted = $3, updated_at = CURRENT_TIMESTAMP
-         WHERE user_id = $4 AND game_id = $5
+         SET pick_type = $1, spread_value = $2, submitted = $3, is_triple_play = $4, updated_at = CURRENT_TIMESTAMP
+         WHERE user_id = $5 AND game_id = $6
          RETURNING *`,
-        [pickData.pick_type, pickData.spread_value, submitted, userId, gameId]
+        [pickData.pick_type, pickData.spread_value, submitted, isTriplePlay, userId, gameId]
       );
       return updatedPicks[0];
     } else {
       // Create new pick
       const newPicks = await query<Pick>(
-        `INSERT INTO picks (user_id, game_id, pick_type, spread_value, submitted)
-         VALUES ($1, $2, $3, $4, $5)
+        `INSERT INTO picks (user_id, game_id, pick_type, spread_value, submitted, is_triple_play)
+         VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
-        [userId, gameId, pickData.pick_type, pickData.spread_value, submitted]
+        [userId, gameId, pickData.pick_type, pickData.spread_value, submitted, isTriplePlay]
       );
       return newPicks[0];
     }
@@ -187,7 +189,8 @@ export async function hasSubmittedPicksForWeek(userId: string, weekId: number): 
  */
 export async function validatePick(
   userId: string, 
-  gameId: number
+  gameId: number,
+  isTriplePlay: boolean = false
 ): Promise<PickValidation> {
   try {
     // Check if game exists and get game info
@@ -250,6 +253,40 @@ export async function validatePick(
           return { 
             isValid: false, 
             error: `You can only pick ${maxPickerChoiceGames} picker's choice games (excluding must-pick games). You have already picked ${currentPickerChoicePicks}.`
+          };
+        }
+      }
+    }
+
+    // Check triple play limit if this pick is marked as a triple play
+    if (isTriplePlay) {
+      // Get week info to check triple play limits
+      const weeks = await query<{ max_triple_plays: number | null }>(
+        'SELECT max_triple_plays FROM weeks WHERE id = $1',
+        [game.week_id]
+      );
+      
+      if (weeks.length > 0 && weeks[0].max_triple_plays !== null && !game.must_pick) {
+        const maxTriplePlays = weeks[0].max_triple_plays;
+        
+        // Get current triple play picks count for this week
+        const currentTriplePlayResult = await query<{ count: string }>(
+          `SELECT COUNT(*) as count 
+           FROM picks p
+           JOIN games g ON p.game_id = g.id
+           WHERE p.user_id = $1 AND g.week_id = $2 AND p.is_triple_play = true`,
+          [userId, game.week_id]
+        );
+        
+        const currentTriplePlays = parseInt(currentTriplePlayResult[0].count);
+        
+        // If this is an update to an existing pick, don't count it against the limit
+        const adjustedCount = existingPick && existingPick.is_triple_play ? currentTriplePlays - 1 : currentTriplePlays;
+        
+        if (adjustedCount >= maxTriplePlays) {
+          return { 
+            isValid: false, 
+            error: `You can only mark ${maxTriplePlays} picks as triple plays per week. You have already marked ${currentTriplePlays}.`
           };
         }
       }

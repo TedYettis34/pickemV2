@@ -7,6 +7,7 @@ export interface Pick {
   pick_type: 'home_spread' | 'away_spread';
   spread_value: number | null; // The spread value at time of pick
   submitted: boolean;
+  is_triple_play: boolean; // Indicates if this pick is marked as a triple play
   created_at: string;
   updated_at: string;
 }
@@ -15,11 +16,13 @@ export interface CreatePickInput {
   game_id: number;
   pick_type: 'home_spread' | 'away_spread';
   spread_value: number | null;
+  is_triple_play?: boolean; // Optional, defaults to false
 }
 
 export interface UpdatePickInput {
   pick_type: 'home_spread' | 'away_spread';
   spread_value: number | null;
+  is_triple_play?: boolean; // Optional, can be updated
 }
 
 // Pick with associated game data for display

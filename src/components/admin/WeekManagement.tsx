@@ -264,6 +264,7 @@ export function WeekManagement() {
               end_date: editingWeek.end_date.slice(0, 16),
               description: editingWeek.description || '',
               max_picker_choice_games: editingWeek.max_picker_choice_games,
+              max_triple_plays: editingWeek.max_triple_plays,
             } : undefined}
             onSubmit={handleFormSubmit}
             isSubmitting={formLoading}

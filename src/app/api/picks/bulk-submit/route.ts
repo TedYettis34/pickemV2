@@ -112,6 +112,60 @@ async function validateMustPickGames(
 }
 
 /**
+ * Validates triple play limits for bulk pick submission
+ * This ensures the entire set of picks doesn't exceed the week's triple play limit
+ */
+async function validateBulkTriplePlayLimits(
+  userId: string,
+  weekId: number,
+  picks: Array<{ game_id: number; pick_type: string; spread_value?: number; is_triple_play?: boolean }>
+): Promise<void> {
+  // Count triple plays in the submission
+  const triplePlayCount = picks.filter(p => p.is_triple_play === true).length;
+  
+  if (triplePlayCount === 0) {
+    // No triple plays in submission, validation passes
+    return;
+  }
+
+  // Get week's triple play limit
+  const weeks = await query<{ max_triple_plays: number | null }>(
+    'SELECT max_triple_plays FROM weeks WHERE id = $1',
+    [weekId]
+  );
+
+  if (weeks.length === 0) {
+    throw new Error('Week not found');
+  }
+
+  const maxTriplePlays = weeks[0].max_triple_plays;
+  if (maxTriplePlays === null || maxTriplePlays === undefined) {
+    // No limit set, validation passes
+    return;
+  }
+
+  // Get current triple play count for this user/week
+  const currentResult = await query<{ count: string }>(
+    `SELECT COUNT(*) as count 
+     FROM picks p
+     JOIN games g ON p.game_id = g.id
+     WHERE p.user_id = $1 AND g.week_id = $2 AND p.is_triple_play = true`,
+    [userId, weekId]
+  );
+
+  const currentTriplePlays = parseInt(currentResult[0].count);
+  const totalTriplePlays = currentTriplePlays + triplePlayCount;
+
+  if (totalTriplePlays > maxTriplePlays) {
+    throw new Error(
+      `Cannot submit picks: Would exceed triple play limit of ${maxTriplePlays} picks. ` +
+      `Current: ${currentTriplePlays}, Attempting to add: ${triplePlayCount}, ` +
+      `Total would be: ${totalTriplePlays}`
+    );
+  }
+}
+
+/**
  * Bulk submit multiple picks for a week
  * This endpoint creates all picks and marks them as submitted in a single operation
  */
@@ -198,6 +252,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 400 });
     }
 
+    // Bulk validation: Check triple play limits for all picks being submitted
+    try {
+      await validateBulkTriplePlayLimits(userId, weekIdNum, picks);
+    } catch (validationError) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: validationError instanceof Error ? validationError.message : 'Triple play limit validation failed',
+      };
+      return NextResponse.json(response, { status: 400 });
+    }
+
     // Validate that all must-pick games are included
     try {
       await validateMustPickGames(weekIdNum, picks);
@@ -213,7 +278,7 @@ export async function POST(request: NextRequest) {
     const validatedPicks: CreatePickInput[] = [];
     
     for (const pick of picks) {
-      const { game_id, pick_type, spread_value } = pick;
+      const { game_id, pick_type, spread_value, is_triple_play } = pick;
 
       // Validate pick data
       if (!game_id || !pick_type) {
@@ -233,7 +298,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Validate the pick is allowed
-      const validation = await validatePick(userId, game_id);
+      const validation = await validatePick(userId, game_id, is_triple_play || false);
       if (!validation.isValid) {
         const response: ApiResponse<never> = {
           success: false,
@@ -246,6 +311,7 @@ export async function POST(request: NextRequest) {
         game_id,
         pick_type,
         spread_value,
+        is_triple_play,
       });
     }
 

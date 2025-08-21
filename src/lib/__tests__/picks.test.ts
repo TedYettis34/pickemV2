@@ -30,6 +30,7 @@ describe('Picks Library', () => {
           pick_type: 'home_spread',
           spread_value: -3.5,
           submitted: false,
+          is_triple_play: false,
           created_at: '2024-01-01T00:00:00Z',
           updated_at: '2024-01-01T00:00:00Z',
           week_id: 1,
@@ -62,6 +63,7 @@ describe('Picks Library', () => {
         pick_type: 'home_spread',
         spread_value: -3.5,
         submitted: false,
+        is_triple_play: false,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z',
         game: {
@@ -160,6 +162,7 @@ describe('Picks Library', () => {
         pick_type: 'home_spread',
         spread_value: -3.5,
         submitted: false,
+        is_triple_play: false,
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z',
       };
@@ -208,6 +211,81 @@ describe('Picks Library', () => {
 
       expect(result).toEqual(updatedPick);
       expect(mockQuery).toHaveBeenCalledTimes(2);
+    });
+
+    it('should create new triple play pick when specified', async () => {
+      const pickData = {
+        game_id: 1,
+        pick_type: 'home_spread' as const,
+        spread_value: -3.5,
+        is_triple_play: true,
+      };
+
+      const mockCreatedPick = {
+        id: 1,
+        user_id: 'user123',
+        game_id: 1,
+        pick_type: 'home_spread',
+        spread_value: -3.5,
+        submitted: false,
+        is_triple_play: true,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+
+      // Mock no existing pick
+      mockQuery.mockResolvedValueOnce([]);
+      // Mock successful creation
+      mockQuery.mockResolvedValueOnce([mockCreatedPick]);
+
+      const result = await createOrUpdatePick('user123', 1, pickData);
+
+      expect(result).toEqual(mockCreatedPick);
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('INSERT INTO picks'),
+        expect.arrayContaining(['user123', 1, 'home_spread', -3.5, false, true])
+      );
+    });
+
+    it('should update existing pick to triple play', async () => {
+      const pickData = {
+        pick_type: 'away_spread' as const,
+        spread_value: 3.5,
+        is_triple_play: true,
+      };
+
+      const existingPick = {
+        id: 1,
+        user_id: 'user123',
+        game_id: 1,
+        pick_type: 'home_spread',
+        spread_value: -3.5,
+        submitted: false,
+        is_triple_play: false,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+
+      const updatedPick = {
+        ...existingPick,
+        pick_type: 'away_spread',
+        spread_value: 3.5,
+        is_triple_play: true,
+        updated_at: '2024-01-01T01:00:00Z',
+      };
+
+      // Mock existing pick
+      mockQuery.mockResolvedValueOnce([existingPick]);
+      // Mock successful update
+      mockQuery.mockResolvedValueOnce([updatedPick]);
+
+      const result = await createOrUpdatePick('user123', 1, pickData);
+
+      expect(result).toEqual(updatedPick);
+      expect(mockQuery).toHaveBeenCalledWith(
+        expect.stringContaining('UPDATE picks'),
+        expect.arrayContaining(['away_spread', 3.5, false, true, 'user123', 1])
+      );
     });
   });
 
@@ -516,10 +594,209 @@ describe('Picks Library', () => {
         expect(result.isValid).toBe(true);
       });
     });
+
+    describe('Triple Play Limit Validation', () => {
+      it('should allow triple play when no limit is set', async () => {
+        const mockGame = {
+          id: 1,
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game1',
+          home_team: 'Chiefs',
+          away_team: 'Bills',
+          commence_time: new Date(Date.now() + 3600000).toISOString(),
+          must_pick: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        // Mock game exists
+        mockQuery.mockResolvedValueOnce([mockGame]);
+        // Mock no submitted picks
+        mockQuery.mockResolvedValueOnce([{ count: '0' }]);
+        // Mock no existing pick
+        mockQuery.mockResolvedValueOnce([]);
+        // Mock week with no picker choice limit
+        mockQuery.mockResolvedValueOnce([{ max_picker_choice_games: null }]);
+        // Mock week with no triple play limit
+        mockQuery.mockResolvedValueOnce([{ max_triple_plays: null }]);
+
+        const result = await validatePick('user123', 1, true);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should allow triple play when under limit', async () => {
+        const mockGame = {
+          id: 1,
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game1',
+          home_team: 'Chiefs',
+          away_team: 'Bills',
+          commence_time: new Date(Date.now() + 3600000).toISOString(),
+          must_pick: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        // Mock game exists
+        mockQuery.mockResolvedValueOnce([mockGame]);
+        // Mock no submitted picks
+        mockQuery.mockResolvedValueOnce([{ count: '0' }]);
+        // Mock no existing pick
+        mockQuery.mockResolvedValueOnce([]);
+        // Mock week with no picker choice limit
+        mockQuery.mockResolvedValueOnce([{ max_picker_choice_games: null }]);
+        // Mock week with triple play limit
+        mockQuery.mockResolvedValueOnce([{ max_triple_plays: 3 }]);
+        // Mock current triple play count (under limit)
+        mockQuery.mockResolvedValueOnce([{ count: '1' }]);
+
+        const result = await validatePick('user123', 1, true);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should reject triple play when limit reached', async () => {
+        const mockGame = {
+          id: 1,
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game1',
+          home_team: 'Chiefs',
+          away_team: 'Bills',
+          commence_time: new Date(Date.now() + 3600000).toISOString(),
+          must_pick: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        // Mock game exists
+        mockQuery.mockResolvedValueOnce([mockGame]);
+        // Mock no submitted picks
+        mockQuery.mockResolvedValueOnce([{ count: '0' }]);
+        // Mock no existing pick
+        mockQuery.mockResolvedValueOnce([]);
+        // Mock week with no picker choice limit
+        mockQuery.mockResolvedValueOnce([{ max_picker_choice_games: null }]);
+        // Mock week with triple play limit
+        mockQuery.mockResolvedValueOnce([{ max_triple_plays: 2 }]);
+        // Mock current triple play count (at limit)
+        mockQuery.mockResolvedValueOnce([{ count: '2' }]);
+
+        const result = await validatePick('user123', 1, true);
+
+        expect(result.isValid).toBe(false);
+        expect(result.error).toContain('You can only mark 2 picks as triple plays per week');
+        expect(result.error).toContain('You have already marked 2');
+      });
+
+      it('should allow updating existing triple play pick', async () => {
+        const mockGame = {
+          id: 1,
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game1',
+          home_team: 'Chiefs',
+          away_team: 'Bills',
+          commence_time: new Date(Date.now() + 3600000).toISOString(),
+          must_pick: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        const existingTriplePlayPick = {
+          id: 1,
+          user_id: 'user123',
+          game_id: 1,
+          pick_type: 'home_spread',
+          spread_value: -3.5,
+          submitted: false,
+          is_triple_play: true,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        // Mock game exists
+        mockQuery.mockResolvedValueOnce([mockGame]);
+        // Mock no submitted picks
+        mockQuery.mockResolvedValueOnce([{ count: '0' }]);
+        // Mock existing triple play pick
+        mockQuery.mockResolvedValueOnce([existingTriplePlayPick]);
+        // Mock week with triple play limit
+        mockQuery.mockResolvedValueOnce([{ max_triple_plays: 1 }]);
+        // Mock current triple play count (at limit but includes this pick)
+        mockQuery.mockResolvedValueOnce([{ count: '1' }]);
+
+        const result = await validatePick('user123', 1, true);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should allow non-triple play pick even when triple play limit reached', async () => {
+        const mockGame = {
+          id: 1,
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game1',
+          home_team: 'Chiefs',
+          away_team: 'Bills',
+          commence_time: new Date(Date.now() + 3600000).toISOString(),
+          must_pick: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        // Mock game exists
+        mockQuery.mockResolvedValueOnce([mockGame]);
+        // Mock no submitted picks
+        mockQuery.mockResolvedValueOnce([{ count: '0' }]);
+        // Mock no existing pick
+        mockQuery.mockResolvedValueOnce([]);
+        // Mock week with no picker choice limit
+        mockQuery.mockResolvedValueOnce([{ max_picker_choice_games: null }]);
+        
+        const result = await validatePick('user123', 1, false);
+
+        expect(result.isValid).toBe(true);
+      });
+
+      it('should allow triple play on must-pick games even when limit reached', async () => {
+        const mockGame = {
+          id: 1,
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game1',
+          home_team: 'Chiefs',
+          away_team: 'Bills',
+          commence_time: new Date(Date.now() + 3600000).toISOString(),
+          must_pick: true,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        };
+
+        // Mock game exists
+        mockQuery.mockResolvedValueOnce([mockGame]);
+        // Mock no submitted picks
+        mockQuery.mockResolvedValueOnce([{ count: '0' }]);
+        // Mock no existing pick
+        mockQuery.mockResolvedValueOnce([]);
+        // Mock week with triple play limit
+        mockQuery.mockResolvedValueOnce([{ max_triple_plays: 1 }]);
+        // Mock current triple play count (at limit)
+        mockQuery.mockResolvedValueOnce([{ count: '1' }]);
+
+        const result = await validatePick('user123', 1, true);
+
+        expect(result.isValid).toBe(true);
+      });
+    });
   });
 
   describe('getPicksCountForWeek', () => {
     it('should return correct count of picks for a week', async () => {
+      mockQuery.mockReset();
       mockQuery.mockResolvedValue([{ count: '3' }]);
 
       const result = await getPicksCountForWeek('user123', 1);
@@ -532,6 +809,7 @@ describe('Picks Library', () => {
     });
 
     it('should return 0 when no picks exist', async () => {
+      mockQuery.mockReset();
       mockQuery.mockResolvedValue([{ count: '0' }]);
 
       const result = await getPicksCountForWeek('user123', 1);
