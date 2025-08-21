@@ -19,6 +19,11 @@ export interface Game {
   odds_last_updated?: string;
   must_pick: boolean; // Whether this game is designated as a "must pick"
   
+  // Game results
+  home_score?: number | null;
+  away_score?: number | null;
+  game_status: 'scheduled' | 'in_progress' | 'final' | 'cancelled' | 'postponed';
+  
   // System fields
   created_at: string;
   updated_at: string;
@@ -40,6 +45,9 @@ export interface CreateGameInput {
   bookmaker?: string;
   odds_last_updated?: string;
   must_pick?: boolean;
+  home_score?: number | null;
+  away_score?: number | null;
+  game_status?: 'scheduled' | 'in_progress' | 'final' | 'cancelled' | 'postponed';
 }
 
 // Response from The Odds API
@@ -64,6 +72,22 @@ export interface OddsApiEvent {
       }>;
     }>;
   }>;
+}
+
+// Response from The Odds API scores endpoint
+export interface OddsApiScore {
+  id: string;
+  sport_key: string;
+  sport_title: string;
+  commence_time: string;
+  home_team: string;
+  away_team: string;
+  completed: boolean;
+  scores?: Array<{
+    name: string;
+    score: string;
+  }> | null;
+  last_update?: string;
 }
 
 // Sports configuration

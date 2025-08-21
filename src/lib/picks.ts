@@ -26,6 +26,9 @@ export async function getUserPicksForWeek(userId: string, weekId: number): Promi
         g.bookmaker,
         g.odds_last_updated,
         g.must_pick,
+        g.home_score,
+        g.away_score,
+        g.game_status,
         g.created_at as game_created_at,
         g.updated_at as game_updated_at
       FROM picks p
@@ -62,6 +65,9 @@ export async function getUserPicksForWeek(userId: string, weekId: number): Promi
         bookmaker: row.bookmaker,
         odds_last_updated: row.odds_last_updated,
         must_pick: row.must_pick,
+        home_score: row.home_score,
+        away_score: row.away_score,
+        game_status: row.game_status,
         created_at: row.game_created_at,
         updated_at: row.game_updated_at,
       }

@@ -56,8 +56,8 @@ function handleTokenExpiration(): AdminAuthResult {
   };
 }
 
-// Check if user is authenticated and is an admin
-export async function validateAdminAuth(accessToken: string): Promise<AdminAuthResult> {
+// Check if user is authenticated and is an admin (client-side)
+export async function validateAdminAuthClient(accessToken: string): Promise<AdminAuthResult> {
   try {
     // Validate input
     if (!accessToken || typeof accessToken !== 'string') {
@@ -215,14 +215,14 @@ async function validateAdminAuthDirect(accessToken: string): Promise<AdminAuthRe
   }
 }
 
-// Middleware helper for API routes
-export function requireAdmin() {
-  return async (req: Request): Promise<{ isAuthorized: boolean; user?: CognitoUser; error?: string }> => {
-    const authHeader = req.headers.get('authorization');
+// Server-side validation for NextRequest
+export async function validateAdminAuth(request: Request | { headers: { get(name: string): string | null } }): Promise<{ isValid: boolean; user?: CognitoUser; error?: string }> {
+  try {
+    const authHeader = request.headers.get('authorization');
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return {
-        isAuthorized: false,
+        isValid: false,
         error: 'Authorization header required',
       };
     }
@@ -232,7 +232,7 @@ export function requireAdmin() {
     // Validate access token format
     if (!accessToken || !/^[A-Za-z0-9\-_.=]+$/.test(accessToken)) {
       return {
-        isAuthorized: false,
+        isValid: false,
         error: 'Invalid access token format',
       };
     }
@@ -241,14 +241,32 @@ export function requireAdmin() {
 
     if (!authResult.isAdmin) {
       return {
-        isAuthorized: false,
+        isValid: false,
         error: authResult.error || 'Admin access required',
       };
     }
 
     return {
-      isAuthorized: true,
+      isValid: true,
       user: authResult.user || undefined,
+    };
+  } catch (error) {
+    console.error('Error validating admin auth:', error);
+    return {
+      isValid: false,
+      error: error instanceof Error ? error.message : 'Authentication failed',
+    };
+  }
+}
+
+// Middleware helper for API routes (legacy)
+export function requireAdmin() {
+  return async (req: Request): Promise<{ isAuthorized: boolean; user?: CognitoUser; error?: string }> => {
+    const result = await validateAdminAuth(req);
+    return {
+      isAuthorized: result.isValid,
+      user: result.user,
+      error: result.error,
     };
   };
 }
@@ -265,7 +283,7 @@ export async function isCurrentUserAdmin(): Promise<boolean> {
       return false;
     }
 
-    const authResult = await validateAdminAuth(accessToken);
+    const authResult = await validateAdminAuthClient(accessToken);
     return authResult.isAdmin;
   } catch (error) {
     console.error('Error checking admin status:', error);

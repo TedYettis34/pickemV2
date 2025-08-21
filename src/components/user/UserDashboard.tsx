@@ -36,6 +36,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
   useEffect(() => {
     loadActiveWeekAndGames();
     loadOddsStatus();
+    updateScoresInBackground();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadActiveWeekAndGames = async () => {
@@ -96,6 +97,36 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
     } catch (error) {
       console.error('Error loading odds status:', error);
       // Don't set error state for odds status - it's not critical
+    }
+  };
+
+  // Update scores in background when app loads
+  const updateScoresInBackground = async () => {
+    try {
+      console.log('Checking for score updates...');
+      
+      const response = await fetch('/api/scores/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data.gamesUpdated > 0) {
+          console.log(`Updated scores for ${data.data.gamesUpdated} games`);
+          // Reload data to show updated scores and pick results
+          await loadActiveWeekAndGames();
+        } else {
+          console.log('No games needed score updates');
+        }
+      } else {
+        console.warn('Score update check failed:', response.status);
+      }
+    } catch (error) {
+      console.warn('Error checking for score updates:', error);
+      // Don't show error to user - this is a background operation
     }
   };
 
