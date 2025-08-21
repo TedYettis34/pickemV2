@@ -17,7 +17,9 @@
       "Bash(rm:*)",
       "Bash(find:*)",
       "WebFetch(domain:github.com)",
-      "Bash(gh pr:*)"
+      "Bash(gh pr:*)",
+      "Bash(rg:*)",
+      "Bash(git add:*)"
     ],
     "deny": []
   }

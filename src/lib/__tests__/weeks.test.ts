@@ -351,12 +351,40 @@ describe('WeekRepository', () => {
   });
 
   describe('create', () => {
-    it('should create and return new week', async () => {
+    it('should create and return new week without max_picker_choice_games', async () => {
       const input: CreateWeekInput = {
         name: 'Week 1',
         start_date: '2024-01-01',
         end_date: '2024-01-07',
         description: 'First week',
+      };
+
+      const mockWeek: Week = {
+        id: 1,
+        ...input,
+        max_picker_choice_games: undefined,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+
+      mockQuery.mockResolvedValue([mockWeek]);
+
+      const result = await WeekRepository.create(input);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games)\n       VALUES ($1, $2, $3, $4, $5)\n       RETURNING *',
+        ['Week 1', '2024-01-01', '2024-01-07', 'First week', undefined]
+      );
+      expect(result).toEqual(mockWeek);
+    });
+
+    it('should create and return new week with max_picker_choice_games', async () => {
+      const input: CreateWeekInput = {
+        name: 'Week 1',
+        start_date: '2024-01-01',
+        end_date: '2024-01-07',
+        description: 'First week',
+        max_picker_choice_games: 5,
       };
 
       const mockWeek: Week = {
@@ -371,8 +399,8 @@ describe('WeekRepository', () => {
       const result = await WeekRepository.create(input);
 
       expect(mockQuery).toHaveBeenCalledWith(
-        'INSERT INTO weeks (name, start_date, end_date, description)\n       VALUES ($1, $2, $3, $4)\n       RETURNING *',
-        ['Week 1', '2024-01-01', '2024-01-07', 'First week']
+        'INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games)\n       VALUES ($1, $2, $3, $4, $5)\n       RETURNING *',
+        ['Week 1', '2024-01-01', '2024-01-07', 'First week', 5]
       );
       expect(result).toEqual(mockWeek);
     });
@@ -387,6 +415,112 @@ describe('WeekRepository', () => {
       mockQuery.mockResolvedValue([]);
 
       await expect(WeekRepository.create(input)).rejects.toThrow('Failed to create week');
+    });
+  });
+
+  describe('update', () => {
+    it('should update week with max_picker_choice_games', async () => {
+      const updateData: UpdateWeekInput = {
+        name: 'Updated Week',
+        max_picker_choice_games: 7,
+      };
+
+      const expectedWeek: Week = {
+        id: 1,
+        name: 'Updated Week',
+        start_date: '2024-09-01T00:00:00Z',
+        end_date: '2024-09-08T23:59:59Z',
+        description: 'Test description',
+        max_picker_choice_games: 7,
+        created_at: '2024-08-19T12:00:00Z',
+        updated_at: '2024-08-19T12:30:00Z',
+      };
+
+      mockQuery.mockResolvedValueOnce([expectedWeek]);
+
+      const result = await WeekRepository.update(1, updateData);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'UPDATE weeks SET name = $1, max_picker_choice_games = $2, updated_at = CURRENT_TIMESTAMP WHERE id = $3 RETURNING *',
+        ['Updated Week', 7, 1]
+      );
+      expect(result).toEqual(expectedWeek);
+    });
+
+    it('should update week and set max_picker_choice_games to null', async () => {
+      const updateData: UpdateWeekInput = {
+        max_picker_choice_games: null,
+      };
+
+      const expectedWeek: Week = {
+        id: 1,
+        name: 'Test Week',
+        start_date: '2024-09-01T00:00:00Z',
+        end_date: '2024-09-08T23:59:59Z',
+        description: 'Test description',
+        max_picker_choice_games: null,
+        created_at: '2024-08-19T12:00:00Z',
+        updated_at: '2024-08-19T12:30:00Z',
+      };
+
+      mockQuery.mockResolvedValueOnce([expectedWeek]);
+
+      const result = await WeekRepository.update(1, updateData);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'UPDATE weeks SET max_picker_choice_games = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2 RETURNING *',
+        [null, 1]
+      );
+      expect(result).toEqual(expectedWeek);
+    });
+
+    it('should update multiple fields including max_picker_choice_games', async () => {
+      const updateData: UpdateWeekInput = {
+        name: 'Updated Week',
+        description: 'Updated description',
+        max_picker_choice_games: 10,
+      };
+
+      const expectedWeek: Week = {
+        id: 1,
+        name: 'Updated Week',
+        start_date: '2024-09-01T00:00:00Z',
+        end_date: '2024-09-08T23:59:59Z',
+        description: 'Updated description',
+        max_picker_choice_games: 10,
+        created_at: '2024-08-19T12:00:00Z',
+        updated_at: '2024-08-19T12:30:00Z',
+      };
+
+      mockQuery.mockResolvedValueOnce([expectedWeek]);
+
+      const result = await WeekRepository.update(1, updateData);
+
+      expect(mockQuery).toHaveBeenCalledWith(
+        'UPDATE weeks SET name = $1, description = $2, max_picker_choice_games = $3, updated_at = CURRENT_TIMESTAMP WHERE id = $4 RETURNING *',
+        ['Updated Week', 'Updated description', 10, 1]
+      );
+      expect(result).toEqual(expectedWeek);
+    });
+
+    it('should return null if no week is found', async () => {
+      const updateData: UpdateWeekInput = {
+        max_picker_choice_games: 5,
+      };
+
+      mockQuery.mockResolvedValueOnce([]);
+
+      const result = await WeekRepository.update(999, updateData);
+
+      expect(result).toBeNull();
+    });
+
+    it('should throw error if no fields to update', async () => {
+      const updateData: UpdateWeekInput = {};
+
+      await expect(WeekRepository.update(1, updateData)).rejects.toThrow('No fields to update');
+
+      expect(mockQuery).not.toHaveBeenCalled();
     });
   });
 

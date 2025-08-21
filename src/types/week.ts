@@ -6,6 +6,7 @@ export interface Week {
   start_date: string; // ISO date string
   end_date: string;   // ISO date string
   description?: string;
+  max_picker_choice_games?: number | null; // Maximum non-must-pick games a user can pick (null means no limit)
   created_at: string; // ISO date string
   updated_at: string; // ISO date string
 }
@@ -15,6 +16,7 @@ export interface CreateWeekInput {
   start_date: string; // ISO date string
   end_date: string;   // ISO date string
   description?: string;
+  max_picker_choice_games?: number | null;
 }
 
 export interface UpdateWeekInput {
@@ -22,6 +24,7 @@ export interface UpdateWeekInput {
   start_date?: string; // ISO date string
   end_date?: string;   // ISO date string
   description?: string;
+  max_picker_choice_games?: number | null;
 }
 
 export interface WeekFilters {

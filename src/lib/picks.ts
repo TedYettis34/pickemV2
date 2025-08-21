@@ -224,6 +224,37 @@ export async function validatePick(
       return { isValid: false, error: 'Cannot modify submitted picks' };
     }
     
+    // Check picker choice limit (only for new picks on non-must-pick games)
+    if (!existingPick && !game.must_pick) {
+      // Get week info to check limits
+      const weeks = await query<{ max_picker_choice_games: number | null }>(
+        'SELECT max_picker_choice_games FROM weeks WHERE id = $1',
+        [game.week_id]
+      );
+      
+      if (weeks.length > 0 && weeks[0].max_picker_choice_games !== null) {
+        const maxPickerChoiceGames = weeks[0].max_picker_choice_games;
+        
+        // Get current picker choice picks count (non-must-pick games)
+        const currentPicksResult = await query<{ count: string }>(
+          `SELECT COUNT(*) as count 
+           FROM picks p
+           JOIN games g ON p.game_id = g.id
+           WHERE p.user_id = $1 AND g.week_id = $2 AND g.must_pick = false`,
+          [userId, game.week_id]
+        );
+        
+        const currentPickerChoicePicks = parseInt(currentPicksResult[0].count);
+        
+        if (currentPickerChoicePicks >= maxPickerChoiceGames) {
+          return { 
+            isValid: false, 
+            error: `You can only pick ${maxPickerChoiceGames} picker's choice games (excluding must-pick games). You have already picked ${currentPickerChoicePicks}.`
+          };
+        }
+      }
+    }
+    
     return { isValid: true };
   } catch (error) {
     console.error('Error validating pick:', error);
