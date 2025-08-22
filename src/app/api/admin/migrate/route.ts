@@ -119,7 +119,7 @@ export async function GET(): Promise<NextResponse> {
       ORDER BY table_name;
     `, []);
 
-    const tableNames = tables.map((row: any) => row.table_name);
+    const tableNames = (tables as Record<string, unknown>[]).map((row: Record<string, unknown>) => row.table_name as string);
     
     const expectedTables = ['weeks', 'users', 'games', 'picks'];
     const missingTables = expectedTables.filter(table => !tableNames.includes(table));
