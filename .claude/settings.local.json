@@ -19,7 +19,13 @@
       "WebFetch(domain:github.com)",
       "Bash(gh pr:*)",
       "Bash(rg:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(terraform output)",
+      "Bash(terraform output:*)",
+      "Bash(aws secretsmanager get-secret-value:*)",
+      "Bash(chmod:*)",
+      "Bash(curl:*)",
+      "Bash(git commit:*)"
     ],
     "deny": []
   }
