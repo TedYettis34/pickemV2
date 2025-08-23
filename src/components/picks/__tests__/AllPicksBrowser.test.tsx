@@ -216,7 +216,7 @@ describe('AllPicksBrowser', () => {
 
       // Wait for picks to be fully loaded
       await waitFor(() => {
-        expect(screen.getByText('Showing 3 of 3 picks')).toBeInTheDocument();
+        expect(screen.getByText(/Showing 3 picks from 3 games \(total: 3 picks\)/)).toBeInTheDocument();
       }, { timeout: 3000 });
 
       // Filter by wins only (which filters to 'win' result)
@@ -225,7 +225,7 @@ describe('AllPicksBrowser', () => {
 
       // Should show only 1 pick (the winning one)
       await waitFor(() => {
-        expect(screen.getByText('Showing 1 of 3 picks')).toBeInTheDocument();
+        expect(screen.getByText(/Showing 1 picks from 1 games \(total: 3 picks\)/)).toBeInTheDocument();
       }, { timeout: 3000 });
     });
 
@@ -242,7 +242,7 @@ describe('AllPicksBrowser', () => {
 
       // Should only show triple play picks
       expect(screen.getByText('3X')).toBeInTheDocument();
-      expect(screen.getByText('Showing 1 of 3 picks')).toBeInTheDocument();
+      expect(screen.getByText(/Showing 1 picks from 1 games \(total: 3 picks\)/)).toBeInTheDocument();
     });
 
     test('should filter picks by user', async () => {
@@ -259,7 +259,7 @@ describe('AllPicksBrowser', () => {
       // Should only show picks from Test User (2 picks + 1 in filter = 3 total)
       expect(screen.getAllByText('Test User')).toHaveLength(3);
       expect(screen.getAllByText('Another User')).toHaveLength(1); // Still in filter dropdown
-      expect(screen.getByText('Showing 2 of 3 picks')).toBeInTheDocument();
+      expect(screen.getByText(/Showing 2 picks from 2 games \(total: 3 picks\)/)).toBeInTheDocument();
     });
 
     test('should filter picks by week', async () => {
@@ -287,7 +287,7 @@ describe('AllPicksBrowser', () => {
 
       // Wait for picks to be fully loaded
       await waitFor(() => {
-        expect(screen.getByText('Showing 3 of 3 picks')).toBeInTheDocument();
+        expect(screen.getByText(/Showing 3 picks from 3 games \(total: 3 picks\)/)).toBeInTheDocument();
       }, { timeout: 3000 });
 
       // Apply multiple filters
@@ -299,7 +299,7 @@ describe('AllPicksBrowser', () => {
 
       // Should show only winning picks from Test User
       await waitFor(() => {
-        expect(screen.getByText('Showing 1 of 3 picks')).toBeInTheDocument();
+        expect(screen.getByText(/Showing 1 picks from 1 games \(total: 3 picks\)/)).toBeInTheDocument();
       }, { timeout: 3000 });
     });
   });
@@ -457,7 +457,7 @@ describe('AllPicksBrowser', () => {
 
       // Wait for picks data to be rendered
       await waitFor(() => {
-        expect(screen.getByText('Showing 3 of 3 picks')).toBeInTheDocument();
+        expect(screen.getByText(/Showing 3 picks from 3 games \(total: 3 picks\)/)).toBeInTheDocument();
       }, { timeout: 8000 });
 
       // Check for game scores in the format "Away Score, Home Score"
@@ -478,12 +478,12 @@ describe('AllPicksBrowser', () => {
 
       // Wait for picks data to be rendered
       await waitFor(() => {
-        expect(screen.getByText('Showing 3 of 3 picks')).toBeInTheDocument();
+        expect(screen.getByText(/Showing 3 picks from 3 games \(total: 3 picks\)/)).toBeInTheDocument();
       }, { timeout: 8000 });
 
-      // Check for submission dates - should be formatted as M/D/YYYY
+      // Check for submission dates - should be formatted as M/D/YYYY (without "Submitted" prefix in new layout)
       await waitFor(() => {
-        expect(screen.getAllByText('Submitted 1/1/2024')).toHaveLength(3); // Should appear 3 times (one per pick)
+        expect(screen.getAllByText('1/1/2024')).toHaveLength(3); // Should appear 3 times (one per pick)
       }, { timeout: 8000 });
     }, 15000);
   });

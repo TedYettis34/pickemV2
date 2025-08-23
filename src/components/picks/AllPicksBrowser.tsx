@@ -110,6 +110,39 @@ export function AllPicksBrowser({ weekId: initialWeekId }: AllPicksBrowserProps)
     return filtered;
   };
 
+  const getGroupedPicksByGame = () => {
+    const filteredPicks = getFilteredPicks();
+    const grouped = new Map<number, PickWithUser[]>();
+    
+    filteredPicks.forEach(pick => {
+      if (!grouped.has(pick.game_id)) {
+        grouped.set(pick.game_id, []);
+      }
+      grouped.get(pick.game_id)!.push(pick);
+    });
+
+    // Sort picks within each game group by user name
+    grouped.forEach((picks) => {
+      picks.sort((a, b) => (a.display_name || a.username).localeCompare(b.display_name || b.username));
+    });
+
+    // Convert to array and sort by must_pick first, then by earliest commence time
+    return Array.from(grouped.entries())
+      .sort(([, picksA], [, picksB]) => {
+        const gameA = picksA[0].game;
+        const gameB = picksB[0].game;
+        
+        // Must pick games come first
+        if (gameA.must_pick && !gameB.must_pick) return -1;
+        if (!gameA.must_pick && gameB.must_pick) return 1;
+        
+        // Then sort by earliest commence time (earliest first)
+        const timeA = new Date(gameA.commence_time).getTime();
+        const timeB = new Date(gameB.commence_time).getTime();
+        return timeA - timeB;
+      });
+  };
+
   const formatPickType = (pickType: string, spreadValue: number | null, homeTeam: string, awayTeam: string) => {
     if (!spreadValue && spreadValue !== 0) return 'No spread';
     
@@ -138,22 +171,9 @@ export function AllPicksBrowser({ weekId: initialWeekId }: AllPicksBrowserProps)
     );
   };
 
-  const getGameStatusDisplay = (game: PickWithUser['game']) => {
-    if (game.home_score !== null && game.away_score !== null) {
-      return `${game.away_team} ${game.away_score}, ${game.home_team} ${game.home_score}`;
-    }
-    
-    const gameTime = new Date(game.commence_time);
-    const now = new Date();
-    
-    if (gameTime > now) {
-      return gameTime.toLocaleDateString() + ' ' + gameTime.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-    } else {
-      return 'In Progress / Final';
-    }
-  };
 
   const filteredPicks = getFilteredPicks();
+  const groupedGames = getGroupedPicksByGame();
 
   if (loading) {
     return (
@@ -253,61 +273,100 @@ export function AllPicksBrowser({ weekId: initialWeekId }: AllPicksBrowserProps)
         </div>
         
         <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-          Showing {filteredPicks.length} of {picks.length} picks
+          Showing {filteredPicks.length} picks from {groupedGames.length} games (total: {picks.length} picks)
         </div>
       </div>
 
       <div className="p-6">
-        {filteredPicks.length === 0 ? (
+        {groupedGames.length === 0 ? (
           <div className="text-center py-8">
             <div className="text-gray-600 dark:text-gray-400">
               {picks.length === 0 ? 'No picks have been submitted yet.' : 'No picks match the current filters.'}
             </div>
           </div>
         ) : (
-          <div className="space-y-4">
-            {filteredPicks.map((pick) => (
-              <div key={pick.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <div className="font-medium text-gray-900 dark:text-white">
-                        {pick.display_name || pick.username}
-                      </div>
-                      {pick.is_triple_play && (
-                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400 font-medium">
-                          3X
-                        </span>
-                      )}
-                      {getResultBadge(pick.result)}
-                    </div>
-                    
-                    <div className="text-lg font-semibold text-gray-900 dark:text-white mb-1">
-                      {pick.game.away_team} @ {pick.game.home_team}
-                    </div>
-                    
-                    <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                      <div>
-                        <span className="font-medium">Pick:</span> {formatPickType(pick.pick_type, pick.spread_value, pick.game.home_team, pick.game.away_team)}
-                      </div>
-                      <div>
-                        <span className="font-medium">Score:</span> {getGameStatusDisplay(pick.game)}
-                      </div>
-                      <div>
-                        <span className="font-medium">Week:</span> {pick.week_name}
+          <div className="space-y-6">
+            {groupedGames.map(([gameId, gamePicks]) => {
+              const game = gamePicks[0].game; // All picks share the same game
+              const weekName = gamePicks[0].week_name;
+              
+              return (
+                <div key={gameId} className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  {/* Game Info Header */}
+                  <div className="mb-4 pb-4 border-b border-gray-200 dark:border-gray-600">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div className="text-xl font-bold text-gray-900 dark:text-white">
+                            {game.away_team} @ {game.home_team}
+                          </div>
+                          {game.must_pick && (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 font-medium">
+                              MUST PICK
+                            </span>
+                          )}
+                        </div>
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Week:</span>
+                            <div className="text-gray-600 dark:text-gray-400">{weekName}</div>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Time:</span>
+                            <div className="text-gray-600 dark:text-gray-400">
+                              {new Date(game.commence_time).toLocaleDateString()} {new Date(game.commence_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+                            </div>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Score:</span>
+                            <div className="text-gray-600 dark:text-gray-400">
+                              {game.home_score !== null && game.away_score !== null 
+                                ? `${game.away_team} ${game.away_score}, ${game.home_team} ${game.home_score}`
+                                : 'TBD'
+                              }
+                            </div>
+                          </div>
+                          <div>
+                            <span className="font-medium text-gray-700 dark:text-gray-300">Picks:</span>
+                            <div className="text-gray-600 dark:text-gray-400">{gamePicks.length}</div>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="text-right text-sm text-gray-500 dark:text-gray-400">
-                    <div>Submitted {new Date(pick.created_at).toLocaleDateString()}</div>
-                    {pick.evaluated_at && (
-                      <div>Evaluated {new Date(pick.evaluated_at).toLocaleDateString()}</div>
-                    )}
+                  {/* User Picks List */}
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-gray-900 dark:text-white">User Picks:</h4>
+                    <div className="grid gap-3">
+                      {gamePicks.map((pick) => (
+                        <div key={pick.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="font-medium text-gray-900 dark:text-white min-w-[120px]">
+                              {pick.display_name || pick.username}
+                            </div>
+                            <div className="text-sm text-gray-600 dark:text-gray-400">
+                              {formatPickType(pick.pick_type, pick.spread_value, game.home_team, game.away_team)}
+                            </div>
+                            {pick.is_triple_play && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-400 font-medium">
+                                3X
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {getResultBadge(pick.result)}
+                            <div className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(pick.created_at).toLocaleDateString()}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
