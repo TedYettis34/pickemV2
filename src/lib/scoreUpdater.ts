@@ -34,7 +34,15 @@ export function shouldFetchScore(game: Game): boolean {
  */
 export async function getGamesNeedingScoreUpdates(): Promise<Game[]> {
   try {
-    const games = await query<Game>(`
+    // Get all games that are potentially candidates for updates
+    const allActiveGames = await query<Game>(`
+      SELECT * FROM games 
+      WHERE game_status != 'final' 
+      ORDER BY commence_time ASC
+    `);
+    
+    // Get games that match initial database criteria
+    const initialCandidates = await query<Game>(`
       SELECT * FROM games 
       WHERE game_status != 'final' 
         AND home_score IS NULL 
@@ -43,7 +51,32 @@ export async function getGamesNeedingScoreUpdates(): Promise<Game[]> {
       ORDER BY commence_time ASC
     `);
     
-    return games.filter(game => shouldFetchScore(game));
+    console.log(`Score update check: ${allActiveGames.length} total active games`);
+    console.log(`Score update check: ${initialCandidates.length} games meet initial criteria (started 5+ hours ago, no manual scores)`);
+    
+    // Apply additional filtering
+    const gamesNeedingUpdates = initialCandidates.filter(game => shouldFetchScore(game));
+    
+    if (gamesNeedingUpdates.length === 0 && allActiveGames.length > 0) {
+      console.log('No games need score updates because:');
+      const now = new Date();
+      allActiveGames.forEach(game => {
+        const gameTime = new Date(game.commence_time);
+        const hoursAgo = (now.getTime() - gameTime.getTime()) / (1000 * 60 * 60);
+        const reasons = [];
+        
+        if (game.game_status === 'final') reasons.push('already final');
+        if (game.home_score !== null || game.away_score !== null) reasons.push('has manual scores');
+        if (hoursAgo < 5) reasons.push(`only started ${hoursAgo.toFixed(1)}h ago (need 5h+)`);
+        if (hoursAgo < 0) reasons.push('has not started yet');
+        
+        if (reasons.length > 0) {
+          console.log(`  - ${game.home_team} vs ${game.away_team}: ${reasons.join(', ')}`);
+        }
+      });
+    }
+    
+    return gamesNeedingUpdates;
   } catch (error) {
     console.error('Error fetching games needing score updates:', error);
     throw error;
