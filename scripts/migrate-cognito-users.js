@@ -64,12 +64,17 @@ async function getUserByCognitoId(cognitoUserId) {
  * Create or update user in database
  */
 async function createOrUpdateUser(cognitoUser) {
-  const cognitoUserId = cognitoUser.Username;
+  const cognitoUserId = getUserAttribute(cognitoUser, 'sub'); // Use sub (unique ID) instead of username
   const email = getUserAttribute(cognitoUser, 'email');
   const name = getUserAttribute(cognitoUser, 'name');
   const givenName = getUserAttribute(cognitoUser, 'given_name');
   const familyName = getUserAttribute(cognitoUser, 'family_name');
   
+  if (!cognitoUserId) {
+    console.warn(`Skipping user ${cognitoUser.Username}: No sub attribute found`);
+    return null;
+  }
+
   if (!email) {
     const availableAttributes = cognitoUser.Attributes?.map(attr => attr.Name) || [];
     console.warn(`Skipping user ${cognitoUserId}: No email attribute. Available: ${availableAttributes.join(', ')}`);
@@ -79,7 +84,7 @@ async function createOrUpdateUser(cognitoUser) {
   // Generate display name using the same logic as the sync function
   const displayName = name || 
                      (givenName && familyName ? `${givenName} ${familyName}` : givenName || familyName) || 
-                     cognitoUserId || 
+                     cognitoUser.Username || 
                      email.split('@')[0] || 
                      'User';
 
