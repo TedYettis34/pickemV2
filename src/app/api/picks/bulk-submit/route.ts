@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createOrUpdatePick, validatePick, hasSubmittedPicksForWeek } from '../../../../lib/picks';
+import { createOrUpdatePick, validatePick, getUserPicksForWeek } from '../../../../lib/picks';
 import { ApiResponse, CreatePickInput } from '../../../../types/pick';
 import { query } from '../../../../lib/database';
 import { syncUserFromCognito, getUserByCognitoId } from '../../../../lib/users';
@@ -271,12 +271,20 @@ export async function POST(request: NextRequest) {
     // Use the Cognito user ID as originally designed
     // (The picks table stores Cognito user IDs, not database user IDs)
 
-    // Check if picks have already been submitted for this week using Cognito user ID
-    const alreadySubmitted = await hasSubmittedPicksForWeek(userId, weekIdNum);
-    if (alreadySubmitted) {
+    // Check if picks can be submitted for this week
+    // In mixed states (some games started, some not), we allow submission of new picks
+    // Only prevent submission if ALL eligible picks (for games that haven't started) are already submitted
+    const existingPicks = await getUserPicksForWeek(userId, weekIdNum);
+    
+    const now = new Date();
+    const eligiblePicks = existingPicks.filter(pick => new Date(pick.game.commence_time) > now);
+    const submittedEligiblePicks = eligiblePicks.filter(pick => pick.submitted);
+    
+    const allEligiblePicksSubmitted = eligiblePicks.length > 0 && submittedEligiblePicks.length === eligiblePicks.length;
+    if (allEligiblePicksSubmitted) {
       const response: ApiResponse<never> = {
         success: false,
-        error: 'Picks have already been submitted for this week',
+        error: 'All picks for eligible games have already been submitted for this week',
       };
       return NextResponse.json(response, { status: 400 });
     }
