@@ -98,9 +98,10 @@ export async function syncUserFromCognito(accessToken: string): Promise<User> {
       throw new Error(`Email is required from Cognito. Available attributes: ${availableAttributes.join(', ')}`);
     }
 
-    // Use name attribute or fall back to given_name + family_name, or email as last resort
+    // Use name attribute or fall back to given_name + family_name, cognito username, or email as last resort
     const displayName = name || 
                        (givenName && familyName ? `${givenName} ${familyName}` : givenName || familyName) || 
+                       cognitoUser.Username || 
                        email.split('@')[0] || 
                        'User';
 

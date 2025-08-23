@@ -206,7 +206,7 @@ describe('Users Module', () => {
         Username: 'cognito-123',
         UserAttributes: [
           { Name: 'email', Value: 'test@example.com' },
-          // Missing name attribute - should use email prefix as fallback
+          // Missing name attribute - should use Cognito username as fallback
         ],
       });
 
@@ -216,7 +216,7 @@ describe('Users Module', () => {
         id: 1,
         cognito_user_id: 'cognito-123',
         email: 'test@example.com',
-        name: 'test', // Should use email prefix as name
+        name: 'cognito-123', // Should use Cognito username as fallback
         timezone: 'UTC',
         is_admin: false,
         created_at: '2024-01-01T00:00:00Z',
@@ -224,7 +224,7 @@ describe('Users Module', () => {
       }]);
 
       const result = await syncUserFromCognito('access-token');
-      expect(result.name).toBe('test'); // email prefix should be used as name
+      expect(result.name).toBe('cognito-123'); // Cognito username should be used as fallback
     });
 
     it('should throw error when missing email', async () => {

@@ -1,6 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getUserByCognitoId, syncUserFromCognito } from '../../../../lib/users';
 
+// JWT decode utility (simple base64 decode for payload)
+function decodeJWT(token: string): any {
+  try {
+    const payload = token.split('.')[1];
+    const decoded = atob(payload);
+    return JSON.parse(decoded);
+  } catch (error) {
+    return { error: 'Failed to decode JWT' };
+  }
+}
+
 /**
  * Debug endpoint to check authentication and user sync
  */
@@ -18,6 +29,9 @@ export async function GET(request: NextRequest) {
     }
     
     const accessToken = authHeader.replace('Bearer ', '');
+    
+    // Decode JWT to see what's in it
+    const decodedToken = decodeJWT(accessToken);
     
     // Check if user exists in database
     let existingUser;
@@ -40,6 +54,16 @@ export async function GET(request: NextRequest) {
       debug: {
         userId,
         tokenLength: accessToken.length,
+        decodedToken: {
+          sub: decodedToken.sub,
+          username: decodedToken.username,
+          cognito_username: decodedToken.cognito_username,
+          email: decodedToken.email,
+          name: decodedToken.name,
+          given_name: decodedToken.given_name,
+          family_name: decodedToken.family_name,
+          allFields: Object.keys(decodedToken)
+        },
         existingUser: existingUser ? {
           id: existingUser.id,
           email: existingUser.email,
