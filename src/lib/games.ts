@@ -229,17 +229,27 @@ export async function getLastOddsUpdateTime(): Promise<Date | null> {
  */
 export async function oddsNeedUpdate(): Promise<boolean> {
   try {
+    console.log('Checking if odds need update...');
     const lastUpdate = await getLastOddsUpdateTime();
     
     if (!lastUpdate) {
-      // No odds updates found, definitely need update
+      console.log('No previous odds update found - update needed');
       return true;
     }
     
     const now = new Date();
     const threeHoursAgo = new Date(now.getTime() - (3 * 60 * 60 * 1000));
+    const timeSinceUpdate = now.getTime() - lastUpdate.getTime();
+    const hoursSinceUpdate = Math.floor(timeSinceUpdate / (1000 * 60 * 60));
+    const minutesSinceUpdate = Math.floor((timeSinceUpdate % (1000 * 60 * 60)) / (1000 * 60));
     
-    return lastUpdate < threeHoursAgo;
+    const needsUpdate = lastUpdate < threeHoursAgo;
+    
+    console.log(`Last odds update: ${lastUpdate.toISOString()}`);
+    console.log(`Time since last update: ${hoursSinceUpdate}h ${minutesSinceUpdate}m`);
+    console.log(`Needs update: ${needsUpdate} (update every 3 hours)`);
+    
+    return needsUpdate;
   } catch (error) {
     console.error('Error checking if odds need update:', error);
     // If we can't check, assume we need update to be safe
