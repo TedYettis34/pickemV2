@@ -56,8 +56,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 401 });
     }
 
-    // Get the database user ID for all operations
-    const databaseUserId = existingUser.id.toString();
+    // Use the Cognito user ID as originally designed
+    // (The picks table stores Cognito user IDs, not database user IDs)
 
     let body;
     try {
@@ -90,8 +90,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 400 });
     }
 
-    // Check if picks have already been submitted using database user ID
-    const alreadySubmitted = await hasSubmittedPicksForWeek(databaseUserId, weekIdNum);
+    // Check if picks have already been submitted using Cognito user ID
+    const alreadySubmitted = await hasSubmittedPicksForWeek(userId, weekIdNum);
     if (alreadySubmitted) {
       const response: ApiResponse<never> = {
         success: false,
@@ -100,9 +100,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 400 });
     }
 
-    // Submit all picks for the week using database user ID
-    console.log(`Submitting picks for user ${userId} (database ID: ${databaseUserId}), week ${weekIdNum}`);
-    const submittedPicks = await submitPicksForWeek(databaseUserId, weekIdNum);
+    // Submit all picks for the week using Cognito user ID
+    console.log(`Submitting picks for user ${userId} (synced to database), week ${weekIdNum}`);
+    const submittedPicks = await submitPicksForWeek(userId, weekIdNum);
 
     const response: ApiResponse<typeof submittedPicks> = {
       success: true,
