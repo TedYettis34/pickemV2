@@ -244,9 +244,11 @@ export async function POST(req: NextRequest) {
 
   } catch (error) {
     console.error('Error creating week:', error);
+    console.error('Error details:', error instanceof Error ? error.message : String(error));
+    console.error('Stack trace:', error instanceof Error ? error.stack : 'No stack trace');
     const response: ApiResponse<never> = {
       success: false,
-      error: 'Failed to create week',
+      error: `Failed to create week: ${error instanceof Error ? error.message : String(error)}`,
     };
     return NextResponse.json(response, { status: 500 });
   }
