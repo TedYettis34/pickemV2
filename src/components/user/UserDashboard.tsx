@@ -575,6 +575,14 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
     return currentTriplePlays;
   };
 
+  // Get games that haven't started yet (available for picking)
+  const getAvailableGames = (): Game[] => {
+    const now = new Date();
+    return games.filter((game) => {
+      const gameStartTime = new Date(game.commence_time);
+      return gameStartTime > now;
+    });
+  };
 
   if (loading) {
     return (
@@ -696,7 +704,10 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                   </div>
                   <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400">
                     <div>
-                      <span className="font-medium">Games:</span> {games.length}
+                      <span className="font-medium">Games:</span> {getAvailableGames().length} 
+                      {getAvailableGames().length !== games.length && (
+                        <span className="text-gray-400"> ({games.length} total)</span>
+                      )}
                     </div>
                     {(() => {
                       const pickerChoiceStatus = getPickerChoiceStatus();
@@ -777,11 +788,22 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                     </p>
                   </div>
                 </div>
+              ) : getAvailableGames().length === 0 ? (
+                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                  <div className="text-center py-8">
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                      All Games Have Started
+                    </h3>
+                    <p className="text-gray-600 dark:text-gray-300">
+                      All games for this week have already started. Check the Review tab to see your submitted picks.
+                    </p>
+                  </div>
+                </div>
               ) : (
                 <>
                   {activeTab === 'games' && (
                     <div className="space-y-4">
-                      {games.map((game) => {
+                      {getAvailableGames().map((game) => {
                         const currentPick = getCurrentPickForGame(game.id);
                         const pickerChoiceStatus = getPickerChoiceStatus();
                         
