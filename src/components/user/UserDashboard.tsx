@@ -33,6 +33,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
   const [oddsStatus, setOddsStatus] = useState<OddsStatus | null>(null);
   const [submittingPicks, setSubmittingPicks] = useState(false);
   const [activeTab, setActiveTab] = useState<'games' | 'review' | 'browse'>('games');
+  const [attemptedDeletes, setAttemptedDeletes] = useState<Set<number>>(new Set());
 
   useEffect(() => {
     loadActiveWeekAndGames();
@@ -77,6 +78,9 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
 
       // Load user picks if user is authenticated
       await loadUserPicks(weekData.data.id);
+      
+      // Clear attempted deletes when week changes
+      setAttemptedDeletes(new Set());
 
     } catch (err) {
       console.error('Error loading active week and games:', err);
@@ -530,8 +534,10 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
     }
     
     // Check unsubmitted database picks for started games and delete them
+    // Only attempt deletes for picks we haven't already tried to delete
     const unsubmittedPicksForStartedGames = userPicks.filter(pick => {
       if (pick.submitted) return false;
+      if (attemptedDeletes.has(pick.game_id)) return false; // Skip if already tried
       const game = games.find(g => g.id === pick.game_id);
       return game && new Date(game.commence_time) <= now;
     });
@@ -543,27 +549,43 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
         if (!userContext) return;
         
         const authHeaders = getAuthHeaders();
+        let hasSuccessfulDeletes = false;
+        const newAttemptedDeletes = new Set(attemptedDeletes);
         
         for (const pick of unsubmittedPicksForStartedGames) {
+          // Mark as attempted regardless of success/failure to prevent retries
+          newAttemptedDeletes.add(pick.game_id);
+          
           try {
-            await fetch(`/api/picks/${pick.game_id}`, {
+            const response = await fetch(`/api/picks/${pick.game_id}`, {
               method: 'DELETE',
               headers: authHeaders,
             });
+            
+            if (response.ok) {
+              hasSuccessfulDeletes = true;
+            } else {
+              // If delete fails, just log it but don't retry to avoid infinite loops
+              const errorData = await response.json().catch(() => ({}));
+              console.warn(`Failed to delete unsubmitted pick for game ${pick.game_id}:`, errorData.error || response.statusText);
+            }
           } catch (error) {
             console.error('Error deleting unsubmitted pick for started game:', error);
           }
         }
         
-        // Reload user picks to reflect deletions
-        if (activeWeek) {
+        // Update the attempted deletes set
+        setAttemptedDeletes(newAttemptedDeletes);
+        
+        // Only reload if we had successful deletions to avoid infinite reloading
+        if (hasSuccessfulDeletes && activeWeek) {
           await loadUserPicks(activeWeek.id);
         }
       };
       
       deleteUnsubmittedPicks();
     }
-  }, [games, draftPicks, userPicks, activeWeek]);
+  }, [games, draftPicks, userPicks, activeWeek, attemptedDeletes]);
 
   // Update picks summary when games, userPicks, or draftPicks change
   useEffect(() => {
