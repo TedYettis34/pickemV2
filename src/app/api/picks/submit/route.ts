@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { submitPicksForWeek, hasSubmittedPicksForWeek } from '../../../../lib/picks';
 import { ApiResponse } from '../../../../types/pick';
+import { syncUserFromCognito, getUserByCognitoId } from '../../../../lib/users';
 
 /**
  * Submit all picks for a week
@@ -27,6 +28,36 @@ export async function POST(request: NextRequest) {
       };
       return NextResponse.json(response, { status: 401 });
     }
+
+    // Ensure user exists in database (sync from Cognito if needed)
+    let existingUser;
+    try {
+      console.log('Looking up user with Cognito ID:', userId);
+      existingUser = await getUserByCognitoId(userId);
+      console.log('Found existing user:', existingUser ? { id: existingUser.id, email: existingUser.email, cognitoUserId: existingUser.cognito_user_id } : null);
+      
+      if (!existingUser) {
+        console.log('User not found, attempting to sync from Cognito...');
+        // Try to sync user from Cognito using the access token
+        const accessToken = authHeader.replace('Bearer ', '');
+        existingUser = await syncUserFromCognito(accessToken);
+        console.log('Synced user from Cognito:', existingUser ? { id: existingUser.id, email: existingUser.email, cognitoUserId: existingUser.cognito_user_id } : null);
+      }
+      
+      if (!existingUser) {
+        throw new Error('User not found and could not be synced from Cognito');
+      }
+    } catch (userError) {
+      console.error('Error ensuring user exists:', userError);
+      const response: ApiResponse<never> = {
+        success: false,
+        error: `User authentication failed: ${userError instanceof Error ? userError.message : 'Unknown error'}`,
+      };
+      return NextResponse.json(response, { status: 401 });
+    }
+
+    // Get the database user ID for all operations
+    const databaseUserId = existingUser.id.toString();
 
     let body;
     try {
@@ -59,8 +90,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 400 });
     }
 
-    // Check if picks have already been submitted
-    const alreadySubmitted = await hasSubmittedPicksForWeek(userId, weekIdNum);
+    // Check if picks have already been submitted using database user ID
+    const alreadySubmitted = await hasSubmittedPicksForWeek(databaseUserId, weekIdNum);
     if (alreadySubmitted) {
       const response: ApiResponse<never> = {
         success: false,
@@ -69,8 +100,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 400 });
     }
 
-    // Submit all picks for the week
-    const submittedPicks = await submitPicksForWeek(userId, weekIdNum);
+    // Submit all picks for the week using database user ID
+    console.log(`Submitting picks for user ${userId} (database ID: ${databaseUserId}), week ${weekIdNum}`);
+    const submittedPicks = await submitPicksForWeek(databaseUserId, weekIdNum);
 
     const response: ApiResponse<typeof submittedPicks> = {
       success: true,

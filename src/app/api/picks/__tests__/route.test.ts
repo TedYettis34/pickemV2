@@ -1,5 +1,37 @@
+/**
+ * @jest-environment node
+ */
+
+// Add Node.js polyfills for web APIs
+import { TextEncoder, TextDecoder } from 'util';
+global.TextEncoder = TextEncoder;
+global.TextDecoder = TextDecoder;
+
+// Mock dependencies BEFORE imports
+jest.mock('../../../../lib/database', () => ({
+  getDatabase: jest.fn(),
+  closeDatabasePool: jest.fn(),
+  query: jest.fn(),
+}));
+
+jest.mock('../../../../lib/picks', () => ({
+  createOrUpdatePick: jest.fn(),
+  validatePick: jest.fn(),
+}));
+
+jest.mock('../../../../lib/users', () => ({
+  syncUserFromCognito: jest.fn(),
+  getUserByCognitoId: jest.fn(),
+}));
+
 import { NextRequest } from 'next/server';
 import { POST } from '../route';
+import { createOrUpdatePick, validatePick } from '../../../../lib/picks';
+import { getUserByCognitoId } from '../../../../lib/users';
+
+const mockCreateOrUpdatePick = createOrUpdatePick as jest.MockedFunction<typeof createOrUpdatePick>;
+const mockValidatePick = validatePick as jest.MockedFunction<typeof validatePick>;
+const mockGetUserByCognitoId = getUserByCognitoId as jest.MockedFunction<typeof getUserByCognitoId>;
 
 // Mock NextResponse
 jest.mock('next/server', () => ({
@@ -29,20 +61,22 @@ const createMockRequest = (url: string, options: {
   } as unknown as NextRequest;
 };
 
-// Mock the picks library
-jest.mock('../../../../lib/picks', () => ({
-  createOrUpdatePick: jest.fn(),
-  validatePick: jest.fn(),
-}));
-
-import { createOrUpdatePick, validatePick } from '../../../../lib/picks';
-
-const mockCreateOrUpdatePick = createOrUpdatePick as jest.MockedFunction<typeof createOrUpdatePick>;
-const mockValidatePick = validatePick as jest.MockedFunction<typeof validatePick>;
 
 describe('/api/picks POST', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Set up default user mock
+    mockGetUserByCognitoId.mockResolvedValue({
+      id: 1,
+      cognito_user_id: 'user123',
+      email: 'test@example.com',
+      name: 'Test User',
+      timezone: 'UTC',
+      is_admin: false,
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+    });
   });
 
   it('should create a pick successfully', async () => {
@@ -82,8 +116,8 @@ describe('/api/picks POST', () => {
       success: true,
       data: mockPick,
     });
-    expect(mockValidatePick).toHaveBeenCalledWith('user123', 1, false);
-    expect(mockCreateOrUpdatePick).toHaveBeenCalledWith('user123', 1, {
+    expect(mockValidatePick).toHaveBeenCalledWith('1', 1, false);
+    expect(mockCreateOrUpdatePick).toHaveBeenCalledWith('1', 1, {
       game_id: 1,
       pick_type: 'home_spread',
       spread_value: -3.5,
