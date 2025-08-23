@@ -172,6 +172,7 @@ async function validateBulkTriplePlayLimits(
  */
 export async function POST(request: NextRequest) {
   try {
+    
     // Get user ID from authorization header
     const authHeader = request.headers.get('authorization');
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -196,6 +197,7 @@ export async function POST(request: NextRequest) {
     // Ensure user exists in database (sync from Cognito if needed)
     try {
       let existingUser = await getUserByCognitoId(userId);
+      
       if (!existingUser) {
         // Try to sync user from Cognito using the access token
         const accessToken = authHeader.replace('Bearer ', '');
@@ -203,9 +205,16 @@ export async function POST(request: NextRequest) {
       }
     } catch (userError) {
       console.error('Error ensuring user exists:', userError);
+      console.error('Error details:', {
+        message: userError instanceof Error ? userError.message : 'Unknown error',
+        stack: userError instanceof Error ? userError.stack : undefined,
+        userId,
+        hasAuthHeader: !!authHeader,
+        authHeaderLength: authHeader ? authHeader.length : 0
+      });
       const response: ApiResponse<never> = {
         success: false,
-        error: 'User authentication failed',
+        error: `User authentication failed: ${userError instanceof Error ? userError.message : 'Unknown error'}`,
       };
       return NextResponse.json(response, { status: 401 });
     }
