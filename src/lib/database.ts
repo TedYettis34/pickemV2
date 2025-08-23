@@ -81,9 +81,11 @@ async function initializePool(): Promise<Pool> {
       host: host,
       port: credentials.port,
       database: credentials.dbname,
-      ssl: isDevelopment && !process.env.DB_CREDENTIALS_SECRET_ARN ? false : {
-        rejectUnauthorized: false, // Required for Aurora, works with tunneled connections too
-      },
+      ssl: isDevelopment && !process.env.DB_CREDENTIALS_SECRET_ARN ? false : 
+           credentials.host === '52.5.36.87' ? false : // PgBouncer doesn't need SSL from client
+           {
+             rejectUnauthorized: false, // Required for direct Aurora connections
+           },
       max: 20, // Maximum number of clients in the pool
       idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
       connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
