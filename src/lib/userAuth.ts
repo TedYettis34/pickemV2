@@ -4,12 +4,24 @@
  * and handle authentication for the picks system
  */
 
+// JWT payload interface for Cognito tokens
+interface JWTPayload {
+  sub?: string;
+  username?: string;
+  email?: string;
+  name?: string;
+  given_name?: string;
+  family_name?: string;
+  exp?: number;
+  iat?: number;
+}
+
 // JWT decode utility (simple base64 decode for payload)
-function decodeJWT(token: string): any {
+function decodeJWT(token: string): JWTPayload | null {
   try {
     const payload = token.split('.')[1];
     const decoded = atob(payload);
-    return JSON.parse(decoded);
+    return JSON.parse(decoded) as JWTPayload;
   } catch (error) {
     console.error('Error decoding JWT:', error);
     return null;
@@ -57,7 +69,7 @@ export function getCurrentUserContext(): UserContext | null {
   }
   
   // Try to decode the ID token for user information (more reliable than access token)
-  let userInfo: any = null;
+  let userInfo: JWTPayload | null = null;
   if (idToken) {
     userInfo = decodeJWT(idToken);
   }
