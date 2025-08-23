@@ -439,16 +439,31 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
   const updatePicksSummaryWithDrafts = (currentDraftPicks: Map<number, CreatePickInput>) => {
     if (!activeWeek || games.length === 0) return;
     
+    const now = new Date();
+    
     // Get unsubmitted picks from database (these have been unsubmitted)
-    const unsubmittedPicks = userPicks.filter(pick => !pick.submitted);
+    // Filter out picks for games that have already started
+    const unsubmittedPicks = userPicks.filter(pick => {
+      if (pick.submitted) return false; // Only include unsubmitted picks
+      
+      const game = games.find(g => g.id === pick.game_id);
+      if (!game) return false;
+      
+      // Remove unsubmitted picks for started games
+      return new Date(game.commence_time) > now;
+    });
     
     // Create picks summary including both draft picks and unsubmitted picks
     const allPicksArray: PickWithGame[] = [];
     
     // Add draft picks (these take precedence over unsubmitted picks for the same game)
+    // Filter out draft picks for games that have already started
     const draftPicksArray = Array.from(currentDraftPicks.entries()).map(([gameId, draftPick]) => {
       const game = games.find(g => g.id === gameId);
       if (!game) return null;
+      
+      // Remove draft picks for started games
+      if (new Date(game.commence_time) <= now) return null;
       
       return {
         id: 0, // Draft picks don't have IDs yet
@@ -492,6 +507,64 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
     setPicksSummary(summary);
   };
   
+  // Auto-clear picks for games that have started
+  useEffect(() => {
+    if (games.length === 0) return;
+    
+    const now = new Date();
+    let hasStartedGamePicks = false;
+    
+    // Check draft picks for started games
+    const newDraftPicks = new Map(draftPicks);
+    for (const [gameId] of draftPicks) {
+      const game = games.find(g => g.id === gameId);
+      if (game && new Date(game.commence_time) <= now) {
+        newDraftPicks.delete(gameId);
+        hasStartedGamePicks = true;
+      }
+    }
+    
+    // Update draft picks if we found any for started games
+    if (hasStartedGamePicks) {
+      setDraftPicks(newDraftPicks);
+    }
+    
+    // Check unsubmitted database picks for started games and delete them
+    const unsubmittedPicksForStartedGames = userPicks.filter(pick => {
+      if (pick.submitted) return false;
+      const game = games.find(g => g.id === pick.game_id);
+      return game && new Date(game.commence_time) <= now;
+    });
+    
+    // Delete unsubmitted picks for started games from database
+    if (unsubmittedPicksForStartedGames.length > 0) {
+      const deleteUnsubmittedPicks = async () => {
+        const userContext = getCurrentUserContext();
+        if (!userContext) return;
+        
+        const authHeaders = getAuthHeaders();
+        
+        for (const pick of unsubmittedPicksForStartedGames) {
+          try {
+            await fetch(`/api/picks/${pick.game_id}`, {
+              method: 'DELETE',
+              headers: authHeaders,
+            });
+          } catch (error) {
+            console.error('Error deleting unsubmitted pick for started game:', error);
+          }
+        }
+        
+        // Reload user picks to reflect deletions
+        if (activeWeek) {
+          await loadUserPicks(activeWeek.id);
+        }
+      };
+      
+      deleteUnsubmittedPicks();
+    }
+  }, [games, draftPicks, userPicks, activeWeek]);
+
   // Update picks summary when games, userPicks, or draftPicks change
   useEffect(() => {
     updatePicksSummaryWithDrafts(draftPicks);
