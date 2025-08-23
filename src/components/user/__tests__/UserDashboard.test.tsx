@@ -190,7 +190,7 @@ describe('UserDashboard', () => {
         external_id: 'game1',
         home_team: 'Chiefs',
         away_team: 'Bills',
-        commence_time: '2024-01-01T18:00:00Z',
+        commence_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours in the future
         spread_home: -3.5,
         total_over_under: 47.5,
         created_at: '2024-01-01T00:00:00Z',
@@ -203,7 +203,7 @@ describe('UserDashboard', () => {
         external_id: 'game2',
         home_team: 'Alabama',
         away_team: 'Georgia',
-        commence_time: '2024-01-02T20:00:00Z',
+        commence_time: new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString(), // 48 hours in the future
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z',
       },
@@ -345,7 +345,7 @@ describe('UserDashboard', () => {
       external_id: 'game1',
       home_team: 'Chiefs',
       away_team: 'Bills',
-      commence_time: '2024-01-01T18:00:00Z',
+      commence_time: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hours in the future
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
     };
