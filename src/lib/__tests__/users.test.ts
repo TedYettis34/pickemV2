@@ -201,16 +201,42 @@ describe('Users Module', () => {
       await expect(syncUserFromCognito('access-token')).rejects.toThrow('No username found in Cognito response');
     });
 
-    it('should throw error when missing email or name', async () => {
+    it('should handle missing name attribute by using email fallback', async () => {
       mockSend.mockResolvedValue({
         Username: 'cognito-123',
         UserAttributes: [
           { Name: 'email', Value: 'test@example.com' },
-          // Missing name attribute
+          // Missing name attribute - should use email prefix as fallback
         ],
       });
 
-      await expect(syncUserFromCognito('access-token')).rejects.toThrow('Email and name are required from Cognito');
+      // Mock that user doesn't exist, so it creates new one
+      mockQuery.mockResolvedValueOnce([]); // getUserByCognitoId returns no user
+      mockQuery.mockResolvedValueOnce([{  // INSERT returns new user
+        id: 1,
+        cognito_user_id: 'cognito-123',
+        email: 'test@example.com',
+        name: 'test', // Should use email prefix as name
+        timezone: 'UTC',
+        is_admin: false,
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      }]);
+
+      const result = await syncUserFromCognito('access-token');
+      expect(result.name).toBe('test'); // email prefix should be used as name
+    });
+
+    it('should throw error when missing email', async () => {
+      mockSend.mockResolvedValue({
+        Username: 'cognito-123',
+        UserAttributes: [
+          { Name: 'name', Value: 'Test User' },
+          // Missing email attribute
+        ],
+      });
+
+      await expect(syncUserFromCognito('access-token')).rejects.toThrow('Email is required from Cognito');
     });
   });
 
