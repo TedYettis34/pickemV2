@@ -81,9 +81,9 @@ export function getCurrentUserContext(): UserContext | null {
   
   // Return user context with decoded information or fallbacks
   return {
-    userId: userInfo?.sub || userInfo?.username || 'authenticated-user',
+    userId: userInfo?.sub || userInfo?.username || userInfo?.cognito_username || 'authenticated-user',
     email: userInfo?.email || userInfo?.username || 'user@authenticated.com',  
-    name: userInfo?.name || userInfo?.given_name || userInfo?.username || 'Authenticated User',
+    name: userInfo?.name || userInfo?.given_name || userInfo?.family_name || userInfo?.username || 'Authenticated User',
     accessToken: accessToken,
   };
 }
