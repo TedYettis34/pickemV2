@@ -78,39 +78,8 @@ async function validateBulkPickerChoiceLimits(
   }
 }
 
-/**
- * Validates that all must-pick games for a week are included in the submission
- */
-async function validateMustPickGames(
-  weekId: number,
-  picks: Array<{ game_id: number; pick_type: string; spread_value?: number }>
-): Promise<void> {
-  // Get all must-pick games for this week
-  const mustPickGames = await query<{ id: number }>(
-    'SELECT id FROM games WHERE week_id = $1 AND must_pick = true',
-    [weekId]
-  );
-
-  if (mustPickGames.length === 0) {
-    // No must-pick games for this week, validation passes
-    return;
-  }
-
-  // Get game IDs from the submission
-  const submittedGameIds = picks.map(p => p.game_id);
-  
-  // Check if all must-pick games are included
-  const missingMustPickGames = mustPickGames.filter(
-    game => !submittedGameIds.includes(game.id)
-  );
-
-
-  if (missingMustPickGames.length > 0) {
-    throw new Error(
-      `You must pick all required games for this week. Missing must-pick games: ${missingMustPickGames.map(g => g.id).join(', ')}`
-    );
-  }
-}
+// Must-pick game validation function removed - validation is now disabled
+// Visual indicators in the UI will still show which games are must-pick
 
 /**
  * Validates triple play limits for bulk pick submission
@@ -311,16 +280,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 400 });
     }
 
-    // Validate that all must-pick games are included
-    try {
-      await validateMustPickGames(weekIdNum, picks);
-    } catch (validationError) {
-      const response: ApiResponse<never> = {
-        success: false,
-        error: validationError instanceof Error ? validationError.message : 'Must-pick game validation failed',
-      };
-      return NextResponse.json(response, { status: 400 });
-    }
+    // Note: Must-pick game validation is disabled to allow flexible submissions
+    // Visual indicators in the UI will still show which games are must-pick
+    // This allows users to submit picks even if must-pick games have already started
 
     // Validate each pick
     const validatedPicks: CreatePickInput[] = [];

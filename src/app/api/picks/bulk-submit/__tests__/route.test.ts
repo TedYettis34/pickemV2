@@ -147,8 +147,7 @@ describe('/api/picks/bulk-submit', () => {
       // Mock current picks count (excluding games being resubmitted)
       mockQuery.mockResolvedValueOnce([{ count: '1' }]); // Game 1 (started, locked)
 
-      // Mock must-pick games validation (empty - no must-pick games)
-      mockQuery.mockResolvedValueOnce([]);
+      // Must-pick validation is now disabled
 
       // Mock individual pick validation
       mockValidatePick.mockResolvedValue({ isValid: true });
@@ -307,8 +306,7 @@ describe('/api/picks/bulk-submit', () => {
       // Mock current picker's choice picks count (0 existing)
       mockQuery.mockResolvedValueOnce([{ count: '0' }]);
 
-      // Mock must-pick games validation
-      mockQuery.mockResolvedValueOnce([{ id: 1 }]);
+      // Must-pick validation is now disabled
 
       // Mock individual pick validation
       mockValidatePick.mockResolvedValue({ isValid: true });
@@ -356,8 +354,7 @@ describe('/api/picks/bulk-submit', () => {
       // Mock week with no limit set (null)
       mockQuery.mockResolvedValueOnce([{ max_picker_choice_games: null }]);
 
-      // Mock must-pick games validation (no must-pick games)
-      mockQuery.mockResolvedValueOnce([]);
+      // Must-pick validation is now disabled
 
       // Mock individual pick validation
       mockValidatePick.mockResolvedValue({ isValid: true });
@@ -405,8 +402,7 @@ describe('/api/picks/bulk-submit', () => {
 
       // No need to mock week limit since validateBulkPickerChoiceLimits returns early for 0 picker choice games
 
-      // Mock must-pick games validation 
-      mockQuery.mockResolvedValueOnce([{ id: 1 }]);
+      // Must-pick validation is now disabled
 
       // Mock individual pick validation
       mockValidatePick.mockResolvedValue({ isValid: true });
@@ -481,8 +477,7 @@ describe('/api/picks/bulk-submit', () => {
       // but since game 2 is being resubmitted, it should not count toward the existing total
       mockQuery.mockResolvedValueOnce([{ count: '0' }]);
 
-      // Mock must-pick games validation
-      mockQuery.mockResolvedValueOnce([{ id: 1 }]);
+      // Must-pick validation is now disabled
 
       // Mock individual pick validation
       mockValidatePick.mockResolvedValue({ isValid: true });
@@ -523,7 +518,7 @@ describe('/api/picks/bulk-submit', () => {
       );
     });
 
-    it('should require at least one must-pick game when must-pick games exist', async () => {
+    it('should allow submission even when must-pick games are missing', async () => {
       const pickerChoiceOnlyPicks = [
         { game_id: 2, pick_type: 'home_spread', spread_value: -3.5 },
         { game_id: 3, pick_type: 'away_spread', spread_value: 2.5 },
@@ -544,10 +539,20 @@ describe('/api/picks/bulk-submit', () => {
       // Mock current picker's choice picks count
       mockQuery.mockResolvedValueOnce([{ count: '0' }]);
 
-      // Check if there are must-pick games for this week - user missed game 1
-      mockQuery.mockResolvedValueOnce([
-        { id: 1 },
-      ]);
+      // Mock individual pick validation
+      mockValidatePick.mockResolvedValue({ isValid: true });
+
+      // Mock successful pick creation
+      pickerChoiceOnlyPicks.forEach((pick, index) => {
+        mockCreateOrUpdatePick.mockResolvedValueOnce({
+          id: index + 1,
+          user_id: 'user123',
+          ...pick,
+          submitted: true,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        });
+      });
 
       const request = createRequest({
         weekId: 1,
@@ -557,11 +562,10 @@ describe('/api/picks/bulk-submit', () => {
       const response = await POST(request);
       const data = await response.json();
 
-      expect(response.status).toBe(400);
-      expect(data.success).toBe(false);
-      expect(data.error).toContain('must pick all required games');
-      expect(data.error).toContain('Missing must-pick games: 1');
-      expect(mockCreateOrUpdatePick).not.toHaveBeenCalled();
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.data).toHaveLength(2);
+      expect(mockCreateOrUpdatePick).toHaveBeenCalledTimes(2);
     });
 
     it('should allow submission when all must-pick games are included', async () => {
@@ -585,10 +589,7 @@ describe('/api/picks/bulk-submit', () => {
       // Mock current picker's choice picks count (0 existing)
       mockQuery.mockResolvedValueOnce([{ count: '0' }]);
 
-      // Check must-pick games for this week
-      mockQuery.mockResolvedValueOnce([
-        { id: 1, must_pick: true, week_id: 1 },
-      ]);
+      // Must-pick validation is now disabled, so no need to mock the must-pick check
 
       // Mock individual pick validation
       mockValidatePick.mockResolvedValue({ isValid: true });
@@ -681,8 +682,7 @@ describe('/api/picks/bulk-submit', () => {
       // but since game 2 is being resubmitted, only count non-resubmitted games (0)
       mockQuery.mockResolvedValueOnce([{ count: '0' }]);
 
-      // Mock must-pick games validation
-      mockQuery.mockResolvedValueOnce([{ id: 1 }]);
+      // Must-pick validation is now disabled
 
       // Mock individual pick validation
       mockValidatePick.mockResolvedValue({ isValid: true });
@@ -731,11 +731,7 @@ describe('/api/picks/bulk-submit', () => {
       // Since there are no picker's choice games in submission, picker choice validation is skipped
       // No need to mock week limit or picker's choice count queries
 
-      // Mock must-pick games validation
-      mockQuery.mockResolvedValueOnce([
-        { id: 1 },
-        { id: 2 },
-      ]);
+      // Must-pick validation is now disabled, so no need to mock the must-pick check
 
       // Mock individual pick validation
       mockValidatePick.mockResolvedValue({ isValid: true });
