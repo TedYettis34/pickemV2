@@ -27,6 +27,15 @@ export function PicksReview({
   const isSubmitted = !!submittedAt;
   const completionPercentage = totalGames > 0 ? Math.round((totalPicks / totalGames) * 100) : 0;
 
+  // Categorize picks by game start time
+  const now = new Date();
+  const startedGamePicks = picks.filter(pick => new Date(pick.game.commence_time) <= now);
+  const unstartedGamePicks = picks.filter(pick => new Date(pick.game.commence_time) > now);
+
+  const hasGameStarted = (commenceTime: string) => {
+    return new Date(commenceTime) <= now;
+  };
+
   const handleSubmitClick = async () => {
     if (picks.length === 0) return;
     
@@ -44,9 +53,19 @@ export function PicksReview({
   const handleUnsubmitClick = async () => {
     if (!onUnsubmitPicks || picks.length === 0) return;
     
-    const confirmed = window.confirm(
-      'Are you sure you want to unsubmit your picks? This will allow you to make changes and resubmit. You can still update to favorable line movements without unsubmitting.'
-    );
+    let confirmMessage = 'Are you sure you want to unsubmit your picks?';
+    
+    if (startedGamePicks.length > 0 && unstartedGamePicks.length > 0) {
+      confirmMessage = `Are you sure you want to unsubmit your picks? Only ${unstartedGamePicks.length} pick(s) for games that haven't started will be unsubmitted. ${startedGamePicks.length} pick(s) for games that have already started will remain submitted and locked.`;
+    } else if (startedGamePicks.length > 0) {
+      confirmMessage = 'All your games have already started. No picks can be unsubmitted.';
+      alert(confirmMessage);
+      return;
+    } else {
+      confirmMessage = `Are you sure you want to unsubmit all ${unstartedGamePicks.length} picks? This will allow you to make changes and resubmit.`;
+    }
+    
+    const confirmed = window.confirm(confirmMessage);
     if (!confirmed) return;
     
     try {
@@ -172,14 +191,27 @@ export function PicksReview({
               <div className="space-y-2">
                 <button
                   onClick={handleUnsubmitClick}
-                  disabled={isUnsubmitting}
+                  disabled={isUnsubmitting || unstartedGamePicks.length === 0}
                   className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:cursor-not-allowed"
                 >
-                  {isUnsubmitting ? 'Unsubmitting...' : 'Unsubmit Picks'}
+                  {isUnsubmitting ? 'Unsubmitting...' : 
+                   unstartedGamePicks.length === 0 ? 'Cannot Unsubmit' :
+                   unstartedGamePicks.length < picks.length ? `Unsubmit ${unstartedGamePicks.length} Picks` :
+                   'Unsubmit All Picks'}
                 </button>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  You can still update picks to favorable lines without unsubmitting
-                </p>
+                {unstartedGamePicks.length === 0 ? (
+                  <p className="text-xs text-red-500 dark:text-red-400">
+                    All games have started - no picks can be unsubmitted
+                  </p>
+                ) : startedGamePicks.length > 0 ? (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Only {unstartedGamePicks.length} of {picks.length} picks can be unsubmitted (games that haven&apos;t started)
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    You can still update picks to favorable lines without unsubmitting
+                  </p>
+                )}
               </div>
             )}
           </div>
@@ -194,12 +226,39 @@ export function PicksReview({
         )}
       </div>
 
+      {/* Status Summary for Submitted Picks */}
+      {isSubmitted && (startedGamePicks.length > 0 || unstartedGamePicks.length > 0) && (
+        <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
+          <div className="flex items-center space-x-4 text-sm">
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+              <span className="text-gray-700 dark:text-gray-300">
+                <span className="font-semibold">{startedGamePicks.length}</span> Locked (games started)
+              </span>
+            </div>
+            <div className="flex items-center space-x-2">
+              <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+              <span className="text-gray-700 dark:text-gray-300">
+                <span className="font-semibold">{unstartedGamePicks.length}</span> Can be unsubmitted (games not started)
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Picks List */}
       <div className="space-y-3">
-        {picks.map((pick) => (
+        {picks.map((pick) => {
+          const gameHasStarted = hasGameStarted(pick.game.commence_time);
+          
+          return (
           <div
             key={pick.id}
-            className="flex items-center justify-between p-4 bg-gray-50 dark:bg-gray-700 rounded-lg"
+            className={`flex items-center justify-between p-4 rounded-lg ${
+              gameHasStarted 
+                ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800' 
+                : 'bg-gray-50 dark:bg-gray-700'
+            }`}
           >
             <div className="flex-1">
               <div className="flex items-center space-x-3">
@@ -216,8 +275,29 @@ export function PicksReview({
                     Triple Play
                   </span>
                 )}
-                <div className="text-sm text-gray-500 dark:text-gray-400">
+                {isSubmitted && gameHasStarted && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 font-medium">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2zM9 11V9a3 3 0 116 0v2M6 11h12" />
+                    </svg>
+                    Locked
+                  </span>
+                )}
+                {isSubmitted && !gameHasStarted && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400 font-medium">
+                    <svg className="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 11V7a4 4 0 118 0m-4 8v2m-6 4h12a2 2 0 002-2v-2a2 2 0 00-2-2H6a2 2 0 00-2 2v2a2 2 0 002 2z" />
+                    </svg>
+                    Can Unsubmit
+                  </span>
+                )}
+                <div className={`text-sm ${
+                  gameHasStarted 
+                    ? 'text-red-600 dark:text-red-400 font-medium' 
+                    : 'text-gray-500 dark:text-gray-400'
+                }`}>
                   {formatGameTime(pick.game.commence_time)}
+                  {gameHasStarted && <span className="ml-2 font-bold">(Started)</span>}
                 </div>
               </div>
               
@@ -252,7 +332,8 @@ export function PicksReview({
               </div>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
 
       {/* Submission Warning */}

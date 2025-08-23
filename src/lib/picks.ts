@@ -220,9 +220,14 @@ export async function validatePick(
     }
     
     // Check if user has already submitted picks for this week
-    const hasSubmitted = await hasSubmittedPicksForWeek(userId, game.week_id);
-    if (hasSubmitted) {
-      return { isValid: false, error: 'Picks have already been submitted for this week' };
+    // Only prevent new picks if ALL eligible picks (for games that haven't started) are submitted
+    const userPicksForWeek = await getUserPicksForWeek(userId, game.week_id);
+    const eligiblePicks = userPicksForWeek.filter(pick => new Date(pick.game.commence_time) > now);
+    const submittedEligiblePicks = eligiblePicks.filter(pick => pick.submitted);
+    
+    const allEligiblePicksSubmitted = eligiblePicks.length > 0 && submittedEligiblePicks.length === eligiblePicks.length;
+    if (allEligiblePicksSubmitted) {
+      return { isValid: false, error: 'All picks for eligible games have already been submitted for this week' };
     }
     
     // Check if user already has a pick for this game

@@ -523,27 +523,22 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
 
     let currentPickerChoicePicks = 0;
 
-    if (hasSubmittedPicks) {
-      // Count from userPicks, filtering out must-pick games
-      currentPickerChoicePicks = userPicks.filter(pick => {
-        const game = games.find(g => g.id === pick.game_id);
-        return game && !game.must_pick;
-      }).length;
-    } else {
-      // Count from draft picks + unsubmitted database picks (non-must-pick only)
-      const draftPickerChoiceCount = Array.from(draftPicks.keys()).filter(gameId => {
-        const game = games.find(g => g.id === gameId);
-        return game && !game.must_pick;
-      }).length;
+    // Always count all current picks (submitted + unsubmitted + draft), regardless of submission state
+    // This handles mixed states where some picks are submitted and some aren't
+    
+    // Count submitted/unsubmitted database picks (non-must-pick only)
+    const databasePickerChoiceCount = userPicks.filter(pick => {
+      const game = games.find(g => g.id === pick.game_id);
+      return game && !game.must_pick && !draftPicks.has(pick.game_id); // Avoid double counting with drafts
+    }).length;
 
-      const unsubmittedPickerChoiceCount = userPicks.filter(pick => {
-        if (pick.submitted || draftPicks.has(pick.game_id)) return false;
-        const game = games.find(g => g.id === pick.game_id);
-        return game && !game.must_pick;
-      }).length;
+    // Count draft picks (non-must-pick only)
+    const draftPickerChoiceCount = Array.from(draftPicks.keys()).filter(gameId => {
+      const game = games.find(g => g.id === gameId);
+      return game && !game.must_pick;
+    }).length;
 
-      currentPickerChoicePicks = draftPickerChoiceCount + unsubmittedPickerChoiceCount;
-    }
+    currentPickerChoicePicks = databasePickerChoiceCount + draftPickerChoiceCount;
 
     return {
       current: currentPickerChoicePicks,
@@ -555,24 +550,18 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
   };
 
   const getCurrentTriplePlayCount = () => {
-    let currentTriplePlays = 0;
+    // Always count all current triple plays (submitted + unsubmitted + draft), regardless of submission state
+    // This handles mixed states where some picks are submitted and some aren't
+    
+    // Count submitted/unsubmitted database picks that are triple plays
+    const databaseTriplePlayCount = userPicks.filter(pick => {
+      return pick.is_triple_play && !draftPicks.has(pick.game_id); // Avoid double counting with drafts
+    }).length;
 
-    if (hasSubmittedPicks) {
-      // Count from userPicks
-      currentTriplePlays = userPicks.filter(pick => pick.is_triple_play).length;
-    } else {
-      // Count from draft picks + unsubmitted database picks
-      const draftTriplePlayCount = Array.from(draftPicks.values()).filter(pick => pick.is_triple_play).length;
-      
-      const unsubmittedTriplePlayCount = userPicks.filter(pick => {
-        if (pick.submitted || draftPicks.has(pick.game_id)) return false;
-        return pick.is_triple_play;
-      }).length;
+    // Count draft picks that are triple plays
+    const draftTriplePlayCount = Array.from(draftPicks.values()).filter(pick => pick.is_triple_play).length;
 
-      currentTriplePlays = draftTriplePlayCount + unsubmittedTriplePlayCount;
-    }
-
-    return currentTriplePlays;
+    return databaseTriplePlayCount + draftTriplePlayCount;
   };
 
   // Get games that haven't started yet (available for picking)
