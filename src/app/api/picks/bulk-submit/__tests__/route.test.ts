@@ -327,10 +327,11 @@ describe('/api/picks/bulk-submit', () => {
       expect(data.message).toBe('Successfully submitted 3 picks');
       expect(mockCreateOrUpdatePick).toHaveBeenCalledTimes(3);
       
-      // Verify that the query excludes resubmitted games
+      // Verify that the query excludes resubmitted games  
+      // Note: We now use the database user ID ("1") instead of Cognito user ID ("user123")
       expect(mockQuery).toHaveBeenCalledWith(
         expect.stringContaining('AND g.id NOT IN'),
-        expect.arrayContaining(['user123', 1, 1, 2, 3])
+        expect.arrayContaining(['1', 1, 1, 2, 3])
       );
     });
 
