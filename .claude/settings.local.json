@@ -25,7 +25,10 @@
       "Bash(aws secretsmanager get-secret-value:*)",
       "Bash(chmod:*)",
       "Bash(curl:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(ssh:*)",
+      "Bash(terraform plan:*)"
     ],
     "deny": []
   }

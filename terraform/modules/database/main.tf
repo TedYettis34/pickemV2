@@ -34,6 +34,17 @@ resource "aws_security_group" "database_security_group" {
     }
   }
 
+  dynamic "ingress" {
+    for_each = var.nat_instance_security_group_id != null ? [1] : []
+    content {
+      from_port       = 5432
+      to_port         = 5432
+      protocol        = "tcp"
+      security_groups = [var.nat_instance_security_group_id]
+      description     = "PostgreSQL access from NAT instance (PgBouncer)"
+    }
+  }
+
   egress {
     from_port   = 0
     to_port     = 0
@@ -110,7 +121,7 @@ resource "aws_db_instance" "pickem_cost_optimized_db" {
 
   # Cost optimization settings
   multi_az               = var.enable_multi_az
-  publicly_accessible    = false
+  publicly_accessible    = true  # Temporarily public for Vercel access
   backup_retention_period = var.backup_retention_days
   backup_window          = "03:00-04:00"  # UTC
   maintenance_window     = "Sun:04:00-Sun:05:00"  # UTC

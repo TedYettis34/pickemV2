@@ -76,6 +76,12 @@ variable "bastion_security_group_id" {
   default     = null
 }
 
+variable "nat_instance_security_group_id" {
+  description = "Security group ID for NAT instance (PgBouncer) access"
+  type        = string
+  default     = null
+}
+
 variable "common_tags" {
   description = "Common tags to apply to all resources"
   type        = map(string)
