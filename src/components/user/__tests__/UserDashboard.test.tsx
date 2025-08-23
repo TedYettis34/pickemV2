@@ -17,13 +17,13 @@ const createMockResponses = (weekData: unknown = null, gamesData: unknown[] = []
     json: async () => ({ success: true, data: weekData }),
   } as Response);
   
-  // Odds status API call
+  // First odds status API call (loadOddsStatus)
   responses.push({
     ok: true,
     json: async () => ({ success: true, data: oddsStatus }),
   } as Response);
 
-  // Score update API call (added for new functionality)
+  // Score update API call (updateScoresInBackground)
   responses.push({
     ok: true,
     json: async () => ({ 
@@ -36,6 +36,28 @@ const createMockResponses = (weekData: unknown = null, gamesData: unknown[] = []
       message: 'Score update complete: 0/0 games updated'
     }),
   } as Response);
+
+  // Second odds status API call (updateOddsInBackground check)
+  responses.push({
+    ok: true,
+    json: async () => ({ success: true, data: oddsStatus }),
+  } as Response);
+
+  // Odds update API call (only if odds need updating)
+  if (oddsStatus.needsUpdate) {
+    responses.push({
+      ok: true,
+      json: async () => ({
+        success: true,
+        message: 'Odds update completed',
+        summary: {
+          activeWeeks: 1,
+          totalGamesUpdated: 0,
+          weekDetails: []
+        }
+      }),
+    } as Response);
+  }
   
   // Games API call (only if week data exists)
   if (weekData) {
@@ -230,6 +252,8 @@ describe('UserDashboard', () => {
       updated_at: '2024-01-01T00:00:00Z',
     };
 
+    const oddsStatus = { lastUpdated: null, needsUpdate: false, nextUpdateDue: null, timeSinceUpdate: null };
+
     mockFetch
       .mockResolvedValueOnce({
         ok: true,
@@ -237,7 +261,7 @@ describe('UserDashboard', () => {
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ success: true, data: { lastUpdated: null, needsUpdate: false, nextUpdateDue: null, timeSinceUpdate: null } }),
+        json: async () => ({ success: true, data: oddsStatus }),
       } as Response)
       .mockResolvedValueOnce({
         ok: true,
@@ -246,6 +270,10 @@ describe('UserDashboard', () => {
           data: { gamesChecked: 0, gamesUpdated: 0, errors: [] },
           message: 'Score update complete: 0/0 games updated'
         }),
+      } as Response)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ success: true, data: oddsStatus }),
       } as Response)
       .mockResolvedValueOnce({
         ok: false,
