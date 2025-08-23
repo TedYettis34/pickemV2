@@ -45,7 +45,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
         w.name as week_name
       FROM picks p
       JOIN games g ON p.game_id = g.id
-      JOIN users u ON p.user_id = u.cognito_user_id
+      LEFT JOIN users u ON p.user_id = u.cognito_user_id
       JOIN weeks w ON g.week_id = w.id
       WHERE p.submitted = true
     `;
@@ -70,6 +70,13 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     
     console.log('Fetching all user picks with SQL:', sql, 'params:', params);
     
+    // Debug: Check if there are any picks at all
+    const allPicksCount = await query('SELECT COUNT(*) as count FROM picks');
+    console.log('Total picks in database:', allPicksCount[0]);
+    
+    const submittedPicksCount = await query('SELECT COUNT(*) as count FROM picks WHERE submitted = true');
+    console.log('Submitted picks in database:', submittedPicksCount[0]);
+    
     const rows = await query(sql, params);
     
     // Transform the rows into PickWithGame objects
@@ -85,7 +92,7 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
       evaluated_at: row.evaluated_at as string | null,
       created_at: row.created_at as string,
       updated_at: row.updated_at as string,
-      username: row.username as string,
+      username: (row.username as string) || row.user_id as string,
       display_name: row.display_name as string | null,
       week_name: row.week_name as string,
       game: {
