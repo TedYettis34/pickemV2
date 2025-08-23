@@ -13,7 +13,7 @@ jest.mock('../../../../../lib/database', () => ({
 jest.mock('../../../../../lib/picks', () => ({
   createOrUpdatePick: jest.fn(),
   validatePick: jest.fn(),
-  hasSubmittedPicksForWeek: jest.fn(),
+  getUserPicksForWeek: jest.fn(),
 }));
 
 jest.mock('../../../../../lib/users', () => ({
@@ -24,13 +24,13 @@ jest.mock('../../../../../lib/users', () => ({
 import { NextRequest } from 'next/server';
 import { POST } from '../route';
 import { query } from '../../../../../lib/database';
-import { createOrUpdatePick, validatePick, hasSubmittedPicksForWeek } from '../../../../../lib/picks';
+import { createOrUpdatePick, validatePick, getUserPicksForWeek } from '../../../../../lib/picks';
 import { getUserByCognitoId } from '../../../../../lib/users';
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockCreateOrUpdatePick = createOrUpdatePick as jest.MockedFunction<typeof createOrUpdatePick>;
 const mockValidatePick = validatePick as jest.MockedFunction<typeof validatePick>;
-const mockHasSubmittedPicksForWeek = hasSubmittedPicksForWeek as jest.MockedFunction<typeof hasSubmittedPicksForWeek>;
+const mockGetUserPicksForWeek = getUserPicksForWeek as jest.MockedFunction<typeof getUserPicksForWeek>;
 // const mockSyncUserFromCognito = syncUserFromCognito as jest.MockedFunction<typeof syncUserFromCognito>;
 const mockGetUserByCognitoId = getUserByCognitoId as jest.MockedFunction<typeof getUserByCognitoId>;
 
@@ -52,6 +52,194 @@ describe('/api/picks/bulk-submit', () => {
   });
 
   describe('POST', () => {
+    it('should allow submission in mixed state (some games started, some not)', async () => {
+      const pastTime = new Date(Date.now() - 3600000).toISOString(); // 1 hour ago
+      const futureTime = new Date(Date.now() + 3600000).toISOString(); // 1 hour from now
+      
+      // Mock existing picks - one game started (locked), one game not started (can be resubmitted)
+      const existingPicks = [
+        {
+          id: 1,
+          user_id: 'user123',
+          game_id: 1,
+          pick_type: 'home_spread',
+          spread_value: -3,
+          submitted: true, // Locked because game started
+          is_triple_play: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          game: {
+            id: 1,
+            week_id: 1,
+            sport: 'americanfootball_nfl',
+            external_id: 'game1',
+            home_team: 'Chiefs',
+            away_team: 'Bills',
+            commence_time: pastTime, // Game has started
+            spread_home: -3,
+            spread_away: 3,
+            total_over_under: null,
+            moneyline_home: -150,
+            moneyline_away: 130,
+            bookmaker: 'fanduel',
+            odds_last_updated: '2024-01-01T00:00:00Z',
+            must_pick: false,
+            home_score: null,
+            away_score: null,
+            game_status: 'scheduled',
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+          }
+        },
+        {
+          id: 2,
+          user_id: 'user123',
+          game_id: 2,
+          pick_type: 'away_spread',
+          spread_value: 7,
+          submitted: false, // Unsubmitted (can add new picks)
+          is_triple_play: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          game: {
+            id: 2,
+            week_id: 1,
+            sport: 'americanfootball_nfl',
+            external_id: 'game2',
+            home_team: 'Patriots',
+            away_team: 'Jets',
+            commence_time: futureTime, // Game hasn't started
+            spread_home: -7,
+            spread_away: 7,
+            total_over_under: null,
+            moneyline_home: -150,
+            moneyline_away: 130,
+            bookmaker: 'fanduel',
+            odds_last_updated: '2024-01-01T00:00:00Z',
+            must_pick: false,
+            home_score: null,
+            away_score: null,
+            game_status: 'scheduled',
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+          }
+        }
+      ];
+
+      // Mock getUserPicksForWeek to return mixed state
+      mockGetUserPicksForWeek.mockResolvedValue(existingPicks);
+
+      // Mock new picks being submitted (including resubmission of game 2 and new pick for game 3)
+      const newPicks = [
+        { game_id: 2, pick_type: 'away_spread', spread_value: 7 }, // Resubmitting
+        { game_id: 3, pick_type: 'home_spread', spread_value: -3.5 }, // New pick
+      ];
+
+      // Mock game details for validation
+      mockQuery.mockResolvedValueOnce([
+        { id: 2, must_pick: false, week_id: 1 },
+        { id: 3, must_pick: false, week_id: 1 },
+      ]);
+
+      // Mock week with picker choice limit
+      mockQuery.mockResolvedValueOnce([{ max_picker_choice_games: 3 }]);
+
+      // Mock current picks count (excluding games being resubmitted)
+      mockQuery.mockResolvedValueOnce([{ count: '1' }]); // Game 1 (started, locked)
+
+      // Mock must-pick games validation (empty - no must-pick games)
+      mockQuery.mockResolvedValueOnce([]);
+
+      // Mock individual pick validation
+      mockValidatePick.mockResolvedValue({ isValid: true });
+
+      // Mock successful pick creation
+      newPicks.forEach((pick, index) => {
+        mockCreateOrUpdatePick.mockResolvedValueOnce({
+          id: index + 10,
+          user_id: 'user123',
+          ...pick,
+          submitted: true,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+        });
+      });
+
+      const request = createRequest({
+        weekId: 1,
+        picks: newPicks,
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(data.success).toBe(true);
+      expect(data.data).toHaveLength(2);
+      expect(data.message).toBe('Successfully submitted 2 picks');
+      expect(mockCreateOrUpdatePick).toHaveBeenCalledTimes(2);
+    });
+
+    it('should reject when all eligible games are already submitted', async () => {
+      const futureTime = new Date(Date.now() + 3600000).toISOString(); // 1 hour from now
+      
+      // Mock existing picks - all games that haven't started are already submitted
+      const existingPicks = [
+        {
+          id: 1,
+          user_id: 'user123',
+          game_id: 1,
+          pick_type: 'home_spread',
+          spread_value: -3,
+          submitted: true,
+          is_triple_play: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          game: {
+            id: 1,
+            week_id: 1,
+            sport: 'americanfootball_nfl',
+            external_id: 'game1',
+            home_team: 'Chiefs',
+            away_team: 'Bills',
+            commence_time: futureTime, // Game hasn't started but is already submitted
+            spread_home: -3,
+            spread_away: 3,
+            total_over_under: null,
+            moneyline_home: -150,
+            moneyline_away: 130,
+            bookmaker: 'fanduel',
+            odds_last_updated: '2024-01-01T00:00:00Z',
+            must_pick: false,
+            home_score: null,
+            away_score: null,
+            game_status: 'scheduled',
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-01-01T00:00:00Z',
+          }
+        }
+      ];
+
+      // Mock getUserPicksForWeek to return all submitted picks
+      mockGetUserPicksForWeek.mockResolvedValue(existingPicks);
+
+      const newPicks = [
+        { game_id: 2, pick_type: 'home_spread', spread_value: -3.5 },
+      ];
+
+      const request = createRequest({
+        weekId: 1,
+        picks: newPicks,
+      });
+
+      const response = await POST(request);
+      const data = await response.json();
+
+      expect(response.status).toBe(400);
+      expect(data.success).toBe(false);
+      expect(data.error).toBe('All picks for eligible games have already been submitted for this week');
+      expect(mockCreateOrUpdatePick).not.toHaveBeenCalled();
+    });
     const mockPicks = [
       { game_id: 1, pick_type: 'home_spread', spread_value: -3.5 },
       { game_id: 2, pick_type: 'away_spread', spread_value: 2.5 },
@@ -72,7 +260,7 @@ describe('/api/picks/bulk-submit', () => {
 
     it('should reject bulk submission when picker choice limit is exceeded', async () => {
       // Mock that picks haven't been submitted yet
-      mockHasSubmittedPicksForWeek.mockResolvedValue(false);
+      mockGetUserPicksForWeek.mockResolvedValue([]);
 
       // Mock game details - 1 must-pick, 2 picker's choice games
       mockQuery.mockResolvedValueOnce([
@@ -104,7 +292,7 @@ describe('/api/picks/bulk-submit', () => {
 
     it('should allow bulk submission when within picker choice limit', async () => {
       // Mock that picks haven't been submitted yet
-      mockHasSubmittedPicksForWeek.mockResolvedValue(false);
+      mockGetUserPicksForWeek.mockResolvedValue([]);
 
       // Mock game details - 1 must-pick, 2 picker's choice games
       mockQuery.mockResolvedValueOnce([
@@ -156,7 +344,7 @@ describe('/api/picks/bulk-submit', () => {
 
     it('should allow bulk submission when no picker choice limit is set', async () => {
       // Mock that picks haven't been submitted yet
-      mockHasSubmittedPicksForWeek.mockResolvedValue(false);
+      mockGetUserPicksForWeek.mockResolvedValue([]);
 
       // Mock game details - all picker's choice games
       mockQuery.mockResolvedValueOnce([
@@ -208,7 +396,7 @@ describe('/api/picks/bulk-submit', () => {
       ];
 
       // Mock that picks haven't been submitted yet
-      mockHasSubmittedPicksForWeek.mockResolvedValue(false);
+      mockGetUserPicksForWeek.mockResolvedValue([]);
 
       // Mock game details - only must-pick games
       mockQuery.mockResolvedValueOnce([
@@ -252,7 +440,7 @@ describe('/api/picks/bulk-submit', () => {
 
     it('should reject when games belong to different weeks', async () => {
       // Mock that picks haven't been submitted yet
-      mockHasSubmittedPicksForWeek.mockResolvedValue(false);
+      mockGetUserPicksForWeek.mockResolvedValue([]);
 
       // Mock game details - games from different weeks
       mockQuery.mockResolvedValueOnce([
@@ -277,7 +465,7 @@ describe('/api/picks/bulk-submit', () => {
 
     it('should correctly handle resubmitted games in picker choice validation', async () => {
       // Mock that picks haven't been submitted yet
-      mockHasSubmittedPicksForWeek.mockResolvedValue(false);
+      mockGetUserPicksForWeek.mockResolvedValue([]);
 
       // Mock game details - 1 must-pick, 2 picker's choice games
       mockQuery.mockResolvedValueOnce([
@@ -342,7 +530,7 @@ describe('/api/picks/bulk-submit', () => {
       ];
 
       // Mock that picks haven't been submitted yet
-      mockHasSubmittedPicksForWeek.mockResolvedValue(false);
+      mockGetUserPicksForWeek.mockResolvedValue([]);
 
       // Mock game details - 1 must-pick game exists but user didn't pick it
       mockQuery.mockResolvedValueOnce([
@@ -383,7 +571,7 @@ describe('/api/picks/bulk-submit', () => {
       ];
 
       // Mock that picks haven't been submitted yet
-      mockHasSubmittedPicksForWeek.mockResolvedValue(false);
+      mockGetUserPicksForWeek.mockResolvedValue([]);
 
       // Mock game details
       mockQuery.mockResolvedValueOnce([
@@ -439,7 +627,7 @@ describe('/api/picks/bulk-submit', () => {
       ];
 
       // Mock that picks haven't been submitted yet
-      mockHasSubmittedPicksForWeek.mockResolvedValue(false);
+      mockGetUserPicksForWeek.mockResolvedValue([]);
 
       // Mock game details for new submission (all belong to week 1)
       mockQuery.mockResolvedValueOnce([
@@ -477,7 +665,7 @@ describe('/api/picks/bulk-submit', () => {
       ];
 
       // Mock that picks haven't been submitted yet
-      mockHasSubmittedPicksForWeek.mockResolvedValue(false);
+      mockGetUserPicksForWeek.mockResolvedValue([]);
 
       // Mock game details
       mockQuery.mockResolvedValueOnce([
@@ -532,7 +720,7 @@ describe('/api/picks/bulk-submit', () => {
       ];
 
       // Mock that picks haven't been submitted yet
-      mockHasSubmittedPicksForWeek.mockResolvedValue(false);
+      mockGetUserPicksForWeek.mockResolvedValue([]);
 
       // Mock game details - all must-pick games
       mockQuery.mockResolvedValueOnce([
