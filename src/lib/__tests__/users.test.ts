@@ -119,7 +119,7 @@ describe('Users Module', () => {
     it('should update existing user', async () => {
       const existingUser: User = {
         id: 1,
-        cognito_user_id: 'cognito-123',
+        cognito_user_id: 'cognito-sub-123',
         email: 'old@example.com',
         name: 'Old Name',
         timezone: 'UTC',
@@ -139,6 +139,7 @@ describe('Users Module', () => {
       mockSend.mockResolvedValue({
         Username: 'cognito-123',
         UserAttributes: [
+          { Name: 'sub', Value: 'cognito-sub-123' },
           { Name: 'email', Value: 'new@example.com' },
           { Name: 'name', Value: 'New Name' },
         ],
@@ -158,7 +159,7 @@ describe('Users Module', () => {
     it('should create new user when not exists', async () => {
       const newUser: User = {
         id: 1,
-        cognito_user_id: 'cognito-123',
+        cognito_user_id: 'cognito-sub-456',
         email: 'new@example.com',
         name: 'New User',
         timezone: 'UTC',
@@ -171,6 +172,7 @@ describe('Users Module', () => {
       mockSend.mockResolvedValue({
         Username: 'cognito-123',
         UserAttributes: [
+          { Name: 'sub', Value: 'cognito-sub-456' },
           { Name: 'email', Value: 'new@example.com' },
           { Name: 'name', Value: 'New User' },
         ],
@@ -205,6 +207,7 @@ describe('Users Module', () => {
       mockSend.mockResolvedValue({
         Username: 'cognito-123',
         UserAttributes: [
+          { Name: 'sub', Value: 'cognito-sub-789' },
           { Name: 'email', Value: 'test@example.com' },
           // Missing name attribute - should use Cognito username as fallback
         ],
@@ -214,7 +217,7 @@ describe('Users Module', () => {
       mockQuery.mockResolvedValueOnce([]); // getUserByCognitoId returns no user
       mockQuery.mockResolvedValueOnce([{  // INSERT returns new user
         id: 1,
-        cognito_user_id: 'cognito-123',
+        cognito_user_id: 'cognito-sub-789',
         email: 'test@example.com',
         name: 'cognito-123', // Should use Cognito username as fallback
         timezone: 'UTC',

@@ -92,10 +92,16 @@ export async function syncUserFromCognito(accessToken: string): Promise<User> {
     const name = cognitoUser.UserAttributes?.find(attr => attr.Name === 'name')?.Value;
     const givenName = cognitoUser.UserAttributes?.find(attr => attr.Name === 'given_name')?.Value;
     const familyName = cognitoUser.UserAttributes?.find(attr => attr.Name === 'family_name')?.Value;
+    const sub = cognitoUser.UserAttributes?.find(attr => attr.Name === 'sub')?.Value;
 
     if (!email) {
       const availableAttributes = cognitoUser.UserAttributes?.map(attr => attr.Name) || [];
       throw new Error(`Email is required from Cognito. Available attributes: ${availableAttributes.join(', ')}`);
+    }
+
+    if (!sub) {
+      const availableAttributes = cognitoUser.UserAttributes?.map(attr => attr.Name) || [];
+      throw new Error(`Sub (unique user ID) is required from Cognito. Available attributes: ${availableAttributes.join(', ')}`);
     }
 
     // Use name attribute or fall back to given_name + family_name, cognito username, or email as last resort
@@ -106,7 +112,7 @@ export async function syncUserFromCognito(accessToken: string): Promise<User> {
                        'User';
 
     // Check if user exists in database
-    const existingUser = await getUserByCognitoId(cognitoUser.Username);
+    const existingUser = await getUserByCognitoId(sub);
 
     if (existingUser) {
       // Update existing user
@@ -115,7 +121,7 @@ export async function syncUserFromCognito(accessToken: string): Promise<User> {
          SET email = $2, name = $3, last_login_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
          WHERE cognito_user_id = $1
          RETURNING *`,
-        [cognitoUser.Username, email, displayName]
+        [sub, email, displayName]
       );
       return updatedUsers[0];
     } else {
@@ -124,7 +130,7 @@ export async function syncUserFromCognito(accessToken: string): Promise<User> {
         `INSERT INTO users (cognito_user_id, email, name, last_login_at)
          VALUES ($1, $2, $3, CURRENT_TIMESTAMP)
          RETURNING *`,
-        [cognitoUser.Username, email, displayName]
+        [sub, email, displayName]
       );
       return newUsers[0];
     }
