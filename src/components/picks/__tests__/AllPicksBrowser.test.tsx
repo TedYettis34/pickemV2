@@ -127,6 +127,44 @@ describe('AllPicksBrowser', () => {
         created_at: '2024-01-01T00:00:00Z',
         updated_at: '2024-01-01T00:00:00Z'
       }
+    },
+    {
+      id: 4,
+      user_id: 'user-789',
+      game_id: 4,
+      pick_type: 'away_spread',
+      spread_value: 3,
+      submitted: true,
+      is_triple_play: false,
+      result: null, // Pending pick
+      evaluated_at: null,
+      created_at: '2024-01-01T15:00:00Z',
+      updated_at: '2024-01-01T15:00:00Z',
+      username: 'Pending User',
+      display_name: 'Pending User',
+      week_name: 'Week 6: Conference Championships',
+      game: {
+        id: 4,
+        week_id: 6,
+        sport: 'americanfootball_nfl',
+        external_id: 'nfl-game-3',
+        home_team: 'Patriots',
+        away_team: 'Bills',
+        commence_time: '2024-01-02T18:00:00Z',
+        spread_home: -3,
+        spread_away: 3,
+        total_over_under: 44.5,
+        moneyline_home: -140,
+        moneyline_away: 120,
+        bookmaker: 'fanduel',
+        odds_last_updated: '2024-01-01T12:00:00Z',
+        must_pick: false,
+        home_score: null,
+        away_score: null,
+        game_status: 'scheduled',
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z'
+      }
     }
   ];
 
@@ -175,8 +213,10 @@ describe('AllPicksBrowser', () => {
 
       expect(screen.getAllByText('Test User')).toHaveLength(3); // 1 in filter + 2 picks
       expect(screen.getAllByText('Another User')).toHaveLength(2); // 1 in filter + 1 pick
+      expect(screen.getAllByText('Pending User')).toHaveLength(2); // 1 in filter + 1 pick
       expect(screen.getByText('Raiders @ Chiefs')).toBeInTheDocument();
       expect(screen.getByText('Georgia @ Alabama')).toBeInTheDocument();
+      expect(screen.getByText('Bills @ Patriots')).toBeInTheDocument();
     });
 
     test('should display pick details correctly', async () => {
@@ -186,15 +226,15 @@ describe('AllPicksBrowser', () => {
         expect(screen.getByText('Chiefs -3')).toBeInTheDocument();
         expect(screen.getByText('Georgia -7')).toBeInTheDocument(); // away_spread with spread_value 7 becomes -7
         expect(screen.getByText('Cowboys 0')).toBeInTheDocument();
+        expect(screen.getByText('Bills -3')).toBeInTheDocument(); // away_spread with spread_value 3 becomes -3
       });
 
       // Check for triple play indicator
       expect(screen.getByText('3X')).toBeInTheDocument();
 
-      // Check for result badges
-      expect(screen.getByText('Win')).toBeInTheDocument();
-      expect(screen.getByText('Loss')).toBeInTheDocument();
-      expect(screen.getByText('Push')).toBeInTheDocument();
+      // Check that picks are rendered (result badges are replaced with colors)
+      expect(screen.getAllByText('Test User')).toHaveLength(3); // 1 in filter + 2 picks
+      expect(screen.getAllByText('Another User')).toHaveLength(2); // 1 in filter + 1 pick
     });
 
     test('should show week name in header when picks exist', async () => {
@@ -216,7 +256,7 @@ describe('AllPicksBrowser', () => {
 
       // Wait for picks to be fully loaded
       await waitFor(() => {
-        expect(screen.getByText(/Showing 3 picks from 3 games \(total: 3 picks\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Showing 4 picks from 4 games \(total: 4 picks\)/)).toBeInTheDocument();
       }, { timeout: 3000 });
 
       // Filter by wins only (which filters to 'win' result)
@@ -225,7 +265,7 @@ describe('AllPicksBrowser', () => {
 
       // Should show only 1 pick (the winning one)
       await waitFor(() => {
-        expect(screen.getByText(/Showing 1 picks from 1 games \(total: 3 picks\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Showing 1 picks from 1 games \(total: 4 picks\)/)).toBeInTheDocument();
       }, { timeout: 3000 });
     });
 
@@ -242,7 +282,7 @@ describe('AllPicksBrowser', () => {
 
       // Should only show triple play picks
       expect(screen.getByText('3X')).toBeInTheDocument();
-      expect(screen.getByText(/Showing 1 picks from 1 games \(total: 3 picks\)/)).toBeInTheDocument();
+      expect(screen.getByText(/Showing 1 picks from 1 games \(total: 4 picks\)/)).toBeInTheDocument();
     });
 
     test('should filter picks by user', async () => {
@@ -259,7 +299,7 @@ describe('AllPicksBrowser', () => {
       // Should only show picks from Test User (2 picks + 1 in filter = 3 total)
       expect(screen.getAllByText('Test User')).toHaveLength(3);
       expect(screen.getAllByText('Another User')).toHaveLength(1); // Still in filter dropdown
-      expect(screen.getByText(/Showing 2 picks from 2 games \(total: 3 picks\)/)).toBeInTheDocument();
+      expect(screen.getByText(/Showing 2 picks from 2 games \(total: 4 picks\)/)).toBeInTheDocument();
     });
 
     test('should filter picks by week', async () => {
@@ -287,7 +327,7 @@ describe('AllPicksBrowser', () => {
 
       // Wait for picks to be fully loaded
       await waitFor(() => {
-        expect(screen.getByText(/Showing 3 picks from 3 games \(total: 3 picks\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Showing 4 picks from 4 games \(total: 4 picks\)/)).toBeInTheDocument();
       }, { timeout: 3000 });
 
       // Apply multiple filters
@@ -299,7 +339,7 @@ describe('AllPicksBrowser', () => {
 
       // Should show only winning picks from Test User
       await waitFor(() => {
-        expect(screen.getByText(/Showing 1 picks from 1 games \(total: 3 picks\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Showing 1 picks from 1 games \(total: 4 picks\)/)).toBeInTheDocument();
       }, { timeout: 3000 });
     });
   });
@@ -310,14 +350,14 @@ describe('AllPicksBrowser', () => {
 
       await waitFor(() => {
         expect(mockFetch).toHaveBeenCalledWith('/api/weeks');
-      }, { timeout: 8000 });
+      }, { timeout: 3000 });
 
       await waitFor(() => {
         expect(screen.getAllByText('Week 5: Rivalry Week')).toHaveLength(1);
-        expect(screen.getAllByText('Week 6: Conference Championships')).toHaveLength(4); // 1 in dropdown + 3 in picks
+        expect(screen.getAllByText('Week 6: Conference Championships')).toHaveLength(5); // 1 in dropdown + 4 in picks
         expect(screen.getAllByText('Week 7: Bowl Games')).toHaveLength(1);
-      }, { timeout: 8000 });
-    }, 10000);
+      }, { timeout: 3000 });
+    });
 
     test('should fetch picks for selected week', async () => {
       render(<AllPicksBrowser />);
@@ -422,9 +462,14 @@ describe('AllPicksBrowser', () => {
         expect(screen.getByText('All User Picks')).toBeInTheDocument();
       }, { timeout: 3000 });
 
-      // Apply filter that matches no picks (all picks have results)
-      const resultFilter = screen.getByDisplayValue('All Results');
-      fireEvent.change(resultFilter, { target: { value: 'pending' } });
+      // Wait for picks to load
+      await waitFor(() => {
+        expect(screen.getByText(/Showing 4 picks from 4 games \(total: 4 picks\)/)).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Filter by a user that doesn't exist to get no results
+      const userFilter = screen.getByDisplayValue('All Users');
+      fireEvent.change(userFilter, { target: { value: 'nonexistent-user' } });
 
       await waitFor(() => {
         expect(screen.getByText('No picks match the current filters.')).toBeInTheDocument();
@@ -457,7 +502,7 @@ describe('AllPicksBrowser', () => {
 
       // Wait for picks data to be rendered
       await waitFor(() => {
-        expect(screen.getByText(/Showing 3 picks from 3 games \(total: 3 picks\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Showing 4 picks from 4 games \(total: 4 picks\)/)).toBeInTheDocument();
       }, { timeout: 8000 });
 
       // Check for game scores in the format "Away Score, Home Score"
@@ -468,7 +513,7 @@ describe('AllPicksBrowser', () => {
       }, { timeout: 8000 });
     }, 15000);
 
-    test('should show submission dates', async () => {
+    test('should apply correct background colors based on pick results', async () => {
       render(<AllPicksBrowser />);
 
       // Wait for component to load picks
@@ -478,13 +523,40 @@ describe('AllPicksBrowser', () => {
 
       // Wait for picks data to be rendered
       await waitFor(() => {
-        expect(screen.getByText(/Showing 3 picks from 3 games \(total: 3 picks\)/)).toBeInTheDocument();
+        expect(screen.getByText(/Showing 4 picks from 4 games \(total: 4 picks\)/)).toBeInTheDocument();
       }, { timeout: 8000 });
 
-      // Check for submission dates - should be formatted as M/D/YYYY (without "Submitted" prefix in new layout)
-      await waitFor(() => {
-        expect(screen.getAllByText('1/1/2024')).toHaveLength(3); // Should appear 3 times (one per pick)
-      }, { timeout: 8000 });
+      // Test each pick result color by checking the container classes
+      const allPickContainers = screen.getAllByText(/(Test User|Another User|Pending User)/).filter(element => 
+        element.closest('[class*="inline-flex"]') && 
+        element.closest('[class*="p-3"]') &&
+        element.closest('[class*="rounded-lg"]')
+      );
+
+      expect(allPickContainers).toHaveLength(4); // Should have 4 pick containers
+
+      // Check for specific background colors based on results
+      let foundGreen = false;
+      let foundRed = false;  
+      let foundYellow = false;
+      let foundGray = false;
+
+      allPickContainers.forEach(element => {
+        const container = element.closest('[class*="bg-"]');
+        if (container) {
+          const classes = container.className;
+          if (classes.includes('bg-green-100')) foundGreen = true;
+          if (classes.includes('bg-red-100')) foundRed = true;
+          if (classes.includes('bg-yellow-100')) foundYellow = true;
+          if (classes.includes('bg-gray-100')) foundGray = true;
+        }
+      });
+
+      // Verify all result colors are present
+      expect(foundGreen).toBe(true); // Win pick
+      expect(foundRed).toBe(true);   // Loss pick
+      expect(foundYellow).toBe(true); // Push pick
+      expect(foundGray).toBe(true);   // Pending pick
     }, 15000);
   });
 
@@ -538,6 +610,7 @@ describe('AllPicksBrowser', () => {
       // Wait for initial picks to load
       await waitFor(() => {
         expect(screen.getAllByText('Test User')).toHaveLength(3); // 1 in filter + 2 picks
+        expect(screen.getAllByText('Pending User')).toHaveLength(2); // 1 in filter + 1 pick
       }, { timeout: 8000 });
 
       // Change to week 5
