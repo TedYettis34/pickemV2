@@ -16,19 +16,39 @@ jest.mock('../../../../../lib/picks', () => ({
   hasSubmittedPicksForWeek: jest.fn(),
 }));
 
+jest.mock('../../../../../lib/users', () => ({
+  syncUserFromCognito: jest.fn(),
+  getUserByCognitoId: jest.fn(),
+}));
+
 import { NextRequest } from 'next/server';
 import { POST } from '../route';
 import { query } from '../../../../../lib/database';
 import { createOrUpdatePick, validatePick, hasSubmittedPicksForWeek } from '../../../../../lib/picks';
+import { syncUserFromCognito, getUserByCognitoId } from '../../../../../lib/users';
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockCreateOrUpdatePick = createOrUpdatePick as jest.MockedFunction<typeof createOrUpdatePick>;
 const mockValidatePick = validatePick as jest.MockedFunction<typeof validatePick>;
 const mockHasSubmittedPicksForWeek = hasSubmittedPicksForWeek as jest.MockedFunction<typeof hasSubmittedPicksForWeek>;
+const mockSyncUserFromCognito = syncUserFromCognito as jest.MockedFunction<typeof syncUserFromCognito>;
+const mockGetUserByCognitoId = getUserByCognitoId as jest.MockedFunction<typeof getUserByCognitoId>;
 
 describe('/api/picks/bulk-submit', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Set up default user mocks
+    mockGetUserByCognitoId.mockResolvedValue({
+      id: 1,
+      cognito_user_id: 'user123',
+      email: 'test@example.com',
+      name: 'Test User',
+      timezone: 'UTC',
+      is_admin: false,
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+    });
   });
 
   describe('POST', () => {
