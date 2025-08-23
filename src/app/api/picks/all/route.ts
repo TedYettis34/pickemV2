@@ -70,13 +70,6 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     
     console.log('Fetching all user picks with SQL:', sql, 'params:', params);
     
-    // Debug: Check if there are any picks at all
-    const allPicksCount = await query('SELECT COUNT(*) as count FROM picks');
-    console.log('Total picks in database:', allPicksCount[0]);
-    
-    const submittedPicksCount = await query('SELECT COUNT(*) as count FROM picks WHERE submitted = true');
-    console.log('Submitted picks in database:', submittedPicksCount[0]);
-    
     const rows = await query(sql, params);
     
     // Transform the rows into PickWithGame objects
