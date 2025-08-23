@@ -25,7 +25,7 @@ export async function GET() {
     const pickUserIds = await query('SELECT DISTINCT user_id FROM picks');
     console.log('Pick user IDs:', pickUserIds);
     
-    const matchingUsers = await query('SELECT cognito_user_id, name FROM users WHERE cognito_user_id = ANY($1)', [pickUserIds.map((p: any) => p.user_id)]);
+    const matchingUsers = await query('SELECT cognito_user_id, name FROM users WHERE cognito_user_id = ANY($1)', [pickUserIds.map((p: { user_id: string }) => p.user_id)]);
     console.log('Matching users:', matchingUsers);
     
     // Check games
