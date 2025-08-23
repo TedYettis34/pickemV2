@@ -231,6 +231,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { weekId, picks } = body;
+    console.log('Bulk submit request:', { weekId, picksCount: picks?.length, userId });
 
     // Validate required fields
     if (!weekId || !picks || !Array.isArray(picks)) {
@@ -343,16 +344,28 @@ export async function POST(request: NextRequest) {
     }
 
     // Create all picks as submitted
+    console.log(`Creating ${validatedPicks.length} picks for user ${userId}`);
     const createdPicks = [];
     
-    for (const pickData of validatedPicks) {
-      const createdPick = await createOrUpdatePick(userId, pickData.game_id, {
-        ...pickData,
-        submitted: true, // Mark as submitted immediately
-      });
+    for (let i = 0; i < validatedPicks.length; i++) {
+      const pickData = validatedPicks[i];
+      console.log(`Creating pick ${i + 1}/${validatedPicks.length}: game ${pickData.game_id}, type ${pickData.pick_type}`);
       
-      createdPicks.push(createdPick);
+      try {
+        const createdPick = await createOrUpdatePick(userId, pickData.game_id, {
+          ...pickData,
+          submitted: true, // Mark as submitted immediately
+        });
+        
+        console.log(`Successfully created pick for game ${pickData.game_id}`);
+        createdPicks.push(createdPick);
+      } catch (pickError) {
+        console.error(`Error creating pick for game ${pickData.game_id}:`, pickError);
+        throw pickError; // Re-throw to be caught by outer catch
+      }
     }
+    
+    console.log(`Successfully created all ${createdPicks.length} picks`);
 
     const response: ApiResponse<typeof createdPicks> = {
       success: true,
@@ -364,9 +377,16 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error bulk submitting picks:', error);
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : 'Unknown error',
+      stack: error instanceof Error ? error.stack : undefined,
+      type: typeof error,
+      errorObject: error
+    });
+    
     const response: ApiResponse<never> = {
       success: false,
-      error: 'Failed to submit picks',
+      error: `Failed to submit picks: ${error instanceof Error ? error.message : 'Unknown error'}`,
     };
     return NextResponse.json(response, { status: 500 });
   }
