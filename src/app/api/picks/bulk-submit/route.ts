@@ -268,11 +268,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 400 });
     }
 
-    // Get the database user ID for all operations
-    const databaseUserId = existingUser.id.toString();
+    // Use the Cognito user ID as originally designed
+    // (The picks table stores Cognito user IDs, not database user IDs)
 
-    // Check if picks have already been submitted for this week using database user ID
-    const alreadySubmitted = await hasSubmittedPicksForWeek(databaseUserId, weekIdNum);
+    // Check if picks have already been submitted for this week using Cognito user ID
+    const alreadySubmitted = await hasSubmittedPicksForWeek(userId, weekIdNum);
     if (alreadySubmitted) {
       const response: ApiResponse<never> = {
         success: false,
@@ -283,7 +283,7 @@ export async function POST(request: NextRequest) {
 
     // Bulk validation: Check picker's choice limits for all picks being submitted
     try {
-      await validateBulkPickerChoiceLimits(databaseUserId, weekIdNum, picks);
+      await validateBulkPickerChoiceLimits(userId, weekIdNum, picks);
     } catch (validationError) {
       const response: ApiResponse<never> = {
         success: false,
@@ -294,7 +294,7 @@ export async function POST(request: NextRequest) {
 
     // Bulk validation: Check triple play limits for all picks being submitted
     try {
-      await validateBulkTriplePlayLimits(databaseUserId, weekIdNum, picks);
+      await validateBulkTriplePlayLimits(userId, weekIdNum, picks);
     } catch (validationError) {
       const response: ApiResponse<never> = {
         success: false,
@@ -337,8 +337,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(response, { status: 400 });
       }
 
-      // Validate the pick is allowed using the database user ID
-      const validation = await validatePick(databaseUserId, game_id, is_triple_play || false);
+      // Validate the pick is allowed using the Cognito user ID
+      const validation = await validatePick(userId, game_id, is_triple_play || false);
       if (!validation.isValid) {
         const response: ApiResponse<never> = {
           success: false,
@@ -355,8 +355,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create all picks as submitted using the database user ID
-    console.log(`Creating ${validatedPicks.length} picks for user ${userId} (database ID: ${databaseUserId})`);
+    // Create all picks as submitted using the Cognito user ID
+    console.log(`Creating ${validatedPicks.length} picks for user ${userId} (synced to database)`);
     const createdPicks = [];
     
     for (let i = 0; i < validatedPicks.length; i++) {
@@ -364,7 +364,7 @@ export async function POST(request: NextRequest) {
       console.log(`Creating pick ${i + 1}/${validatedPicks.length}: game ${pickData.game_id}, type ${pickData.pick_type}`);
       
       try {
-        const createdPick = await createOrUpdatePick(databaseUserId, pickData.game_id, {
+        const createdPick = await createOrUpdatePick(userId, pickData.game_id, {
           ...pickData,
           submitted: true, // Mark as submitted immediately
         });

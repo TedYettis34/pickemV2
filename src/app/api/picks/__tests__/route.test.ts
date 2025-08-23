@@ -116,8 +116,8 @@ describe('/api/picks POST', () => {
       success: true,
       data: mockPick,
     });
-    expect(mockValidatePick).toHaveBeenCalledWith('1', 1, false);
-    expect(mockCreateOrUpdatePick).toHaveBeenCalledWith('1', 1, {
+    expect(mockValidatePick).toHaveBeenCalledWith('user123', 1, false);
+    expect(mockCreateOrUpdatePick).toHaveBeenCalledWith('user123', 1, {
       game_id: 1,
       pick_type: 'home_spread',
       spread_value: -3.5,

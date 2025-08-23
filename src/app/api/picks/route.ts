@@ -56,8 +56,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 401 });
     }
 
-    // Get the database user ID for all operations
-    const databaseUserId = existingUser.id.toString();
+    // Use the Cognito user ID as originally designed
+    // (The picks table stores Cognito user IDs, not database user IDs)
 
     const body = await request.json();
     const { game_id, pick_type, spread_value, is_triple_play }: CreatePickInput = body;
@@ -79,8 +79,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 400 });
     }
 
-    // Validate the pick using database user ID
-    const validation = await validatePick(databaseUserId, game_id, is_triple_play || false);
+    // Validate the pick using Cognito user ID
+    const validation = await validatePick(userId, game_id, is_triple_play || false);
     if (!validation.isValid) {
       const response: ApiResponse<never> = {
         success: false,
@@ -89,9 +89,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 400 });
     }
 
-    // Create or update the pick using database user ID
-    console.log(`Creating/updating pick for user ${userId} (database ID: ${databaseUserId}), game ${game_id}`);
-    const pick = await createOrUpdatePick(databaseUserId, game_id, {
+    // Create or update the pick using Cognito user ID
+    console.log(`Creating/updating pick for user ${userId} (synced to database), game ${game_id}`);
+    const pick = await createOrUpdatePick(userId, game_id, {
       game_id,
       pick_type,
       spread_value,
