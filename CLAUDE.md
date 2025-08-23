@@ -77,10 +77,50 @@ export AWS_REGION=your_preferred_region
 ## Architecture
 
 - **Frontend**: Next.js with TypeScript and Tailwind CSS
-- **Database**: PostgreSQL (local development) / AWS RDS Aurora (production)
+- **Database**: PostgreSQL (local development) / AWS RDS PostgreSQL (production)
+- **Connection Pooling**: PgBouncer running on NAT instance (52.5.36.87:6432)
 - **Cloud**: AWS services (S3, DynamoDB, Lambda, Secrets Manager)
 - **Infrastructure**: Terraform for AWS resource management
 - **Project Management**: Linear integration via MCP server
+
+## Production Database Architecture
+
+The production environment uses a cost-optimized setup:
+- **RDS PostgreSQL**: Private database instance (db.t4g.micro)
+- **PgBouncer**: Connection pooling on existing NAT instance
+- **Vercel Integration**: Serverless functions connect via PgBouncer (52.5.36.87:6432)
+- **Cost**: $0 additional cost for connection pooling vs $12-16/month for RDS Proxy
+- **Security**: Database remains private, connections routed through VPC infrastructure
+
+## Production Database Connection (PgBouncer)
+
+PgBouncer is installed and configured on the NAT instance (52.5.36.87) to provide connection pooling for Vercel serverless functions:
+
+### PgBouncer Management
+```bash
+# SSH to NAT instance
+ssh -i ~/.ssh/pickem-bastion-key.pem ec2-user@52.5.36.87
+
+# Check PgBouncer status
+sudo systemctl status pgbouncer
+
+# View logs
+sudo tail -f /var/log/pgbouncer/pgbouncer.log
+
+# Restart service
+sudo systemctl restart pgbouncer
+```
+
+### Configuration Files
+- **Main config**: `/etc/pgbouncer/pgbouncer.ini`
+- **User credentials**: `/etc/pgbouncer/users.txt` 
+- **Service file**: `/etc/systemd/system/pgbouncer.service`
+
+### Connection Details
+- **External endpoint**: 52.5.36.87:6432
+- **Pool mode**: Transaction (optimal for serverless)
+- **Max connections**: 100 client, 20 database, 10 default pool
+- **Target database**: RDS PostgreSQL (private)
 
 ## MCP Configuration
 

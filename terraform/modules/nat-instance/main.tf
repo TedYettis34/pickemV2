@@ -39,16 +39,22 @@ resource "aws_security_group" "nat_instance_sg" {
     description = "HTTPS from private subnets"
   }
 
-  # SSH access (restricted based on environment)
-  dynamic "ingress" {
-    for_each = var.environment == "prod" ? [1] : []
-    content {
-      from_port   = 22
-      to_port     = 22
-      protocol    = "tcp"
-      cidr_blocks = var.admin_cidr_blocks
-      description = "SSH access for administration"
-    }
+  # SSH access for administration and PgBouncer setup
+  ingress {
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = var.admin_cidr_blocks
+    description = "SSH access for administration and PgBouncer setup"
+  }
+
+  # PgBouncer access for Vercel serverless functions
+  ingress {
+    from_port   = 6432
+    to_port     = 6432
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+    description = "PgBouncer access for external connections (Vercel)"
   }
 
   # All outbound traffic
@@ -123,6 +129,13 @@ resource "aws_iam_role_policy" "nat_instance_policy" {
           "logs:PutLogEvents",
           "logs:CreateLogGroup",
           "logs:CreateLogStream"
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "secretsmanager:GetSecretValue"
         ]
         Resource = "*"
       }
