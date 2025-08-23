@@ -195,13 +195,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Ensure user exists in database (sync from Cognito if needed)
+    let existingUser;
     try {
-      let existingUser = await getUserByCognitoId(userId);
+      console.log('Looking up user with Cognito ID:', userId);
+      existingUser = await getUserByCognitoId(userId);
+      console.log('Found existing user:', existingUser ? { id: existingUser.id, email: existingUser.email, cognitoUserId: existingUser.cognito_user_id } : null);
       
       if (!existingUser) {
+        console.log('User not found, attempting to sync from Cognito...');
         // Try to sync user from Cognito using the access token
         const accessToken = authHeader.replace('Bearer ', '');
         existingUser = await syncUserFromCognito(accessToken);
+        console.log('Synced user from Cognito:', existingUser ? { id: existingUser.id, email: existingUser.email, cognitoUserId: existingUser.cognito_user_id } : null);
+      }
+      
+      if (!existingUser) {
+        throw new Error('User not found and could not be synced from Cognito');
       }
     } catch (userError) {
       console.error('Error ensuring user exists:', userError);
@@ -259,8 +268,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response, { status: 400 });
     }
 
-    // Check if picks have already been submitted for this week
-    const alreadySubmitted = await hasSubmittedPicksForWeek(userId, weekIdNum);
+    // Get the database user ID for all operations
+    const databaseUserId = existingUser.id.toString();
+
+    // Check if picks have already been submitted for this week using database user ID
+    const alreadySubmitted = await hasSubmittedPicksForWeek(databaseUserId, weekIdNum);
     if (alreadySubmitted) {
       const response: ApiResponse<never> = {
         success: false,
@@ -271,7 +283,7 @@ export async function POST(request: NextRequest) {
 
     // Bulk validation: Check picker's choice limits for all picks being submitted
     try {
-      await validateBulkPickerChoiceLimits(userId, weekIdNum, picks);
+      await validateBulkPickerChoiceLimits(databaseUserId, weekIdNum, picks);
     } catch (validationError) {
       const response: ApiResponse<never> = {
         success: false,
@@ -282,7 +294,7 @@ export async function POST(request: NextRequest) {
 
     // Bulk validation: Check triple play limits for all picks being submitted
     try {
-      await validateBulkTriplePlayLimits(userId, weekIdNum, picks);
+      await validateBulkTriplePlayLimits(databaseUserId, weekIdNum, picks);
     } catch (validationError) {
       const response: ApiResponse<never> = {
         success: false,
@@ -325,8 +337,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json(response, { status: 400 });
       }
 
-      // Validate the pick is allowed
-      const validation = await validatePick(userId, game_id, is_triple_play || false);
+      // Validate the pick is allowed using the database user ID
+      const validation = await validatePick(databaseUserId, game_id, is_triple_play || false);
       if (!validation.isValid) {
         const response: ApiResponse<never> = {
           success: false,
@@ -343,8 +355,8 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create all picks as submitted
-    console.log(`Creating ${validatedPicks.length} picks for user ${userId}`);
+    // Create all picks as submitted using the database user ID
+    console.log(`Creating ${validatedPicks.length} picks for user ${userId} (database ID: ${databaseUserId})`);
     const createdPicks = [];
     
     for (let i = 0; i < validatedPicks.length; i++) {
@@ -352,7 +364,7 @@ export async function POST(request: NextRequest) {
       console.log(`Creating pick ${i + 1}/${validatedPicks.length}: game ${pickData.game_id}, type ${pickData.pick_type}`);
       
       try {
-        const createdPick = await createOrUpdatePick(userId, pickData.game_id, {
+        const createdPick = await createOrUpdatePick(databaseUserId, pickData.game_id, {
           ...pickData,
           submitted: true, // Mark as submitted immediately
         });

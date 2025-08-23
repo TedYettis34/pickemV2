@@ -38,6 +38,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
     loadActiveWeekAndGames();
     loadOddsStatus();
     updateScoresInBackground();
+    updateOddsInBackground();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const loadActiveWeekAndGames = async () => {
@@ -127,6 +128,53 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
       }
     } catch (error) {
       console.warn('Error checking for score updates:', error);
+      // Don't show error to user - this is a background operation
+    }
+  };
+
+  // Update odds in background when app loads
+  const updateOddsInBackground = async () => {
+    try {
+      console.log('Checking if odds need update...');
+      
+      // First check if odds need updating
+      const statusResponse = await fetch('/api/odds/status');
+      if (!statusResponse.ok) {
+        console.warn('Could not check odds status');
+        return;
+      }
+      
+      const statusData = await statusResponse.json();
+      if (!statusData.success || !statusData.data.needsUpdate) {
+        console.log('Odds are up to date (updated less than 3 hours ago)');
+        return;
+      }
+      
+      console.log('Odds need update, triggering update...');
+      
+      const authHeaders = getAuthHeaders();
+      const response = await fetch('/api/admin/odds/update', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.summary.totalGamesUpdated > 0) {
+          console.log(`Updated odds for ${data.summary.totalGamesUpdated} games`);
+          // Reload odds status to show updated time
+          await loadOddsStatus();
+        } else {
+          console.log('No odds needed to be updated');
+        }
+      } else {
+        console.warn('Odds update check failed:', response.status);
+      }
+    } catch (error) {
+      console.warn('Error checking for odds updates:', error);
       // Don't show error to user - this is a background operation
     }
   };
