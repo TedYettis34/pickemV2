@@ -59,15 +59,21 @@ export async function getUserByEmail(email: string): Promise<User | null> {
  */
 export async function syncUserFromCognito(accessToken: string): Promise<User> {
   try {
-    console.log('Syncing user from Cognito with token length:', accessToken.length);
     
     // Basic token validation
-    if (!accessToken || accessToken === 'mock-jwt-token') {
-      throw new Error('Invalid access token: cannot use mock token in production');
+    if (!accessToken) {
+      throw new Error('Access token is required');
     }
     
-    if (accessToken.length < 100) {
-      throw new Error('Access token appears to be too short - possible corruption');
+    // Only validate token in production
+    if (process.env.NODE_ENV === 'production') {
+      if (accessToken === 'mock-jwt-token') {
+        throw new Error('Invalid access token: cannot use mock token in production');
+      }
+      
+      if (accessToken.length < 100) {
+        throw new Error('Access token appears to be too short - possible corruption');
+      }
     }
     
     // Get user data from Cognito
@@ -75,13 +81,7 @@ export async function syncUserFromCognito(accessToken: string): Promise<User> {
       AccessToken: accessToken,
     });
     
-    console.log('Sending GetUser command to Cognito...');
     const cognitoUser = await client.send(getUserCommand);
-    console.log('Received Cognito response:', {
-      hasUsername: !!cognitoUser?.Username,
-      username: cognitoUser?.Username,
-      attributeCount: cognitoUser?.UserAttributes?.length || 0
-    });
     
     if (!cognitoUser || !cognitoUser.Username) {
       throw new Error('No username found in Cognito response');
@@ -90,8 +90,6 @@ export async function syncUserFromCognito(accessToken: string): Promise<User> {
     // Extract user attributes
     const email = cognitoUser.UserAttributes?.find(attr => attr.Name === 'email')?.Value;
     const name = cognitoUser.UserAttributes?.find(attr => attr.Name === 'name')?.Value;
-    
-    console.log('Extracted attributes:', { email, name, hasEmail: !!email, hasName: !!name });
 
     if (!email || !name) {
       const availableAttributes = cognitoUser.UserAttributes?.map(attr => attr.Name) || [];

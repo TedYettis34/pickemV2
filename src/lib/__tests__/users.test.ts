@@ -35,6 +35,8 @@ const mockSend = mockModule.__mockSend;
 describe('Users Module', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockQuery.mockClear();
+    mockSend.mockClear();
     // Set required environment variables for tests
     process.env.AWS_ACCESS_KEY_ID = 'test-access-key';
     process.env.AWS_SECRET_ACCESS_KEY = 'test-secret-key';
@@ -213,6 +215,10 @@ describe('Users Module', () => {
   });
 
   describe('getAllUsers', () => {
+    beforeEach(() => {
+      mockQuery.mockReset();
+    });
+    
     it('should return list of users with default limit', async () => {
       const mockUsers: User[] = [
         {
@@ -261,6 +267,10 @@ describe('Users Module', () => {
   });
 
   describe('updateUserAdminStatus', () => {
+    beforeEach(() => {
+      mockQuery.mockReset();
+    });
+    
     it('should update user admin status', async () => {
       const updatedUser: User = {
         id: 1,
