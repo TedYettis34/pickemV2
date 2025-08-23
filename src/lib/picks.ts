@@ -332,13 +332,18 @@ export async function getPicksSummaryForWeek(userId: string, weekId: number): Pr
     );
     const totalGames = parseInt(gamesResult[0].count);
     
-    // Check if picks are submitted
-    const hasSubmitted = await hasSubmittedPicksForWeek(userId, weekId);
+    // Check if picks are submitted - only consider picks as submitted if all eligible picks are submitted
+    // (picks for games that haven't started should be considered for submission status)
+    const now = new Date();
+    const eligiblePicks = picks.filter(pick => new Date(pick.game.commence_time) > now);
+    const submittedEligiblePicks = eligiblePicks.filter(pick => pick.submitted);
+    
+    const hasSubmitted = eligiblePicks.length > 0 && submittedEligiblePicks.length === eligiblePicks.length;
     
     // Get submission timestamp if submitted
     let submittedAt: string | undefined;
-    if (hasSubmitted && picks.length > 0) {
-      submittedAt = picks[0].updated_at; // All picks updated at same time when submitted
+    if (hasSubmitted && submittedEligiblePicks.length > 0) {
+      submittedAt = submittedEligiblePicks[0].updated_at; // All picks updated at same time when submitted
     }
     
     return {
