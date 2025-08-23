@@ -3,6 +3,10 @@ import { CognitoIdentityProviderClient, GetUserCommand } from '@aws-sdk/client-c
 
 const client = new CognitoIdentityProviderClient({
   region: process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1',
+  credentials: process.env.NODE_ENV === 'production' ? undefined : {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID || 'mock',
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || 'mock',
+  }
 });
 
 export interface User {
@@ -55,12 +59,29 @@ export async function getUserByEmail(email: string): Promise<User | null> {
  */
 export async function syncUserFromCognito(accessToken: string): Promise<User> {
   try {
+    console.log('Syncing user from Cognito with token length:', accessToken.length);
+    
+    // Basic token validation
+    if (!accessToken || accessToken === 'mock-jwt-token') {
+      throw new Error('Invalid access token: cannot use mock token in production');
+    }
+    
+    if (accessToken.length < 100) {
+      throw new Error('Access token appears to be too short - possible corruption');
+    }
+    
     // Get user data from Cognito
     const getUserCommand = new GetUserCommand({
       AccessToken: accessToken,
     });
     
+    console.log('Sending GetUser command to Cognito...');
     const cognitoUser = await client.send(getUserCommand);
+    console.log('Received Cognito response:', {
+      hasUsername: !!cognitoUser?.Username,
+      username: cognitoUser?.Username,
+      attributeCount: cognitoUser?.UserAttributes?.length || 0
+    });
     
     if (!cognitoUser || !cognitoUser.Username) {
       throw new Error('No username found in Cognito response');
@@ -69,9 +90,12 @@ export async function syncUserFromCognito(accessToken: string): Promise<User> {
     // Extract user attributes
     const email = cognitoUser.UserAttributes?.find(attr => attr.Name === 'email')?.Value;
     const name = cognitoUser.UserAttributes?.find(attr => attr.Name === 'name')?.Value;
+    
+    console.log('Extracted attributes:', { email, name, hasEmail: !!email, hasName: !!name });
 
     if (!email || !name) {
-      throw new Error('Email and name are required from Cognito');
+      const availableAttributes = cognitoUser.UserAttributes?.map(attr => attr.Name) || [];
+      throw new Error(`Email and name are required from Cognito. Available attributes: ${availableAttributes.join(', ')}`);
     }
 
     // Check if user exists in database
@@ -99,6 +123,21 @@ export async function syncUserFromCognito(accessToken: string): Promise<User> {
     }
   } catch (error) {
     console.error('Error syncing user from Cognito:', error);
+    
+    // Provide more specific error messages
+    if (error && typeof error === 'object' && 'name' in error) {
+      const awsError = error as { name: string; message: string };
+      if (awsError.name === 'NotAuthorizedException') {
+        throw new Error('Access token is invalid or expired');
+      } else if (awsError.name === 'UserNotFoundException') {
+        throw new Error('User not found in Cognito');
+      } else if (awsError.name === 'TooManyRequestsException') {
+        throw new Error('Too many requests to Cognito API');
+      } else if (awsError.name === 'InvalidParameterException') {
+        throw new Error('Invalid access token format');
+      }
+    }
+    
     throw error;
   }
 }
