@@ -416,7 +416,7 @@ describe('Picks Library', () => {
       expect(result.error).toBe('Cannot pick on games that have already started');
     });
 
-    it('should return invalid when picks are already submitted', async () => {
+    it('should return invalid when all eligible picks are already submitted', async () => {
       const mockGame = {
         id: 1,
         week_id: 1,
@@ -429,15 +429,145 @@ describe('Picks Library', () => {
         updated_at: '2024-01-01T00:00:00Z',
       };
 
+      const futureTime = new Date(Date.now() + 3600000).toISOString();
+      // Mock data in the flattened format that getUserPicksForWeek query returns
+      const mockQueryResult = [
+        {
+          id: 1,
+          user_id: 'user123',
+          game_id: 2,
+          pick_type: 'home_spread',
+          spread_value: -3,
+          submitted: true,
+          is_triple_play: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game2',
+          home_team: 'Patriots',
+          away_team: 'Jets',
+          commence_time: futureTime, // Game hasn't started
+          spread_home: -3,
+          spread_away: 3,
+          total_over_under: null,
+          moneyline_home: -150,
+          moneyline_away: 130,
+          bookmaker: 'fanduel',
+          odds_last_updated: '2024-01-01T00:00:00Z',
+          must_pick: false,
+          home_score: null,
+          away_score: null,
+          game_status: 'scheduled',
+          game_created_at: '2024-01-01T00:00:00Z',
+          game_updated_at: '2024-01-01T00:00:00Z',
+        }
+      ];
+
       // Mock game exists
       mockQuery.mockResolvedValueOnce([mockGame]);
-      // Mock submitted picks exist
-      mockQuery.mockResolvedValueOnce([{ count: '1' }]);
+      // Mock getUserPicksForWeek returns one submitted pick for a game that hasn't started
+      mockQuery.mockResolvedValueOnce(mockQueryResult);
 
       const result = await validatePick('user123', 1);
 
       expect(result.isValid).toBe(false);
-      expect(result.error).toBe('Picks have already been submitted for this week');
+      expect(result.error).toBe('All picks for eligible games have already been submitted for this week');
+    });
+
+    it('should allow picks when some picks are submitted for started games but not all eligible picks are submitted', async () => {
+      const mockGame = {
+        id: 1,
+        week_id: 1,
+        sport: 'americanfootball_nfl',
+        external_id: 'game1',
+        home_team: 'Chiefs',
+        away_team: 'Bills',
+        commence_time: new Date(Date.now() + 3600000).toISOString(), // 1 hour from now
+        created_at: '2024-01-01T00:00:00Z',
+        updated_at: '2024-01-01T00:00:00Z',
+      };
+
+      const pastTime = new Date(Date.now() - 3600000).toISOString();
+      const futureTime = new Date(Date.now() + 3600000).toISOString();
+      // Mock data in the flattened format that getUserPicksForWeek query returns
+      const mockQueryResult = [
+        {
+          id: 1,
+          user_id: 'user123',
+          game_id: 2,
+          pick_type: 'home_spread',
+          spread_value: -3,
+          submitted: true,
+          is_triple_play: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game2',
+          home_team: 'Patriots',
+          away_team: 'Jets',
+          commence_time: pastTime, // Game has started (this pick remains locked)
+          spread_home: -3,
+          spread_away: 3,
+          total_over_under: null,
+          moneyline_home: -150,
+          moneyline_away: 130,
+          bookmaker: 'fanduel',
+          odds_last_updated: '2024-01-01T00:00:00Z',
+          must_pick: false,
+          home_score: null,
+          away_score: null,
+          game_status: 'scheduled',
+          game_created_at: '2024-01-01T00:00:00Z',
+          game_updated_at: '2024-01-01T00:00:00Z',
+        },
+        {
+          id: 2,
+          user_id: 'user123',
+          game_id: 3,
+          pick_type: 'away_spread',
+          spread_value: 7,
+          submitted: false, // This pick was unsubmitted
+          is_triple_play: false,
+          created_at: '2024-01-01T00:00:00Z',
+          updated_at: '2024-01-01T00:00:00Z',
+          week_id: 1,
+          sport: 'americanfootball_nfl',
+          external_id: 'game3',
+          home_team: 'Cowboys',
+          away_team: 'Giants',
+          commence_time: futureTime, // Game hasn't started (this pick can be changed)
+          spread_home: -7,
+          spread_away: 7,
+          total_over_under: null,
+          moneyline_home: -150,
+          moneyline_away: 130,
+          bookmaker: 'fanduel',
+          odds_last_updated: '2024-01-01T00:00:00Z',
+          must_pick: false,
+          home_score: null,
+          away_score: null,
+          game_status: 'scheduled',
+          game_created_at: '2024-01-01T00:00:00Z',
+          game_updated_at: '2024-01-01T00:00:00Z',
+        }
+      ];
+
+      // Mock game exists
+      mockQuery.mockResolvedValueOnce([mockGame]);
+      // Mock getUserPicksForWeek returns mixed submitted/unsubmitted picks
+      mockQuery.mockResolvedValueOnce(mockQueryResult);
+      
+      // Mock no existing pick for this game
+      mockQuery.mockResolvedValueOnce([]);
+      
+      // Mock week data for limits
+      mockQuery.mockResolvedValueOnce([{ max_picker_choice_games: null }]);
+
+      const result = await validatePick('user123', 1);
+
+      expect(result.isValid).toBe(true);
     });
 
     describe('Picker Choice Limit Validation', () => {
