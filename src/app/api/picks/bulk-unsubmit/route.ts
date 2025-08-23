@@ -64,17 +64,28 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
       }, { status: 400 });
     }
 
-    // Check if any games have started
+    // Check which games have started and which haven't
     const now = new Date();
     const startedGames = existingPicks.filter(pick => new Date(pick.commence_time) <= now);
-    if (startedGames.length > 0) {
-      return NextResponse.json({
-        success: false,
-        error: 'Cannot unsubmit picks for games that have already started'
-      }, { status: 400 });
+    const unstartedGames = existingPicks.filter(pick => new Date(pick.commence_time) > now);
+    
+    // If no games are eligible for unsubmission, return error
+    const unstartedSubmittedPicks = unstartedGames.filter(pick => pick.submitted);
+    if (unstartedSubmittedPicks.length === 0) {
+      if (startedGames.length > 0 && unstartedGames.length === 0) {
+        return NextResponse.json({
+          success: false,
+          error: 'Cannot unsubmit picks - all games have already started'
+        }, { status: 400 });
+      } else {
+        return NextResponse.json({
+          success: false,
+          error: 'No submitted picks found that can be unsubmitted'
+        }, { status: 400 });
+      }
     }
 
-    // Update all picks for this user and week to unsubmitted
+    // Update only picks for games that haven't started
     const updateResult = await query<{ id: number }>(
       `UPDATE picks 
        SET submitted = false, updated_at = CURRENT_TIMESTAMP
@@ -83,19 +94,31 @@ export async function POST(request: NextRequest): Promise<NextResponse<ApiRespon
          AND picks.user_id = $1 
          AND g.week_id = $2
          AND picks.submitted = true
+         AND g.commence_time > $3
        RETURNING picks.id`,
-      [userId, weekId]
+      [userId, weekId, now.toISOString()]
     );
 
     const picksUnsubmitted = updateResult.length;
 
-    console.log(`User ${userId} unsubmitted ${picksUnsubmitted} picks for week ${weekId}`);
+    // Create informative message based on what happened
+    let message = `Successfully unsubmitted ${picksUnsubmitted} picks`;
+    if (startedGames.length > 0) {
+      const startedSubmittedCount = startedGames.filter(pick => pick.submitted).length;
+      if (startedSubmittedCount > 0) {
+        message += ` (${startedSubmittedCount} picks for started games remain submitted)`;
+      }
+    }
+
+    console.log(`User ${userId} unsubmitted ${picksUnsubmitted} picks for week ${weekId} (${startedGames.length} games had already started)`);
 
     return NextResponse.json({
       success: true,
       data: {
-        message: `Successfully unsubmitted ${picksUnsubmitted} picks`,
-        picksUnsubmitted
+        message,
+        picksUnsubmitted,
+        startedGamesCount: startedGames.length,
+        totalPicksCount: existingPicks.length
       }
     });
 
