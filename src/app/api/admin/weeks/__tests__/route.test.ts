@@ -446,7 +446,7 @@ describe('/api/admin/weeks', () => {
 
       expect(response.status).toBe(500);
       expect(data.success).toBe(false);
-      expect(data.error).toBe('Failed to create week');
+      expect(data.error).toBe('Failed to create week: Database connection failed');
     });
   });
 });
