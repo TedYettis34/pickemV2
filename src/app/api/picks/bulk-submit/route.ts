@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createOrUpdatePick, validatePick, hasSubmittedPicksForWeek } from '../../../../lib/picks';
 import { ApiResponse, CreatePickInput } from '../../../../types/pick';
 import { query } from '../../../../lib/database';
+import { syncUserFromCognito, getUserByCognitoId } from '../../../../lib/users';
 
 /**
  * Validates picker's choice limits for bulk pick submission
@@ -188,6 +189,23 @@ export async function POST(request: NextRequest) {
       const response: ApiResponse<never> = {
         success: false,
         error: 'User ID required',
+      };
+      return NextResponse.json(response, { status: 401 });
+    }
+
+    // Ensure user exists in database (sync from Cognito if needed)
+    try {
+      let existingUser = await getUserByCognitoId(userId);
+      if (!existingUser) {
+        // Try to sync user from Cognito using the access token
+        const accessToken = authHeader.replace('Bearer ', '');
+        existingUser = await syncUserFromCognito(accessToken);
+      }
+    } catch (userError) {
+      console.error('Error ensuring user exists:', userError);
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'User authentication failed',
       };
       return NextResponse.json(response, { status: 401 });
     }
