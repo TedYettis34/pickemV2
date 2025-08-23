@@ -25,13 +25,13 @@ import { NextRequest } from 'next/server';
 import { POST } from '../route';
 import { query } from '../../../../../lib/database';
 import { createOrUpdatePick, validatePick, hasSubmittedPicksForWeek } from '../../../../../lib/picks';
-import { syncUserFromCognito, getUserByCognitoId } from '../../../../../lib/users';
+import { getUserByCognitoId } from '../../../../../lib/users';
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockCreateOrUpdatePick = createOrUpdatePick as jest.MockedFunction<typeof createOrUpdatePick>;
 const mockValidatePick = validatePick as jest.MockedFunction<typeof validatePick>;
 const mockHasSubmittedPicksForWeek = hasSubmittedPicksForWeek as jest.MockedFunction<typeof hasSubmittedPicksForWeek>;
-const mockSyncUserFromCognito = syncUserFromCognito as jest.MockedFunction<typeof syncUserFromCognito>;
+// const mockSyncUserFromCognito = syncUserFromCognito as jest.MockedFunction<typeof syncUserFromCognito>;
 const mockGetUserByCognitoId = getUserByCognitoId as jest.MockedFunction<typeof getUserByCognitoId>;
 
 describe('/api/picks/bulk-submit', () => {
