@@ -2,12 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getUserByCognitoId, syncUserFromCognito } from '../../../../lib/users';
 
 // JWT decode utility (simple base64 decode for payload)
-function decodeJWT(token: string): any {
+function decodeJWT(token: string): Record<string, unknown> {
   try {
     const payload = token.split('.')[1];
     const decoded = atob(payload);
-    return JSON.parse(decoded);
-  } catch (error) {
+    return JSON.parse(decoded) as Record<string, unknown>;
+  } catch {
     return { error: 'Failed to decode JWT' };
   }
 }
