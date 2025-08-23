@@ -8,6 +8,7 @@
 interface JWTPayload {
   sub?: string;
   username?: string;
+  cognito_username?: string;
   email?: string;
   name?: string;
   given_name?: string;
