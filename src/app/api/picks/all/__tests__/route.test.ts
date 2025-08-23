@@ -147,7 +147,7 @@ describe('/api/picks/all', () => {
       
       // Check for correct JOINs
       expect(sqlCall).toContain('JOIN games g ON p.game_id = g.id');
-      expect(sqlCall).toContain('JOIN users u ON p.user_id = u.cognito_user_id');
+      expect(sqlCall).toContain('LEFT JOIN users u ON p.user_id = u.cognito_user_id');
       expect(sqlCall).toContain('JOIN weeks w ON g.week_id = w.id');
       
       // Check for correct WHERE clause
