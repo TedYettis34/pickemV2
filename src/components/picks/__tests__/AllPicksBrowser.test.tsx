@@ -224,9 +224,9 @@ describe('AllPicksBrowser', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Chiefs -3')).toBeInTheDocument();
-        expect(screen.getByText('Georgia -7')).toBeInTheDocument(); // away_spread with spread_value 7 becomes -7
+        expect(screen.getByText('Georgia +7')).toBeInTheDocument(); // away_spread with spread_value 7 shows as +7
         expect(screen.getByText('Cowboys 0')).toBeInTheDocument();
-        expect(screen.getByText('Bills -3')).toBeInTheDocument(); // away_spread with spread_value 3 becomes -3
+        expect(screen.getByText('Bills +3')).toBeInTheDocument(); // away_spread with spread_value 3 shows as +3
       });
 
       // Check for triple play indicator
@@ -487,7 +487,7 @@ describe('AllPicksBrowser', () => {
 
       await waitFor(() => {
         expect(screen.getByText('Chiefs -3')).toBeInTheDocument(); // home_spread with negative spread
-        expect(screen.getByText('Georgia -7')).toBeInTheDocument(); // away_spread (flipped sign from +7 to -7)
+        expect(screen.getByText('Georgia +7')).toBeInTheDocument(); // away_spread with positive spread
         expect(screen.getByText('Cowboys 0')).toBeInTheDocument(); // pick em game
       }, { timeout: 3000 });
     });

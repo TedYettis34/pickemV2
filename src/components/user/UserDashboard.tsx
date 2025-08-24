@@ -872,20 +872,20 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                     </p>
                   </div>
                 </div>
-              ) : getAvailableGames().length === 0 ? (
-                <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                  <div className="text-center py-8">
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-                      All Games Have Started
-                    </h3>
-                    <p className="text-gray-600 dark:text-gray-300">
-                      All games for this week have already started. Check the Review tab to see your submitted picks.
-                    </p>
-                  </div>
-                </div>
               ) : (
                 <>
-                  {activeTab === 'games' && (
+                  {activeTab === 'games' && getAvailableGames().length === 0 ? (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                      <div className="text-center py-8">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                          All Games Have Started
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-300">
+                          All games for this week have already started. Check the Review tab to see your submitted picks.
+                        </p>
+                      </div>
+                    </div>
+                  ) : activeTab === 'games' ? (
                     <div className="space-y-4">
                       {getAvailableGames().map((game) => {
                         const currentPick = getCurrentPickForGame(game.id);
@@ -914,7 +914,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                         );
                       })}
                     </div>
-                  )}
+                  ) : null}
 
                   {activeTab === 'review' && picksSummary && (
                     <PicksReview
