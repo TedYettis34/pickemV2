@@ -149,7 +149,7 @@ export function AllPicksBrowser({ weekId: initialWeekId }: AllPicksBrowserProps)
     if (pickType === 'home_spread') {
       return `${homeTeam} ${spreadValue > 0 ? '+' : ''}${spreadValue}`;
     } else {
-      return `${awayTeam} ${-spreadValue > 0 ? '+' : ''}${-spreadValue}`;
+      return `${awayTeam} ${spreadValue > 0 ? '+' : ''}${spreadValue}`;
     }
   };
 
