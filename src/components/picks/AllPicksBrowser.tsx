@@ -153,23 +153,6 @@ export function AllPicksBrowser({ weekId: initialWeekId }: AllPicksBrowserProps)
     }
   };
 
-  const getResultBadge = (result: 'win' | 'loss' | 'push' | null | undefined) => {
-    if (!result) {
-      return <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">Pending</span>;
-    }
-
-    const colors = {
-      win: 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400',
-      loss: 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400',
-      push: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400'
-    };
-
-    return (
-      <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs ${colors[result as keyof typeof colors] || 'bg-gray-100 text-gray-800'}`}>
-        {result.charAt(0).toUpperCase() + result.slice(1)}
-      </span>
-    );
-  };
 
 
   const filteredPicks = getFilteredPicks();
@@ -338,11 +321,25 @@ export function AllPicksBrowser({ weekId: initialWeekId }: AllPicksBrowserProps)
                   {/* User Picks List */}
                   <div className="space-y-3">
                     <h4 className="font-semibold text-gray-900 dark:text-white">User Picks:</h4>
-                    <div className="grid gap-3">
-                      {gamePicks.map((pick) => (
-                        <div key={pick.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
-                          <div className="flex items-center gap-3">
-                            <div className="font-medium text-gray-900 dark:text-white min-w-[120px]">
+                    <div className="space-y-2">
+                      {gamePicks.map((pick) => {
+                        const getPickBgColor = (result: 'win' | 'loss' | 'push' | null | undefined) => {
+                          if (!result) {
+                            return 'bg-gray-100 dark:bg-gray-600';
+                          }
+                          
+                          const colors = {
+                            win: 'bg-green-100 dark:bg-green-900/30',
+                            loss: 'bg-red-100 dark:bg-red-900/30',
+                            push: 'bg-yellow-100 dark:bg-yellow-900/30'
+                          };
+                          
+                          return colors[result] || 'bg-gray-100 dark:bg-gray-600';
+                        };
+
+                        return (
+                          <div key={pick.id} className={`inline-flex items-center gap-3 p-3 rounded-lg max-w-fit ${getPickBgColor(pick.result)}`}>
+                            <div className="font-medium text-gray-900 dark:text-white">
                               {pick.display_name || pick.username}
                             </div>
                             <div className="text-sm text-gray-600 dark:text-gray-400">
@@ -354,14 +351,8 @@ export function AllPicksBrowser({ weekId: initialWeekId }: AllPicksBrowserProps)
                               </span>
                             )}
                           </div>
-                          <div className="flex items-center gap-2">
-                            {getResultBadge(pick.result)}
-                            <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {new Date(pick.created_at).toLocaleDateString()}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 </div>
