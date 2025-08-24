@@ -43,7 +43,7 @@ export async function DELETE(
     }
 
     // Validate that the pick can be deleted
-    const validation = await validatePick(userId, gameIdNum);
+    const validation = await validatePick(userId, gameIdNum, false, 'delete');
     if (!validation.isValid) {
       const response: ApiResponse<never> = {
         success: false,

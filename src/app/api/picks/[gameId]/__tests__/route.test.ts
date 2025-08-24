@@ -64,7 +64,7 @@ describe('/api/picks/[gameId] DELETE', () => {
       data: null,
       message: 'Pick deleted successfully',
     });
-    expect(mockValidatePick).toHaveBeenCalledWith('user123', 1);
+    expect(mockValidatePick).toHaveBeenCalledWith('user123', 1, false, 'delete');
     expect(mockDeletePick).toHaveBeenCalledWith('user123', 1);
   });
 
@@ -261,7 +261,7 @@ describe('/api/picks/[gameId] DELETE', () => {
 
       await DELETE(request, { params: Promise.resolve({ gameId: testCase.gameId }) });
 
-      expect(mockValidatePick).toHaveBeenCalledWith('user123', testCase.expectedGameId);
+      expect(mockValidatePick).toHaveBeenCalledWith('user123', testCase.expectedGameId, false, 'delete');
       expect(mockDeletePick).toHaveBeenCalledWith('user123', testCase.expectedGameId);
     }
   });
@@ -282,7 +282,7 @@ describe('/api/picks/[gameId] DELETE', () => {
     await response.json();
 
     expect(response.status).toBe(200);
-    expect(mockValidatePick).toHaveBeenCalledWith('user123', 999999);
+    expect(mockValidatePick).toHaveBeenCalledWith('user123', 999999, false, 'delete');
     expect(mockDeletePick).toHaveBeenCalledWith('user123', 999999);
   });
 
