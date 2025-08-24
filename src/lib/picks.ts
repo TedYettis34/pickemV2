@@ -191,12 +191,13 @@ export async function hasSubmittedPicksForWeek(userId: string, weekId: number): 
 }
 
 /**
- * Validate a pick before creating/updating
+ * Validate a pick before creating/updating/deleting
  */
 export async function validatePick(
   userId: string, 
   gameId: number,
-  isTriplePlay: boolean = false
+  isTriplePlay: boolean = false,
+  operation: 'create' | 'update' | 'delete' = 'create'
 ): Promise<PickValidation> {
   try {
     // Check if game exists and get game info
@@ -216,6 +217,14 @@ export async function validatePick(
     const now = new Date();
     
     if (gameStartTime <= now) {
+      // For deletion operations, allow deletion of unsubmitted picks even after game start
+      if (operation === 'delete') {
+        const existingPick = await getUserPickForGame(userId, gameId);
+        if (existingPick && !existingPick.submitted) {
+          // Allow deletion of unsubmitted picks for started games
+          return { isValid: true };
+        }
+      }
       return { isValid: false, error: 'Cannot pick on games that have already started' };
     }
     
