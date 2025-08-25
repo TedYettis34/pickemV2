@@ -350,23 +350,27 @@ export function PickCard({
 
                 {/* Triple Play Checkbox */}
                 <div className="pt-2 border-t border-blue-200 dark:border-blue-700">
-                  <label className="flex items-center space-x-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={isTriplePlay}
-                      onChange={(e) => handleTriplePlayChange(e.target.checked)}
-                      disabled={!canEnableTriplePlay()}
-                      className="h-4 w-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500 disabled:opacity-50"
-                    />
-                    <span className="text-sm text-blue-800 dark:text-blue-200 font-medium">
-                      Mark as Triple Play
-                    </span>
-                    {maxTriplePlays !== null && maxTriplePlays !== undefined && (
-                      <span className="text-xs text-gray-500 dark:text-gray-400">
-                        ({currentTriplePlayCount}/{maxTriplePlays} used)
+                  {/* Only show checkbox if user can enable triple play OR current pick is already a triple play */}
+                  {(canEnableTriplePlay() || currentPick.is_triple_play) && (
+                    <label className="flex items-center space-x-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={isTriplePlay}
+                        onChange={(e) => handleTriplePlayChange(e.target.checked)}
+                        disabled={!canEnableTriplePlay()}
+                        className="h-4 w-4 text-yellow-600 border-gray-300 rounded focus:ring-yellow-500 disabled:opacity-50"
+                      />
+                      <span className="text-sm text-blue-800 dark:text-blue-200 font-medium">
+                        Mark as Triple Play
                       </span>
-                    )}
-                  </label>
+                      {maxTriplePlays !== null && maxTriplePlays !== undefined && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          ({currentTriplePlayCount}/{maxTriplePlays} used)
+                        </span>
+                      )}
+                    </label>
+                  )}
+                  {/* Show warning message when user has maxed out triple plays and current pick is not a triple play */}
                   {maxTriplePlays !== null && maxTriplePlays !== undefined && !canEnableTriplePlay() && !currentPick.is_triple_play && (
                     <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                       You have reached the maximum number of triple plays for this week

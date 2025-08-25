@@ -797,12 +797,24 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                       const pickerChoiceStatus = getPickerChoiceStatus();
                       if (pickerChoiceStatus) {
                         const { current, max, mustPickCount, canPickMore } = pickerChoiceStatus;
-                        const statusColor = canPickMore ? 'text-blue-600 dark:text-blue-400' : 'text-orange-600 dark:text-orange-400';
+                        
+                        // Check if all must-pick games have been picked
+                        const mustPickGames = games.filter(game => game.must_pick);
+                        const pickedMustPickCount = mustPickGames.filter(game => {
+                          return userPicks.some(pick => pick.game_id === game.id) || draftPicks.has(game.id);
+                        }).length;
+                        const allMustPicksComplete = pickedMustPickCount >= mustPickGames.length;
+                        
+                        // Green when both picker's choice is maxed AND all must-picks are complete
+                        // Yellow/orange when incomplete
+                        const isComplete = !canPickMore && allMustPicksComplete;
+                        const statusColor = isComplete ? 'text-green-600 dark:text-green-400' : 'text-yellow-600 dark:text-yellow-400';
+                        
                         return (
                           <div className={`${statusColor}`}>
                             <span className="font-medium">Picker&apos;s Choice:</span> {current}/{max}
                             {mustPickCount > 0 && (
-                              <span className="text-yellow-600 dark:text-yellow-400 ml-2">
+                              <span className={`${statusColor} ml-2`}>
                                 (+{mustPickCount} must-pick)
                               </span>
                             )}
