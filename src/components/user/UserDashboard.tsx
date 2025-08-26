@@ -844,11 +844,19 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                       </button>
                       <button
                         onClick={() => setActiveTab('review')}
-                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${
-                          activeTab === 'review'
+                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${(() => {
+                          const hasUnsubmittedPicks = (draftPicks.size > 0 || userPicks.some(pick => !pick.submitted)) && !hasSubmittedPicks;
+                          
+                          if (hasUnsubmittedPicks) {
+                            return activeTab === 'review'
+                              ? 'border-yellow-500 text-yellow-600 dark:text-yellow-400'
+                              : 'border-transparent text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300';
+                          }
+                          
+                          return activeTab === 'review'
                             ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
-                        }`}
+                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300';
+                        })()}`}
                       >
                         Review Picks ({getTotalPicksCount()})
                         {hasSubmittedPicks && (
