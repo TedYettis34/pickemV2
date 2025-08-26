@@ -45,11 +45,6 @@ export function PicksReview({
   const handleSubmitClick = async () => {
     if (picks.length === 0) return;
 
-    const confirmed = window.confirm(
-      "Are you sure you want to submit all picks? This action cannot be undone."
-    );
-    if (!confirmed) return;
-
     try {
       setSubmitError(null);
       await onSubmitPicks(weekId);

@@ -330,6 +330,35 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
   // Handle pick submission (write all draft picks to database)
   const handleSubmitPicks = async (weekId: number) => {
     try {
+      // Check if all requirements are satisfied before showing confirmation
+      const pickerChoiceStatus = getPickerChoiceStatus();
+      const currentTriplePlayCount = getCurrentTriplePlayCount();
+      const maxTriplePlays = activeWeek?.max_triple_plays;
+      
+      // Check requirement 1: Max picker's choice games
+      const pickerChoiceComplete = pickerChoiceStatus ? !pickerChoiceStatus.canPickMore : true; // true if no limit or maxed out
+      
+      // Check requirement 2: Max triple plays
+      const triplePlayComplete = maxTriplePlays == null || currentTriplePlayCount >= maxTriplePlays;
+      
+      // Check requirement 3: All must-pick games
+      const mustPickGames = games.filter(game => game.must_pick);
+      const pickedMustPickCount = mustPickGames.filter(game => {
+        return userPicks.some(pick => pick.game_id === game.id) || draftPicks.has(game.id);
+      }).length;
+      const mustPickComplete = pickedMustPickCount >= mustPickGames.length;
+      
+      // Check if all requirements are satisfied
+      const allRequirementsMet = pickerChoiceComplete && triplePlayComplete && mustPickComplete;
+      
+      // Only show confirmation modal if requirements are NOT met
+      if (!allRequirementsMet) {
+        const confirmed = window.confirm("You can submit these picks, but don't forget to submit the rest later. Are you sure you want to continue?");
+        if (!confirmed) return;
+      }
+      
+      // If all requirements are met, proceed directly to submission without confirmation
+      
       setSubmittingPicks(true);
       
       const userContext = getCurrentUserContext();
