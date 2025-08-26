@@ -272,9 +272,9 @@ describe('UserDashboard - Picker Choice Limits', () => {
     await waitFor(() => {
       expect(screen.getByText('3/3')).toBeInTheDocument(); // At limit
       
-      // Check for orange color class (limit reached)
+      // Check for yellow color class (picker's choice maxed but requirements not fully complete)
       const pickerChoiceElement = screen.getByText('3/3').closest('div');
-      expect(pickerChoiceElement).toHaveClass('text-orange-600');
+      expect(pickerChoiceElement).toHaveClass('text-yellow-600');
     });
   });
 
@@ -322,9 +322,9 @@ describe('UserDashboard - Picker Choice Limits', () => {
     await waitFor(() => {
       expect(screen.getByText('1/3')).toBeInTheDocument(); // Under limit
       
-      // Check for blue color class (picks available)
+      // Check for yellow color class (picks not yet complete)
       const pickerChoiceElement = screen.getByText('1/3').closest('div');
-      expect(pickerChoiceElement).toHaveClass('text-blue-600');
+      expect(pickerChoiceElement).toHaveClass('text-yellow-600');
     });
   });
 

@@ -289,12 +289,12 @@ export async function validatePick(
       if (weeks.length > 0 && weeks[0].max_triple_plays !== null && !game.must_pick) {
         const maxTriplePlays = weeks[0].max_triple_plays;
         
-        // Get current triple play picks count for this week
+        // Get current triple play picks count for this week (only count submitted picks)
         const currentTriplePlayResult = await query<{ count: string }>(
           `SELECT COUNT(*) as count 
            FROM picks p
            JOIN games g ON p.game_id = g.id
-           WHERE p.user_id = $1 AND g.week_id = $2 AND p.is_triple_play = true`,
+           WHERE p.user_id = $1 AND g.week_id = $2 AND p.is_triple_play = true AND p.submitted = true`,
           [userId, game.week_id]
         );
         

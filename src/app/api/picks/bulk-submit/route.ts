@@ -114,12 +114,12 @@ async function validateBulkTriplePlayLimits(
     return;
   }
 
-  // Get current triple play count for this user/week
+  // Get current triple play count for this user/week (only count submitted picks)
   const currentResult = await query<{ count: string }>(
     `SELECT COUNT(*) as count 
      FROM picks p
      JOIN games g ON p.game_id = g.id
-     WHERE p.user_id = $1 AND g.week_id = $2 AND p.is_triple_play = true`,
+     WHERE p.user_id = $1 AND g.week_id = $2 AND p.is_triple_play = true AND p.submitted = true`,
     [userId, weekId]
   );
 

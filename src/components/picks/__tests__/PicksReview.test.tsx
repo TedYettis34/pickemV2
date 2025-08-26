@@ -139,42 +139,33 @@ describe('PicksReview', () => {
     expect(screen.getByText('Submit All Picks')).toBeInTheDocument();
   });
 
-  it('should handle submit picks action with confirmation', async () => {
+  it('should handle submit picks action', async () => {
     const user = userEvent.setup();
     const onSubmitPicks = jest.fn().mockResolvedValue(undefined);
     
-    // Mock window.confirm to return true
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(true);
-    
     render(<PicksReview {...mockProps} onSubmitPicks={onSubmitPicks} />);
 
     const submitButton = screen.getByText('Submit All Picks');
     await user.click(submitButton);
 
-    expect(confirmSpy).toHaveBeenCalledWith(
-      'Are you sure you want to submit all picks? This action cannot be undone.'
-    );
     expect(onSubmitPicks).toHaveBeenCalledWith(1);
-
-    confirmSpy.mockRestore();
   });
 
-  it('should not submit picks when confirmation is cancelled', async () => {
+  it('should handle submit error', async () => {
     const user = userEvent.setup();
-    const onSubmitPicks = jest.fn();
-    
-    // Mock window.confirm to return false
-    const confirmSpy = jest.spyOn(window, 'confirm').mockReturnValue(false);
+    const onSubmitPicks = jest.fn().mockRejectedValue(new Error('Submit failed'));
     
     render(<PicksReview {...mockProps} onSubmitPicks={onSubmitPicks} />);
 
     const submitButton = screen.getByText('Submit All Picks');
     await user.click(submitButton);
 
-    expect(confirmSpy).toHaveBeenCalled();
-    expect(onSubmitPicks).not.toHaveBeenCalled();
-
-    confirmSpy.mockRestore();
+    expect(onSubmitPicks).toHaveBeenCalledWith(1);
+    
+    // Wait for error to appear
+    await waitFor(() => {
+      expect(screen.getByText('Submit failed')).toBeInTheDocument();
+    });
   });
 
   it('should show loading state during submission', () => {
