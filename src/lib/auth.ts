@@ -103,6 +103,44 @@ export function signOut() {
   localStorage.removeItem('refreshToken');
 }
 
+export async function refreshTokens(): Promise<boolean> {
+  const refreshToken = localStorage.getItem('refreshToken');
+  
+  if (!refreshToken) {
+    console.warn('No refresh token available');
+    return false;
+  }
+
+  const command = new InitiateAuthCommand({
+    ClientId: CLIENT_ID,
+    AuthFlow: AuthFlowType.REFRESH_TOKEN_AUTH,
+    AuthParameters: {
+      REFRESH_TOKEN: refreshToken,
+    },
+  });
+
+  try {
+    const response = await client.send(command);
+
+    if (response.AuthenticationResult?.AccessToken) {
+      // Update tokens in localStorage
+      localStorage.setItem('accessToken', response.AuthenticationResult.AccessToken);
+      localStorage.setItem('idToken', response.AuthenticationResult.IdToken || '');
+      // Note: Refresh token may not be returned in refresh flow, keep existing one
+      if (response.AuthenticationResult.RefreshToken) {
+        localStorage.setItem('refreshToken', response.AuthenticationResult.RefreshToken);
+      }
+      return true;
+    }
+    return false;
+  } catch (error) {
+    console.error('Error refreshing tokens:', error);
+    // If refresh fails, clear tokens to force re-authentication
+    signOut();
+    return false;
+  }
+}
+
 export function isAuthenticated(): boolean {
   if (typeof window === 'undefined') return false;
   return !!localStorage.getItem('accessToken');

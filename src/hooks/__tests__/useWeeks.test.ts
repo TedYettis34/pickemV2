@@ -7,12 +7,26 @@ jest.mock('../../lib/adminAuth', () => ({
   getCurrentAccessToken: jest.fn(),
 }));
 
+// Mock userAuth functions used by useWeeks
+jest.mock('../../lib/userAuth', () => ({
+  isCurrentTokenExpiringSoon: jest.fn(),
+}));
+
+// Mock auth functions used by useWeeks
+jest.mock('../../lib/auth', () => ({
+  refreshTokens: jest.fn(),
+}));
+
 // Mock fetch globally
 global.fetch = jest.fn();
 
 import { getCurrentAccessToken } from '../../lib/adminAuth';
+import { isCurrentTokenExpiringSoon } from '../../lib/userAuth';
+import { refreshTokens } from '../../lib/auth';
 
 const mockGetCurrentAccessToken = getCurrentAccessToken as jest.MockedFunction<typeof getCurrentAccessToken>;
+const mockIsCurrentTokenExpiringSoon = isCurrentTokenExpiringSoon as jest.MockedFunction<typeof isCurrentTokenExpiringSoon>;
+const mockRefreshTokens = refreshTokens as jest.MockedFunction<typeof refreshTokens>;
 const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
 
 describe('useWeeks Hook', () => {
@@ -42,6 +56,8 @@ describe('useWeeks Hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetCurrentAccessToken.mockReturnValue('test-access-token');
+    mockIsCurrentTokenExpiringSoon.mockReturnValue(false); // Token is not expiring by default
+    mockRefreshTokens.mockResolvedValue(true); // Refresh succeeds if needed
     
     // Mock successful fetch by default
     mockFetch.mockResolvedValue({

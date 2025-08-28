@@ -90,9 +90,46 @@ export function getCurrentUserContext(): UserContext | null {
 }
 
 /**
- * Get authentication headers for API requests
+ * Get authentication headers for API requests with automatic token refresh
  */
-export function getAuthHeaders(): Record<string, string> {
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  if (typeof window === 'undefined') {
+    return {};
+  }
+
+  // Check if current token is expired or expiring soon
+  if (isCurrentTokenExpiringSoon()) {
+    try {
+      const { refreshTokens } = await import('./auth');
+      const refreshSuccess = await refreshTokens();
+      
+      if (!refreshSuccess) {
+        console.warn('Token refresh failed, clearing auth data');
+        return {};
+      }
+    } catch (error) {
+      console.error('Error refreshing token:', error);
+      return {};
+    }
+  }
+
+  const userContext = getCurrentUserContext();
+  
+  if (!userContext) {
+    return {};
+  }
+  
+  return {
+    'Authorization': `Bearer ${userContext.accessToken}`,
+    'x-user-id': userContext.userId,
+  };
+}
+
+/**
+ * Get authentication headers for API requests (synchronous version for backwards compatibility)
+ * Note: This version does not include automatic token refresh
+ */
+export function getAuthHeadersSync(): Record<string, string> {
   const userContext = getCurrentUserContext();
   
   if (!userContext) {
@@ -118,4 +155,57 @@ export function isUserAuthenticated(): boolean {
 export function getCurrentUserId(): string | null {
   const userContext = getCurrentUserContext();
   return userContext?.userId || null;
+}
+
+/**
+ * Check if a JWT token is expired
+ */
+export function isTokenExpired(token: string): boolean {
+  const decoded = decodeJWT(token);
+  if (!decoded?.exp) {
+    return true; // If no expiration time, consider expired
+  }
+  
+  // JWT exp is in seconds, Date.now() is in milliseconds
+  const currentTime = Math.floor(Date.now() / 1000);
+  return currentTime >= decoded.exp;
+}
+
+/**
+ * Check if a JWT token will expire within the given buffer time (in seconds)
+ * Useful for proactive token refresh
+ */
+export function isTokenExpiringSoon(token: string, bufferSeconds: number = 300): boolean {
+  const decoded = decodeJWT(token);
+  if (!decoded?.exp) {
+    return true; // If no expiration time, consider expiring soon
+  }
+  
+  // JWT exp is in seconds, Date.now() is in milliseconds
+  const currentTime = Math.floor(Date.now() / 1000);
+  return currentTime >= (decoded.exp - bufferSeconds);
+}
+
+/**
+ * Check if the current access token is expired
+ */
+export function isCurrentTokenExpired(): boolean {
+  if (typeof window === 'undefined') return true;
+  
+  const accessToken = localStorage.getItem('accessToken');
+  if (!accessToken) return true;
+  
+  return isTokenExpired(accessToken);
+}
+
+/**
+ * Check if the current access token will expire soon
+ */
+export function isCurrentTokenExpiringSoon(bufferSeconds: number = 300): boolean {
+  if (typeof window === 'undefined') return true;
+  
+  const accessToken = localStorage.getItem('accessToken');
+  if (!accessToken) return true;
+  
+  return isTokenExpiringSoon(accessToken, bufferSeconds);
 }

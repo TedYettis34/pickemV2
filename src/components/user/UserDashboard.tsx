@@ -156,7 +156,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
       
       console.log('Odds need update, triggering update...');
       
-      const authHeaders = getAuthHeaders();
+      const authHeaders = await getAuthHeaders();
       const response = await fetch('/api/admin/odds/update', {
         method: 'POST',
         headers: {
@@ -193,7 +193,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
         return;
       }
 
-      const authHeaders = getAuthHeaders();
+      const authHeaders = await getAuthHeaders();
 
       // Get user picks for the week
       const picksResponse = await fetch(`/api/picks/week/${weekId}`, {
@@ -304,7 +304,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
           throw new Error('User not authenticated');
         }
 
-        const authHeaders = getAuthHeaders();
+        const authHeaders = await getAuthHeaders();
         
         const response = await fetch(`/api/picks/${gameId}`, {
           method: 'DELETE',
@@ -366,7 +366,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
         throw new Error('User not authenticated');
       }
 
-      const authHeaders = getAuthHeaders();
+      const authHeaders = await getAuthHeaders();
       
       // Get all picks to submit: draft picks + unsubmitted database picks
       const draftPicksArray = Array.from(draftPicks.values());
@@ -428,7 +428,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
         throw new Error('User not authenticated');
       }
 
-      const authHeaders = getAuthHeaders();
+      const authHeaders = await getAuthHeaders();
       
       const response = await fetch('/api/picks/bulk-unsubmit', {
         method: 'POST',
@@ -577,7 +577,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
         const userContext = getCurrentUserContext();
         if (!userContext) return;
         
-        const authHeaders = getAuthHeaders();
+        const authHeaders = await getAuthHeaders();
         let hasSuccessfulDeletes = false;
         const newAttemptedDeletes = new Set(attemptedDeletes);
         

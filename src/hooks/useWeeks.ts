@@ -7,7 +7,27 @@ export function useWeeks() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
-  const getAuthHeaders = (): Record<string, string> => {
+  const getAuthHeaders = async (): Promise<Record<string, string>> => {
+    if (typeof window === 'undefined') return {};
+    
+    // Check if current token is expired or expiring soon
+    const { isCurrentTokenExpiringSoon } = await import('../lib/userAuth');
+    
+    if (isCurrentTokenExpiringSoon()) {
+      try {
+        const { refreshTokens } = await import('../lib/auth');
+        const refreshSuccess = await refreshTokens();
+        
+        if (!refreshSuccess) {
+          console.warn('Token refresh failed in useWeeks hook');
+          return {};
+        }
+      } catch (error) {
+        console.error('Error refreshing token in useWeeks hook:', error);
+        return {};
+      }
+    }
+    
     const token = getCurrentAccessToken();
     if (token) {
       return { Authorization: `Bearer ${token}` };
@@ -22,7 +42,7 @@ export function useWeeks() {
 
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
       const response = await fetch(`${baseUrl}/api/admin/weeks`, {
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
       });
 
       const data: ApiResponse<Week[]> = await response.json();
@@ -47,7 +67,7 @@ export function useWeeks() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders(),
+          ...(await getAuthHeaders()),
         },
         body: JSON.stringify(weekData),
       });
@@ -73,7 +93,7 @@ export function useWeeks() {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
-          ...getAuthHeaders(),
+          ...(await getAuthHeaders()),
         },
         body: JSON.stringify(weekData),
       });
@@ -97,7 +117,7 @@ export function useWeeks() {
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
       const response = await fetch(`${baseUrl}/api/admin/weeks/${id}`, {
         method: 'DELETE',
-        headers: getAuthHeaders(),
+        headers: await getAuthHeaders(),
       });
 
       const data: ApiResponse<never> = await response.json();
