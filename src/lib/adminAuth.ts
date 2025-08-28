@@ -39,16 +39,43 @@ class AuthEventEmitter {
 
 export const authEventEmitter = new AuthEventEmitter();
 
-// Utility to handle token expiration
-function handleTokenExpiration(): AdminAuthResult {
+// Utility to handle token expiration - attempts refresh before logout
+async function handleTokenExpiration(): Promise<AdminAuthResult> {
   if (typeof window !== 'undefined') {
+    try {
+      // Import the refresh function
+      const { refreshTokens } = await import('./auth');
+      
+      // Attempt to refresh tokens
+      const refreshSuccess = await refreshTokens();
+      
+      if (refreshSuccess) {
+        // Get the new access token and retry
+        const newAccessToken = localStorage.getItem('accessToken');
+        if (newAccessToken) {
+          // Return success - let the caller retry with new token
+          return {
+            isAdmin: false, // This will be determined by the retry
+            user: null,
+            error: 'TOKEN_REFRESHED', // Special flag for retry
+          };
+        }
+      }
+    } catch (error) {
+      console.error('Failed to refresh token:', error);
+    }
+    
+    // If refresh failed, clear tokens and emit logout event
     localStorage.removeItem('accessToken');
-    // Emit token expiration event
+    localStorage.removeItem('idToken');
+    localStorage.removeItem('refreshToken');
+    
     authEventEmitter.emit({ 
       type: 'token-expired', 
       message: 'Your session has expired. Please log in again.' 
     });
   }
+  
   return {
     isAdmin: false,
     user: null,
@@ -85,7 +112,17 @@ export async function validateAdminAuthClient(accessToken: string): Promise<Admi
           (errorData.error === 'Token expired' || 
            errorData.error?.includes('expired') ||
            errorData.error?.includes('Access Token has expired'))) {
-        return handleTokenExpiration();
+        const refreshResult = await handleTokenExpiration();
+        
+        // If token was refreshed, retry the original request
+        if (refreshResult.error === 'TOKEN_REFRESHED') {
+          const newAccessToken = localStorage.getItem('accessToken');
+          if (newAccessToken) {
+            return await validateAdminAuthClient(newAccessToken);
+          }
+        }
+        
+        return refreshResult;
       }
       
       return {
@@ -110,7 +147,17 @@ export async function validateAdminAuthClient(accessToken: string): Promise<Admi
         (error.name === 'NotAuthorizedException' || 
          error.message.includes('expired') ||
          error.message.includes('Access Token has expired'))) {
-      return handleTokenExpiration();
+      const refreshResult = await handleTokenExpiration();
+      
+      // If token was refreshed, retry the original request
+      if (refreshResult.error === 'TOKEN_REFRESHED') {
+        const newAccessToken = localStorage.getItem('accessToken');
+        if (newAccessToken) {
+          return await validateAdminAuthClient(newAccessToken);
+        }
+      }
+      
+      return refreshResult;
     }
     
     // For other errors, emit auth error event
