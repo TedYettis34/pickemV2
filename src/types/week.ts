@@ -8,6 +8,7 @@ export interface Week {
   description?: string;
   max_picker_choice_games?: number | null; // Maximum non-must-pick games a user can pick (null means no limit)
   max_triple_plays?: number | null; // Maximum number of triple play picks a user can make (null means no limit)
+  cutoff_time?: string | null; // ISO date string - cutoff time after which picks cannot be submitted
   created_at: string; // ISO date string
   updated_at: string; // ISO date string
 }
@@ -19,6 +20,7 @@ export interface CreateWeekInput {
   description?: string;
   max_picker_choice_games?: number | null;
   max_triple_plays?: number | null;
+  cutoff_time?: string | null;
 }
 
 export interface UpdateWeekInput {
@@ -28,6 +30,7 @@ export interface UpdateWeekInput {
   description?: string;
   max_picker_choice_games?: number | null;
   max_triple_plays?: number | null;
+  cutoff_time?: string | null;
 }
 
 export interface WeekFilters {

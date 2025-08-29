@@ -14,6 +14,7 @@ jest.mock('../../../../../lib/picks', () => ({
   createOrUpdatePick: jest.fn(),
   validatePick: jest.fn(),
   getUserPicksForWeek: jest.fn(),
+  isWeekCutoffPassed: jest.fn(),
 }));
 
 jest.mock('../../../../../lib/users', () => ({
@@ -24,13 +25,14 @@ jest.mock('../../../../../lib/users', () => ({
 import { NextRequest } from 'next/server';
 import { POST } from '../route';
 import { query } from '../../../../../lib/database';
-import { createOrUpdatePick, validatePick, getUserPicksForWeek } from '../../../../../lib/picks';
+import { createOrUpdatePick, validatePick, getUserPicksForWeek, isWeekCutoffPassed } from '../../../../../lib/picks';
 import { getUserByCognitoId } from '../../../../../lib/users';
 
 const mockQuery = query as jest.MockedFunction<typeof query>;
 const mockCreateOrUpdatePick = createOrUpdatePick as jest.MockedFunction<typeof createOrUpdatePick>;
 const mockValidatePick = validatePick as jest.MockedFunction<typeof validatePick>;
 const mockGetUserPicksForWeek = getUserPicksForWeek as jest.MockedFunction<typeof getUserPicksForWeek>;
+const mockIsWeekCutoffPassed = isWeekCutoffPassed as jest.MockedFunction<typeof isWeekCutoffPassed>;
 // const mockSyncUserFromCognito = syncUserFromCognito as jest.MockedFunction<typeof syncUserFromCognito>;
 const mockGetUserByCognitoId = getUserByCognitoId as jest.MockedFunction<typeof getUserByCognitoId>;
 
@@ -49,6 +51,9 @@ describe('/api/picks/bulk-submit', () => {
       created_at: '2024-01-01T00:00:00Z',
       updated_at: '2024-01-01T00:00:00Z',
     });
+    
+    // Set up default cutoff time mock (no cutoff)
+    mockIsWeekCutoffPassed.mockResolvedValue(false);
   });
 
   describe('POST', () => {

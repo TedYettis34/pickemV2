@@ -100,6 +100,7 @@ export async function POST(req: NextRequest) {
       description: body?.description,
       max_picker_choice_games: body?.max_picker_choice_games,
       max_triple_plays: body?.max_triple_plays,
+      cutoff_time: body?.cutoff_time,
     };
     
     // Optional games data from wizard

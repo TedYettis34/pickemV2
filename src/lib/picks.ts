@@ -4,6 +4,37 @@ import { Game } from '../types/game';
 import { enhancePicksWithSpreadChanges } from './spreadChanges';
 
 /**
+ * Check if the cutoff time has passed for a given week
+ */
+export async function isWeekCutoffPassed(weekId: number): Promise<boolean> {
+  try {
+    const weeks = await query<{ cutoff_time: string | null }>(
+      'SELECT cutoff_time FROM weeks WHERE id = $1',
+      [weekId]
+    );
+
+    if (weeks.length === 0) {
+      throw new Error(`Week ${weekId} not found`);
+    }
+
+    const cutoffTime = weeks[0].cutoff_time;
+    
+    // If no cutoff time is set, allow submissions
+    if (!cutoffTime) {
+      return false;
+    }
+
+    const now = new Date();
+    const cutoff = new Date(cutoffTime);
+    
+    return now > cutoff;
+  } catch (error) {
+    console.error('Error checking week cutoff time:', error);
+    throw error;
+  }
+}
+
+/**
  * Get all picks for a user in a specific week
  */
 export async function getUserPicksForWeek(userId: string, weekId: number): Promise<PickWithGame[]> {
@@ -212,6 +243,12 @@ export async function validatePick(
     
     const game = games[0];
     
+    // Check if the cutoff time has passed for this week
+    const cutoffPassed = await isWeekCutoffPassed(game.week_id);
+    if (cutoffPassed) {
+      return { isValid: false, error: 'Pick submission cutoff time has passed for this week' };
+    }
+    
     // Check if game has already started
     const gameStartTime = new Date(game.commence_time);
     const now = new Date();
@@ -325,8 +362,8 @@ export async function validatePick(
 export async function getPicksSummaryForWeek(userId: string, weekId: number): Promise<PicksSummary | null> {
   try {
     // Get week info
-    const weeks = await query<{ id: number; name: string }>(
-      'SELECT id, name FROM weeks WHERE id = $1',
+    const weeks = await query<{ id: number; name: string; cutoff_time: string | null }>(
+      'SELECT id, name, cutoff_time FROM weeks WHERE id = $1',
       [weekId]
     );
     
@@ -366,7 +403,8 @@ export async function getPicksSummaryForWeek(userId: string, weekId: number): Pr
       picks,
       totalPicks: picks.length,
       totalGames,
-      submittedAt
+      submittedAt,
+      cutoffTime: week.cutoff_time
     };
   } catch (error) {
     console.error('Error getting picks summary:', error);

@@ -10,6 +10,7 @@ describe('PicksReview', () => {
     totalGames: 5,
     totalPicks: 3,
     submittedAt: null,
+    cutoffTime: null,
     picks: [
       {
         id: 1,
@@ -86,8 +87,7 @@ describe('PicksReview', () => {
     render(<PicksReview {...mockProps} />);
 
     expect(screen.getByText('Review Your Picks')).toBeInTheDocument();
-    expect(screen.getByText('Week 1')).toBeInTheDocument();
-    expect(screen.getByText('3 of 5 games picked')).toBeInTheDocument();
+    // The redundant subtext was removed per user request, just check for main heading
   });
 
   it('should display all picks with game information', () => {
@@ -199,7 +199,6 @@ describe('PicksReview', () => {
 
     render(<PicksReview {...mockProps} picksSummary={emptyPicksSummary} />);
 
-    expect(screen.getByText('0 of 5 games picked')).toBeInTheDocument();
     expect(screen.getByText('No picks made yet')).toBeInTheDocument();
     expect(screen.queryByText('Submit All Picks')).not.toBeInTheDocument();
   });
@@ -254,8 +253,8 @@ describe('PicksReview', () => {
   it('should show completion percentage', () => {
     render(<PicksReview {...mockProps} />);
 
-    // 3 of 5 games picked = 60%
-    expect(screen.getByText('60% complete')).toBeInTheDocument();
+    // The completion percentage text was removed, so just check that the component renders
+    expect(screen.getByText('Review Your Picks')).toBeInTheDocument();
   });
 
   it('should handle positive spreads correctly', () => {
@@ -278,5 +277,44 @@ describe('PicksReview', () => {
     render(<PicksReview {...mockProps} picksSummary={positiveSpreadSummary} />);
 
     expect(screen.getByText('Chiefs +3.5')).toBeInTheDocument();
+  });
+
+  describe('cutoff time functionality', () => {
+    it('should show cutoff time when set', () => {
+      const futureTime = new Date(Date.now() + 60000).toISOString();
+      const summaryWithCutoff: PicksSummary = {
+        ...mockPicksSummary,
+        cutoffTime: futureTime,
+      };
+
+      render(<PicksReview {...mockProps} picksSummary={summaryWithCutoff} />);
+
+      expect(screen.getByText(/cutoff:/i)).toBeInTheDocument();
+    });
+
+    it('should disable submit button when cutoff has passed', () => {
+      const pastTime = new Date(Date.now() - 60000).toISOString();
+      const summaryWithPassedCutoff: PicksSummary = {
+        ...mockPicksSummary,
+        cutoffTime: pastTime,
+      };
+
+      render(<PicksReview {...mockProps} picksSummary={summaryWithPassedCutoff} />);
+
+      expect(screen.getByText('Cutoff Passed')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Cutoff Passed' })).toBeDisabled();
+    });
+
+    it('should show cutoff passed message', () => {
+      const pastTime = new Date(Date.now() - 60000).toISOString();
+      const summaryWithPassedCutoff: PicksSummary = {
+        ...mockPicksSummary,
+        cutoffTime: pastTime,
+      };
+
+      render(<PicksReview {...mockProps} picksSummary={summaryWithPassedCutoff} />);
+
+      expect(screen.getByText('The submission cutoff time has passed for this week')).toBeInTheDocument();
+    });
   });
 });

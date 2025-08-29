@@ -23,11 +23,12 @@ export function PicksReview({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isUnsubmitting, setIsUnsubmitting] = useState(false);
 
-  const { weekId, weekName, picks, totalPicks, totalGames, submittedAt } =
+  const { weekId, picks, submittedAt, cutoffTime } =
     picksSummary;
   const isSubmitted = !!submittedAt;
-  const completionPercentage =
-    totalGames > 0 ? Math.round((totalPicks / totalGames) * 100) : 0;
+  
+  // Check if cutoff time has passed
+  const isCutoffPassed = cutoffTime ? new Date() > new Date(cutoffTime) : false;
 
   // Categorize picks by game start time
   const now = new Date();
@@ -128,15 +129,6 @@ export function PicksReview({
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
               Review Your Picks
             </h3>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {weekName}
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {totalPicks} of {totalGames} games picked
-            </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {completionPercentage}% complete
-            </p>
           </div>
         </div>
 
@@ -173,13 +165,6 @@ export function PicksReview({
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
             Review Your Picks
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">{weekName}</p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {totalPicks} of {totalGames} games picked
-          </p>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {completionPercentage}% complete
-          </p>
         </div>
 
         {isSubmitted ? (
@@ -218,18 +203,24 @@ export function PicksReview({
               <div className="space-y-2">
                 <button
                   onClick={handleUnsubmitClick}
-                  disabled={isUnsubmitting || unstartedGamePicks.length === 0}
+                  disabled={isUnsubmitting || unstartedGamePicks.length === 0 || isCutoffPassed}
                   className="bg-orange-600 hover:bg-orange-700 disabled:bg-orange-400 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:cursor-not-allowed"
                 >
                   {isUnsubmitting
                     ? "Unsubmitting..."
+                    : isCutoffPassed
+                    ? "Cutoff Passed"
                     : unstartedGamePicks.length === 0
                     ? "Cannot Unsubmit"
                     : unstartedGamePicks.length < picks.length
                     ? `Unsubmit ${unstartedGamePicks.length} Picks`
                     : "Unsubmit All Picks"}
                 </button>
-                {unstartedGamePicks.length === 0 ? (
+                {isCutoffPassed ? (
+                  <p className="text-xs text-red-500 dark:text-red-400">
+                    Cutoff time has passed - no picks can be unsubmitted
+                  </p>
+                ) : unstartedGamePicks.length === 0 ? (
                   <p className="text-xs text-red-500 dark:text-red-400">
                     All games have started - no picks can be unsubmitted
                   </p>
@@ -248,13 +239,32 @@ export function PicksReview({
             )}
           </div>
         ) : (
-          <button
-            onClick={handleSubmitClick}
-            disabled={isSubmitting || picks.length === 0}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-md font-medium transition-colors disabled:cursor-not-allowed"
-          >
-            {isSubmitting ? "Submitting..." : "Submit All Picks"}
-          </button>
+          <div className="space-y-2">
+            {cutoffTime && (
+              <div className={`text-sm ${isCutoffPassed ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'}`}>
+                Cutoff: {new Date(cutoffTime).toLocaleDateString("en-US", {
+                  weekday: "short",
+                  month: "short", 
+                  day: "numeric",
+                  hour: "numeric",
+                  minute: "2-digit"
+                })}
+                {isCutoffPassed && " (passed)"}
+              </div>
+            )}
+            <button
+              onClick={handleSubmitClick}
+              disabled={isSubmitting || picks.length === 0 || isCutoffPassed}
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-md font-medium transition-colors disabled:cursor-not-allowed"
+            >
+              {isSubmitting ? "Submitting..." : isCutoffPassed ? "Cutoff Passed" : "Submit All Picks"}
+            </button>
+            {isCutoffPassed && (
+              <p className="text-xs text-red-500 dark:text-red-400">
+                The submission cutoff time has passed for this week
+              </p>
+            )}
+          </div>
         )}
       </div>
 

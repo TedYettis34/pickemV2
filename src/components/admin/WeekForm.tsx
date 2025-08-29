@@ -11,6 +11,7 @@ interface WeekFormProps {
     description: string;
     max_picker_choice_games?: number | null;
     max_triple_plays?: number | null;
+    cutoff_time?: string | null;
   };
   onSubmit: (data: CreateWeekInput | UpdateWeekInput) => void;
   isSubmitting: boolean;
@@ -25,6 +26,7 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
     description: initialData?.description || '',
     max_picker_choice_games: initialData?.max_picker_choice_games?.toString() || '',
     max_triple_plays: initialData?.max_triple_plays?.toString() || '',
+    cutoff_time: initialData?.cutoff_time || '',
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -38,6 +40,7 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
         description: initialData.description,
         max_picker_choice_games: initialData.max_picker_choice_games?.toString() || '',
         max_triple_plays: initialData.max_triple_plays?.toString() || '',
+        cutoff_time: initialData.cutoff_time || '',
       });
     }
   }, [initialData]);
@@ -104,6 +107,23 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
       }
     }
 
+    // Cutoff time validation
+    if (formData.cutoff_time.trim() !== '') {
+      const cutoffTime = new Date(formData.cutoff_time);
+      if (isNaN(cutoffTime.getTime())) {
+        newErrors.cutoff_time = 'Invalid cutoff time';
+      } else if (formData.start_date && formData.end_date) {
+        const startDate = new Date(formData.start_date);
+        const endDate = new Date(formData.end_date);
+        
+        if (cutoffTime < startDate) {
+          newErrors.cutoff_time = 'Cutoff time must be after start date';
+        } else if (cutoffTime > endDate) {
+          newErrors.cutoff_time = 'Cutoff time must be before end date';
+        }
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -123,6 +143,7 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
       description: formData.description.trim() || undefined,
       max_picker_choice_games: formData.max_picker_choice_games.trim() ? parseInt(formData.max_picker_choice_games) : null,
       max_triple_plays: formData.max_triple_plays.trim() ? parseInt(formData.max_triple_plays) : null,
+      cutoff_time: formData.cutoff_time.trim() ? new Date(formData.cutoff_time).toISOString() : null,
     };
 
     onSubmit(submitData);
@@ -210,6 +231,31 @@ export function WeekForm({ initialData, onSubmit, isSubmitting, submitLabel }: W
           {errors.end_date && (
             <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.end_date}</p>
           )}
+        </div>
+
+        {/* Cutoff Time */}
+        <div>
+          <label htmlFor="cutoff_time" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Pick Submission Cutoff Time
+          </label>
+          <input
+            type="datetime-local"
+            id="cutoff_time"
+            value={formData.cutoff_time}
+            onChange={(e) => handleInputChange('cutoff_time', e.target.value)}
+            className={`w-full px-3 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white transition-colors ${
+              errors.cutoff_time
+                ? 'border-red-300 dark:border-red-600'
+                : 'border-gray-300 dark:border-gray-600'
+            }`}
+            disabled={isSubmitting}
+          />
+          {errors.cutoff_time && (
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.cutoff_time}</p>
+          )}
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            After this time, users cannot submit or modify their picks. Leave empty for no cutoff.
+          </p>
         </div>
       </div>
 

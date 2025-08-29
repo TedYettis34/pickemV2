@@ -42,6 +42,16 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
     updateOddsInBackground();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Check cutoff time and set default tab on initial load only
+  useEffect(() => {
+    if (picksSummary?.cutoffTime) {
+      const isCutoffPassed = new Date() > new Date(picksSummary.cutoffTime);
+      if (isCutoffPassed && activeTab === 'games') {
+        setActiveTab('review');
+      }
+    }
+  }, [picksSummary]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const loadActiveWeekAndGames = async () => {
     try {
       setLoading(true);
@@ -923,7 +933,18 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                 </div>
               ) : (
                 <>
-                  {activeTab === 'games' && getAvailableGames().length === 0 ? (
+                  {activeTab === 'games' && picksSummary?.cutoffTime && new Date() > new Date(picksSummary.cutoffTime) ? (
+                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                      <div className="text-center py-8">
+                        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                          Cutoff Passed
+                        </h3>
+                        <p className="text-gray-600 dark:text-gray-300">
+                          The submission cutoff time has passed for this week. Check the Review tab to see your submitted picks.
+                        </p>
+                      </div>
+                    </div>
+                  ) : activeTab === 'games' && getAvailableGames().length === 0 ? (
                     <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
                       <div className="text-center py-8">
                         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
