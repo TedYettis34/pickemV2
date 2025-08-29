@@ -81,10 +81,10 @@ export class WeekRepository {
   // Create a new week
   static async create(data: CreateWeekInput): Promise<Week> {
     const result = await query<Week>(
-      `INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games, max_triple_plays)
-       VALUES ($1, $2, $3, $4, $5, $6)
+      `INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games, max_triple_plays, cutoff_time)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [data.name, data.start_date, data.end_date, data.description, data.max_picker_choice_games, data.max_triple_plays]
+      [data.name, data.start_date, data.end_date, data.description, data.max_picker_choice_games, data.max_triple_plays, data.cutoff_time]
     );
     
     if (result.length === 0) {
@@ -128,6 +128,11 @@ export class WeekRepository {
     if (data.max_triple_plays !== undefined) {
       fields.push(`max_triple_plays = $${paramIndex++}`);
       params.push(data.max_triple_plays);
+    }
+
+    if (data.cutoff_time !== undefined) {
+      fields.push(`cutoff_time = $${paramIndex++}`);
+      params.push(data.cutoff_time);
     }
 
     if (fields.length === 0) {

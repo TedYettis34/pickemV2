@@ -40,6 +40,24 @@ export function PickCard({
   // Determine if picks can be made
   const canPick = !disabled && !submitted && !gameStarted;
 
+  // Get background color based on pick result (similar to AllPicksBrowser)
+  const getPickBgColor = (result: 'win' | 'loss' | 'push' | null | undefined) => {
+    if (!result) {
+      return 'bg-white dark:bg-gray-800'; // Default/pending
+    }
+    
+    const colors = {
+      win: 'bg-green-100 dark:bg-green-900/30',
+      loss: 'bg-red-100 dark:bg-red-900/30',
+      push: 'bg-yellow-100 dark:bg-yellow-900/30'
+    };
+    
+    return colors[result] || 'bg-white dark:bg-gray-800';
+  };
+  
+  // Get the pick result if available
+  const pickResult = currentPick && 'result' in currentPick ? currentPick.result : null;
+
   // Calculate spread change information if there's a current pick
   let spreadChange: SpreadChange | undefined;
   let canUpdateToCurrentLine = false;
@@ -200,7 +218,7 @@ export function PickCard({
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 mb-4">
+    <div className={`${getPickBgColor(pickResult)} rounded-lg shadow-md p-4 mb-4`}>
       {/* Game Header */}
       <div className="flex justify-between items-center mb-3">
         <div className="flex items-center space-x-2">

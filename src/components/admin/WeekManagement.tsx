@@ -23,6 +23,15 @@ interface PreviewGames {
   college: GameData[];
 }
 
+// Helper function to format date for datetime-local input (in local timezone)
+function formatForDateTimeLocal(dateString: string): string {
+  const date = new Date(dateString);
+  // Get local timezone offset and adjust
+  const tzOffset = date.getTimezoneOffset() * 60000;
+  const localDate = new Date(date.getTime() - tzOffset);
+  return localDate.toISOString().slice(0, 16);
+}
+
 export function WeekManagement() {
   const { weeks, loading, error, createWeek, updateWeek, deleteWeek, refetch: refreshWeeks } = useWeeks();
   const [showForm, setShowForm] = useState(false);
@@ -58,7 +67,11 @@ export function WeekManagement() {
     const result = await updateWeek(editingWeek.id, weekData);
     
     if (result.success) {
-      setEditingWeek(null);
+      // Find the updated week in the refreshed weeks list
+      const updatedWeek = weeks.find(week => week.id === editingWeek.id);
+      if (updatedWeek) {
+        setEditingWeek(updatedWeek);
+      }
       setFormError(null);
     } else {
       setFormError(result.error || 'Failed to update week');
@@ -260,11 +273,12 @@ export function WeekManagement() {
           <WeekForm
             initialData={editingWeek ? {
               name: editingWeek.name,
-              start_date: editingWeek.start_date.slice(0, 16), // Format for datetime-local input
-              end_date: editingWeek.end_date.slice(0, 16),
+              start_date: formatForDateTimeLocal(editingWeek.start_date),
+              end_date: formatForDateTimeLocal(editingWeek.end_date),
               description: editingWeek.description || '',
               max_picker_choice_games: editingWeek.max_picker_choice_games,
               max_triple_plays: editingWeek.max_triple_plays,
+              cutoff_time: editingWeek.cutoff_time ? formatForDateTimeLocal(editingWeek.cutoff_time) : null,
             } : undefined}
             onSubmit={handleFormSubmit}
             isSubmitting={formLoading}

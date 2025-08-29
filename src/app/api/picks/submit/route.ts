@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { submitPicksForWeek, hasSubmittedPicksForWeek } from '../../../../lib/picks';
+import { submitPicksForWeek, hasSubmittedPicksForWeek, isWeekCutoffPassed } from '../../../../lib/picks';
 import { ApiResponse } from '../../../../types/pick';
 import { syncUserFromCognito, getUserByCognitoId } from '../../../../lib/users';
 
@@ -86,6 +86,16 @@ export async function POST(request: NextRequest) {
       const response: ApiResponse<never> = {
         success: false,
         error: 'Invalid week ID',
+      };
+      return NextResponse.json(response, { status: 400 });
+    }
+
+    // Check if the cutoff time has passed for this week
+    const cutoffPassed = await isWeekCutoffPassed(weekIdNum);
+    if (cutoffPassed) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'Pick submission cutoff time has passed for this week',
       };
       return NextResponse.json(response, { status: 400 });
     }

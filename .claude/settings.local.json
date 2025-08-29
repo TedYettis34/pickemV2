@@ -30,7 +30,8 @@
       "Bash(ssh:*)",
       "Bash(terraform plan:*)",
       "Bash(brew services:*)",
-      "Bash(claude code mcp list)"
+      "Bash(claude code mcp list)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

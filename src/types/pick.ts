@@ -40,6 +40,7 @@ export interface PicksSummary {
   totalPicks: number;
   totalGames: number;
   submittedAt?: string;
+  cutoffTime?: string | null;
 }
 
 // API Response types

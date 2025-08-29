@@ -624,8 +624,6 @@ describe('Picks Library', () => {
 
         // Mock game exists
         mockQuery.mockResolvedValueOnce([mockGame]);
-        // Mock cutoff time check - no cutoff time set
-        mockQuery.mockResolvedValueOnce([{ cutoff_time: null }]);
         // Mock no submitted picks
         mockQuery.mockResolvedValueOnce([{ count: '0' }]);
         // Mock no existing pick
@@ -656,8 +654,6 @@ describe('Picks Library', () => {
 
         // Mock game exists
         mockQuery.mockResolvedValueOnce([mockGame]);
-        // Mock cutoff time check - no cutoff time set
-        mockQuery.mockResolvedValueOnce([{ cutoff_time: null }]);
         // Mock no submitted picks
         mockQuery.mockResolvedValueOnce([{ count: '0' }]);
         // Mock no existing pick
@@ -690,8 +686,6 @@ describe('Picks Library', () => {
 
         // Mock game exists
         mockQuery.mockResolvedValueOnce([mockGame]);
-        // Mock cutoff time check - no cutoff time set
-        mockQuery.mockResolvedValueOnce([{ cutoff_time: null }]);
         // Mock no submitted picks
         mockQuery.mockResolvedValueOnce([{ count: '0' }]);
         // Mock no existing pick
@@ -731,8 +725,6 @@ describe('Picks Library', () => {
 
         // Mock game exists
         mockQuery.mockResolvedValueOnce([mockGame]);
-        // Mock cutoff time check - no cutoff time set
-        mockQuery.mockResolvedValueOnce([{ cutoff_time: null }]);
         // Mock no submitted picks
         mockQuery.mockResolvedValueOnce([{ count: '0' }]);
         // Mock existing pick
@@ -761,8 +753,6 @@ describe('Picks Library', () => {
 
         // Mock game exists
         mockQuery.mockResolvedValueOnce([mockGame]);
-        // Mock cutoff time check - no cutoff time set
-        mockQuery.mockResolvedValueOnce([{ cutoff_time: null }]);
         // Mock no submitted picks
         mockQuery.mockResolvedValueOnce([{ count: '0' }]);
         // Mock no existing pick
@@ -793,8 +783,6 @@ describe('Picks Library', () => {
 
         // Mock game exists
         mockQuery.mockResolvedValueOnce([mockGame]);
-        // Mock cutoff time check - no cutoff time set
-        mockQuery.mockResolvedValueOnce([{ cutoff_time: null }]);
         // Mock no submitted picks
         mockQuery.mockResolvedValueOnce([{ count: '0' }]);
         // Mock no existing pick
@@ -827,8 +815,6 @@ describe('Picks Library', () => {
 
         // Mock game exists
         mockQuery.mockResolvedValueOnce([mockGame]);
-        // Mock cutoff time check - no cutoff time set
-        mockQuery.mockResolvedValueOnce([{ cutoff_time: null }]);
         // Mock no submitted picks
         mockQuery.mockResolvedValueOnce([{ count: '0' }]);
         // Mock no existing pick
@@ -875,8 +861,6 @@ describe('Picks Library', () => {
 
         // Mock game exists
         mockQuery.mockResolvedValueOnce([mockGame]);
-        // Mock cutoff time check - no cutoff time set
-        mockQuery.mockResolvedValueOnce([{ cutoff_time: null }]);
         // Mock no submitted picks
         mockQuery.mockResolvedValueOnce([{ count: '0' }]);
         // Mock existing triple play pick
@@ -907,8 +891,6 @@ describe('Picks Library', () => {
 
         // Mock game exists
         mockQuery.mockResolvedValueOnce([mockGame]);
-        // Mock cutoff time check - no cutoff time set
-        mockQuery.mockResolvedValueOnce([{ cutoff_time: null }]);
         // Mock no submitted picks
         mockQuery.mockResolvedValueOnce([{ count: '0' }]);
         // Mock no existing pick
@@ -937,8 +919,6 @@ describe('Picks Library', () => {
 
         // Mock game exists
         mockQuery.mockResolvedValueOnce([mockGame]);
-        // Mock cutoff time check - no cutoff time set
-        mockQuery.mockResolvedValueOnce([{ cutoff_time: null }]);
         // Mock no submitted picks
         mockQuery.mockResolvedValueOnce([{ count: '0' }]);
         // Mock no existing pick

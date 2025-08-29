@@ -468,8 +468,10 @@ describe('WeekRepository', () => {
       const result = await WeekRepository.create(input);
 
       expect(mockQuery).toHaveBeenCalledWith(
-        'INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games, max_triple_plays)\n       VALUES ($1, $2, $3, $4, $5, $6)\n       RETURNING *',
-        ['Week 1', '2024-01-01', '2024-01-07', 'First week', undefined, undefined]
+        `INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games, max_triple_plays, cutoff_time)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+        ['Week 1', '2024-01-01', '2024-01-07', 'First week', undefined, undefined, undefined]
       );
       expect(result).toEqual(mockWeek);
     });
@@ -496,8 +498,10 @@ describe('WeekRepository', () => {
       const result = await WeekRepository.create(input);
 
       expect(mockQuery).toHaveBeenCalledWith(
-        'INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games, max_triple_plays)\n       VALUES ($1, $2, $3, $4, $5, $6)\n       RETURNING *',
-        ['Week 1', '2024-01-01', '2024-01-07', 'First week', 5, 2]
+        `INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games, max_triple_plays, cutoff_time)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+        ['Week 1', '2024-01-01', '2024-01-07', 'First week', 5, 2, undefined]
       );
       expect(result).toEqual(mockWeek);
     });
@@ -524,10 +528,10 @@ describe('WeekRepository', () => {
       const result = await WeekRepository.create(input);
 
       expect(mockQuery).toHaveBeenCalledWith(
-        `INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games, max_triple_plays)
-       VALUES ($1, $2, $3, $4, $5, $6)
+        `INSERT INTO weeks (name, start_date, end_date, description, max_picker_choice_games, max_triple_plays, cutoff_time)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-        ['Week 1', '2024-01-01', '2024-01-07', 'First week', undefined, 3]
+        ['Week 1', '2024-01-01', '2024-01-07', 'First week', undefined, 3, undefined]
       );
       expect(result).toEqual(mockWeek);
     });

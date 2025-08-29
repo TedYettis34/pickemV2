@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createOrUpdatePick, validatePick, getUserPicksForWeek } from '../../../../lib/picks';
+import { createOrUpdatePick, validatePick, getUserPicksForWeek, isWeekCutoffPassed } from '../../../../lib/picks';
 import { ApiResponse, CreatePickInput } from '../../../../types/pick';
 import { query } from '../../../../lib/database';
 import { syncUserFromCognito, getUserByCognitoId } from '../../../../lib/users';
@@ -233,6 +233,16 @@ export async function POST(request: NextRequest) {
       const response: ApiResponse<never> = {
         success: false,
         error: 'At least one pick is required',
+      };
+      return NextResponse.json(response, { status: 400 });
+    }
+
+    // Check if the cutoff time has passed for this week
+    const cutoffPassed = await isWeekCutoffPassed(weekIdNum);
+    if (cutoffPassed) {
+      const response: ApiResponse<never> = {
+        success: false,
+        error: 'Pick submission cutoff time has passed for this week',
       };
       return NextResponse.json(response, { status: 400 });
     }

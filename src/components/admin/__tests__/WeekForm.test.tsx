@@ -21,6 +21,7 @@ describe('WeekForm', () => {
     expect(screen.getByLabelText(/week name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/start date & time/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/end date & time/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/pick submission cutoff time/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/description/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/max picker's choice games/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Create Week' })).toBeInTheDocument();
@@ -33,6 +34,7 @@ describe('WeekForm', () => {
       end_date: '2025-09-08T23:59',
       description: 'Test description',
       max_picker_choice_games: 5,
+      cutoff_time: null,
     };
 
     render(<WeekForm {...defaultProps} initialData={initialData} />);
@@ -111,6 +113,7 @@ describe('WeekForm', () => {
         description: 'Test description',
         max_picker_choice_games: null,
         max_triple_plays: null,
+        cutoff_time: null,
       });
     });
   });
@@ -142,6 +145,7 @@ describe('WeekForm', () => {
         description: undefined,
         max_picker_choice_games: null,
         max_triple_plays: null,
+        cutoff_time: null,
       });
     });
   });
@@ -234,6 +238,7 @@ describe('WeekForm', () => {
           description: undefined,
           max_picker_choice_games: null,
           max_triple_plays: null,
+          cutoff_time: null,
         });
       });
     });
@@ -263,6 +268,7 @@ describe('WeekForm', () => {
           description: undefined,
           max_picker_choice_games: 7,
           max_triple_plays: null,
+          cutoff_time: null,
         });
       });
     });
@@ -370,6 +376,58 @@ describe('WeekForm', () => {
 
       // Error should be cleared
       expect(screen.queryByText('Must be a positive integer')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('cutoff time functionality', () => {
+    it('should handle cutoff time submission', async () => {
+      const user = userEvent.setup();
+      render(<WeekForm {...defaultProps} />);
+
+      const nameInput = screen.getByLabelText(/week name/i);
+      const startDateInput = screen.getByLabelText(/start date & time/i);
+      const endDateInput = screen.getByLabelText(/end date & time/i);
+      const cutoffTimeInput = screen.getByLabelText(/pick submission cutoff time/i);
+
+      await user.type(nameInput, 'Test Week');
+      await user.type(startDateInput, '2025-09-01T00:00');
+      await user.type(endDateInput, '2025-09-08T23:59');
+      await user.type(cutoffTimeInput, '2025-09-05T12:00');
+
+      const submitButton = screen.getByRole('button', { name: 'Create Week' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            cutoff_time: new Date('2025-09-05T12:00').toISOString(),
+          })
+        );
+      });
+    });
+
+    it('should handle empty cutoff time', async () => {
+      const user = userEvent.setup();
+      render(<WeekForm {...defaultProps} />);
+
+      const nameInput = screen.getByLabelText(/week name/i);
+      const startDateInput = screen.getByLabelText(/start date & time/i);
+      const endDateInput = screen.getByLabelText(/end date & time/i);
+
+      await user.type(nameInput, 'Test Week');
+      await user.type(startDateInput, '2025-09-01T00:00');
+      await user.type(endDateInput, '2025-09-08T23:59');
+
+      const submitButton = screen.getByRole('button', { name: 'Create Week' });
+      await user.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockOnSubmit).toHaveBeenCalledWith(
+          expect.objectContaining({
+            cutoff_time: null,
+          })
+        );
+      });
     });
   });
 });
