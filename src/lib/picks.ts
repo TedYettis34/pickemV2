@@ -78,6 +78,8 @@ export async function getUserPicksForWeek(userId: string, weekId: number): Promi
       spread_value: row.spread_value,
       submitted: row.submitted,
       is_triple_play: row.is_triple_play,
+      result: row.result,
+      evaluated_at: row.evaluated_at,
       created_at: row.created_at,
       updated_at: row.updated_at,
       game: {
