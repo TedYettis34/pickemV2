@@ -20,3 +20,9 @@ variable "common_tags" {
   type        = map(string)
   default     = {}
 }
+
+variable "production_domain" {
+  description = "Production domain for Cognito callback URLs"
+  type        = string
+  default     = ""
+}

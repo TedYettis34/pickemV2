@@ -149,10 +149,11 @@ module "database" {
 module "cognito" {
   source = "./modules/cognito"
 
-  project_name = local.project_name
-  environment  = var.environment
-  aws_region   = var.aws_region
-  common_tags  = local.common_tags
+  project_name      = local.project_name
+  environment       = var.environment
+  aws_region        = var.aws_region
+  production_domain = var.production_domain
+  common_tags       = local.common_tags
 }
 
 # Bastion Host Module (conditional - for database access)

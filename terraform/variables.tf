@@ -232,3 +232,15 @@ variable "bastion_use_elastic_ip" {
   type        = bool
   default     = true
 }
+
+# Production domain for Cognito callback URLs
+variable "production_domain" {
+  description = "Production domain for Cognito callback URLs (e.g., https://pickem-v2.vercel.app)"
+  type        = string
+  default     = ""
+  
+  validation {
+    condition = var.production_domain == "" || can(regex("^https://.*", var.production_domain))
+    error_message = "Production domain must be empty or start with https://"
+  }
+}
