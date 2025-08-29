@@ -76,11 +76,15 @@ export async function signIn(email: string, password: string) {
       const refreshToken = response.AuthenticationResult.RefreshToken || '';
       localStorage.setItem('refreshToken', refreshToken);
       
+      // Store login timestamp for token age tracking
+      localStorage.setItem('lastLoginTime', new Date().toISOString());
+      
       console.log('Sign-in tokens stored:', {
         hasAccessToken: !!response.AuthenticationResult.AccessToken,
         hasIdToken: !!response.AuthenticationResult.IdToken,
         hasRefreshToken: !!refreshToken,
-        refreshTokenLength: refreshToken.length
+        refreshTokenLength: refreshToken.length,
+        loginTime: new Date().toISOString()
       });
     }
 
@@ -110,6 +114,7 @@ export function signOut() {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('idToken');
   localStorage.removeItem('refreshToken');
+  localStorage.removeItem('lastLoginTime');
 }
 
 // Global variable to track refresh promise and prevent race conditions
@@ -127,6 +132,26 @@ export async function refreshTokens(): Promise<boolean> {
   if (!refreshToken) {
     console.warn('No refresh token available');
     return false;
+  }
+
+  // Check if we have token timestamps to detect very old tokens
+  const lastLoginTime = localStorage.getItem('lastLoginTime');
+  if (lastLoginTime) {
+    const lastLogin = new Date(lastLoginTime);
+    const hoursSinceLogin = (Date.now() - lastLogin.getTime()) / (1000 * 60 * 60);
+    
+    console.log('Token age analysis:', {
+      lastLogin: lastLogin.toISOString(),
+      hoursSinceLogin: Math.round(hoursSinceLogin * 100) / 100,
+      daysSinceLogin: Math.round(hoursSinceLogin / 24 * 100) / 100
+    });
+    
+    // If tokens are older than 25 days, they're likely expired (Cognito default is 30 days)
+    if (hoursSinceLogin > (25 * 24)) {
+      console.warn('Refresh token likely expired due to age, clearing tokens');
+      signOut();
+      return false;
+    }
   }
 
   console.log('Starting new token refresh:', {
