@@ -273,24 +273,35 @@ export function PicksReview({
         (startedGamePicks.length > 0 || unstartedGamePicks.length > 0) && (
           <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
             <div className="flex items-center space-x-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="text-gray-700 dark:text-gray-300">
-                  <span className="font-semibold">
-                    {startedGamePicks.length}
-                  </span>{" "}
-                  Locked (games started)
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                <span className="text-gray-700 dark:text-gray-300">
-                  <span className="font-semibold">
-                    {unstartedGamePicks.length}
-                  </span>{" "}
-                  Can be unsubmitted (games not started)
-                </span>
-              </div>
+              {isCutoffPassed ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span className="text-gray-700 dark:text-gray-300">
+                    <span className="font-semibold">{picks.length}</span> Locked (cutoff time passed)
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span className="text-gray-700 dark:text-gray-300">
+                      <span className="font-semibold">
+                        {startedGamePicks.length}
+                      </span>{" "}
+                      Locked (games started)
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                    <span className="text-gray-700 dark:text-gray-300">
+                      <span className="font-semibold">
+                        {unstartedGamePicks.length}
+                      </span>{" "}
+                      Can be unsubmitted (games not started)
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -338,7 +349,7 @@ export function PicksReview({
                         Triple Play
                       </span>
                     )}
-                    {isSubmitted && gameHasStarted && (
+                    {isSubmitted && !isCutoffPassed && gameHasStarted && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 font-medium">
                         <svg
                           className="w-3 h-3 mr-1"
@@ -356,7 +367,7 @@ export function PicksReview({
                         Locked
                       </span>
                     )}
-                    {isSubmitted && !gameHasStarted && (
+                    {isSubmitted && !isCutoffPassed && !gameHasStarted && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400 font-medium">
                         <svg
                           className="w-3 h-3 mr-1"
