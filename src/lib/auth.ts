@@ -69,10 +69,23 @@ export async function signIn(email: string, password: string) {
     const response = await client.send(command);
 
     if (response.AuthenticationResult?.AccessToken) {
-      // Store tokens in localStorage
+      // Store tokens in localStorage with debugging
       localStorage.setItem('accessToken', response.AuthenticationResult.AccessToken);
       localStorage.setItem('idToken', response.AuthenticationResult.IdToken || '');
-      localStorage.setItem('refreshToken', response.AuthenticationResult.RefreshToken || '');
+      
+      const refreshToken = response.AuthenticationResult.RefreshToken || '';
+      localStorage.setItem('refreshToken', refreshToken);
+      
+      // Store login timestamp for token age tracking
+      localStorage.setItem('lastLoginTime', new Date().toISOString());
+      
+      console.log('Sign-in tokens stored:', {
+        hasAccessToken: !!response.AuthenticationResult.AccessToken,
+        hasIdToken: !!response.AuthenticationResult.IdToken,
+        hasRefreshToken: !!refreshToken,
+        refreshTokenLength: refreshToken.length,
+        loginTime: new Date().toISOString()
+      });
     }
 
     return response;
@@ -101,15 +114,53 @@ export function signOut() {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('idToken');
   localStorage.removeItem('refreshToken');
+  localStorage.removeItem('lastLoginTime');
 }
 
+// Global variable to track refresh promise and prevent race conditions
+let refreshPromise: Promise<boolean> | null = null;
+
 export async function refreshTokens(): Promise<boolean> {
+  // If a refresh is already in progress, return that promise
+  if (refreshPromise) {
+    console.log('Refresh already in progress, waiting for existing promise');
+    return refreshPromise;
+  }
+
   const refreshToken = localStorage.getItem('refreshToken');
   
   if (!refreshToken) {
     console.warn('No refresh token available');
     return false;
   }
+
+  // Check if we have token timestamps to detect very old tokens
+  const lastLoginTime = localStorage.getItem('lastLoginTime');
+  if (lastLoginTime) {
+    const lastLogin = new Date(lastLoginTime);
+    const hoursSinceLogin = (Date.now() - lastLogin.getTime()) / (1000 * 60 * 60);
+    
+    console.log('Token age analysis:', {
+      lastLogin: lastLogin.toISOString(),
+      hoursSinceLogin: Math.round(hoursSinceLogin * 100) / 100,
+      daysSinceLogin: Math.round(hoursSinceLogin / 24 * 100) / 100
+    });
+    
+    // If tokens are older than 25 days, they're likely expired (Cognito default is 30 days)
+    if (hoursSinceLogin > (25 * 24)) {
+      console.warn('Refresh token likely expired due to age, clearing tokens');
+      signOut();
+      return false;
+    }
+  }
+
+  console.log('Starting new token refresh:', {
+    refreshTokenLength: refreshToken.length,
+    refreshTokenStart: refreshToken.substring(0, 20),
+    timestamp: new Date().toISOString(),
+    clientId: CLIENT_ID?.substring(0, 10) + '...',
+    userAgent: navigator?.userAgent?.substring(0, 50) || 'unknown'
+  });
 
   const command = new InitiateAuthCommand({
     ClientId: CLIENT_ID,
@@ -119,26 +170,128 @@ export async function refreshTokens(): Promise<boolean> {
     },
   });
 
-  try {
-    const response = await client.send(command);
+  // Create and store the refresh promise
+  refreshPromise = (async () => {
+    try {
+      console.log('Sending InitiateAuth request to Cognito...', {
+        authFlow: 'REFRESH_TOKEN_AUTH',
+        timestamp: new Date().toISOString(),
+        region: process.env.NEXT_PUBLIC_AWS_REGION
+      });
+      
+      const response = await client.send(command);
 
-    if (response.AuthenticationResult?.AccessToken) {
-      // Update tokens in localStorage
-      localStorage.setItem('accessToken', response.AuthenticationResult.AccessToken);
-      localStorage.setItem('idToken', response.AuthenticationResult.IdToken || '');
-      // Note: Refresh token may not be returned in refresh flow, keep existing one
-      if (response.AuthenticationResult.RefreshToken) {
-        localStorage.setItem('refreshToken', response.AuthenticationResult.RefreshToken);
+      console.log('Refresh response received:', {
+        hasAccessToken: !!response.AuthenticationResult?.AccessToken,
+        hasIdToken: !!response.AuthenticationResult?.IdToken,
+        hasNewRefreshToken: !!response.AuthenticationResult?.RefreshToken,
+        timestamp: new Date().toISOString(),
+        requestId: response.$metadata?.requestId,
+        httpStatusCode: response.$metadata?.httpStatusCode,
+        attempts: response.$metadata?.attempts,
+        cfId: response.$metadata?.cfId
+      });
+
+      if (response.AuthenticationResult?.AccessToken) {
+        // Update tokens in localStorage
+        localStorage.setItem('accessToken', response.AuthenticationResult.AccessToken);
+        localStorage.setItem('idToken', response.AuthenticationResult.IdToken || '');
+        
+        // Handle refresh token rotation
+        if (response.AuthenticationResult.RefreshToken) {
+          const oldTokenStart = refreshToken.substring(0, 20);
+          const newTokenStart = response.AuthenticationResult.RefreshToken.substring(0, 20);
+          console.log('Updating refresh token (rotation detected):', {
+            oldTokenStart,
+            newTokenStart,
+            tokenChanged: oldTokenStart !== newTokenStart,
+            newTokenLength: response.AuthenticationResult.RefreshToken.length
+          });
+          localStorage.setItem('refreshToken', response.AuthenticationResult.RefreshToken);
+        } else {
+          console.log('No new refresh token returned, keeping existing one');
+        }
+        
+        console.log('Token refresh successful:', {
+          timestamp: new Date().toISOString(),
+          requestId: response.$metadata?.requestId
+        });
+        return true;
+      } else {
+        console.warn('No access token in refresh response');
+        return false;
       }
-      return true;
+    } catch (error) {
+      console.error('Error refreshing tokens:', error);
+      
+      // Enhanced logging for debugging AWS Cognito errors
+      if (error && typeof error === 'object') {
+        const awsError = error as Record<string, unknown> & { 
+          name?: string; 
+          message?: string; 
+          stack?: string; 
+          $metadata?: Record<string, unknown>;
+          $service?: Record<string, unknown>;
+          Code?: string;
+        };
+        
+        console.error('Detailed error information:', {
+          name: awsError.name,
+          message: awsError.message,
+          code: awsError.Code || awsError.$metadata?.httpStatusCode,
+          requestId: awsError.$metadata?.requestId,
+          httpStatusCode: awsError.$metadata?.httpStatusCode,
+          attempts: awsError.$metadata?.attempts,
+          totalRetryDelay: awsError.$metadata?.totalRetryDelay,
+          cfId: awsError.$metadata?.cfId,
+          extendedRequestId: awsError.$metadata?.extendedRequestId,
+          timestamp: new Date().toISOString(),
+          refreshTokenLength: localStorage.getItem('refreshToken')?.length || 'not found',
+          refreshTokenStart: localStorage.getItem('refreshToken')?.substring(0, 20) || 'not found',
+          userAgent: navigator?.userAgent?.substring(0, 100) || 'unknown'
+        });
+
+        // Log stack trace if available
+        if (awsError.stack) {
+          console.error('Error stack trace:', awsError.stack);
+        }
+
+        // Log specific AWS service errors
+        if (awsError.$service) {
+          console.error('AWS Service info:', awsError.$service);
+        }
+
+        // Check for common error types
+        if (awsError.name === 'NotAuthorizedException') {
+          console.error('NotAuthorized details - likely causes:', {
+            possibleCauses: [
+              'Refresh token expired (30 days max)',
+              'Token revoked by AWS (EnableTokenRevocation: true)',
+              'Multiple device login detected',
+              'Password changed elsewhere',
+              'Suspicious activity detected'
+            ],
+            tokenRevocationEnabled: true,
+            userPoolConfig: {
+              refreshTokenValidity: '30 days',
+              accessTokenValidity: '60 minutes', 
+              enableTokenRevocation: true
+            },
+            troubleshooting: 'User needs to sign in again - tokens cannot be recovered when revoked'
+          });
+        }
+      }
+      
+      // If refresh fails, clear tokens to force re-authentication
+      signOut();
+      return false;
+    } finally {
+      // Clear the refresh promise when done (success or failure)
+      refreshPromise = null;
     }
-    return false;
-  } catch (error) {
-    console.error('Error refreshing tokens:', error);
-    // If refresh fails, clear tokens to force re-authentication
-    signOut();
-    return false;
-  }
+  })();
+
+  return refreshPromise;
 }
 
 export function isAuthenticated(): boolean {
