@@ -1,0 +1,30 @@
+# Example production Terraform variables
+# Copy to terraform.tfvars and customize for your deployment
+
+# Basic configuration
+environment = "prod"
+aws_region  = "us-east-1"
+
+# Production domain for Cognito callback URLs
+# Set this to your actual Vercel deployment URL
+production_domain = "https://pickem-v2.vercel.app"
+
+# Database configuration for production
+db_instance_class             = "db.t4g.micro"  # Cost-optimized for small deployments
+enable_multi_az              = false           # Set to true for high availability
+enable_deletion_protection   = true           # Protect against accidental deletion
+backup_retention_days        = 7              # Adjust based on your needs
+
+# Cost optimization
+cost_optimized_mode = true
+use_nat_instance   = true
+nat_instance_type  = "t3.nano"
+
+# Security
+create_bastion_host     = true
+bastion_instance_type   = "t3.nano"
+bastion_use_elastic_ip  = true
+
+# Monitoring (optional)
+# alert_email = "admin@yourdomain.com"
+# enable_automated_recovery = true

@@ -74,16 +74,18 @@ resource "aws_cognito_user_pool_client" "pickem_user_pool_client" {
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_scopes                 = ["email", "openid", "profile"]
 
-  # Callback URLs (update these for your application)
-  callback_urls = [
+  # Callback URLs - dynamically built based on environment and production domain
+  callback_urls = compact([
     "http://localhost:3000/auth/callback",
-    "https://${var.project_name}-${var.environment}.example.com/auth/callback"
-  ]
+    "https://${var.project_name}-${var.environment}.example.com/auth/callback",
+    var.production_domain != "" ? "${var.production_domain}/auth/callback" : null
+  ])
 
-  logout_urls = [
+  logout_urls = compact([
     "http://localhost:3000/auth/logout",
-    "https://${var.project_name}-${var.environment}.example.com/auth/logout"
-  ]
+    "https://${var.project_name}-${var.environment}.example.com/auth/logout",
+    var.production_domain != "" ? "${var.production_domain}/auth/logout" : null
+  ])
 
   # Supported identity providers
   supported_identity_providers = ["COGNITO"]
