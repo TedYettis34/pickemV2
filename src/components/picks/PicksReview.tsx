@@ -273,24 +273,35 @@ export function PicksReview({
         (startedGamePicks.length > 0 || unstartedGamePicks.length > 0) && (
           <div className="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-md">
             <div className="flex items-center space-x-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-red-500 rounded-full"></div>
-                <span className="text-gray-700 dark:text-gray-300">
-                  <span className="font-semibold">
-                    {startedGamePicks.length}
-                  </span>{" "}
-                  Locked (games started)
-                </span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
-                <span className="text-gray-700 dark:text-gray-300">
-                  <span className="font-semibold">
-                    {unstartedGamePicks.length}
-                  </span>{" "}
-                  Can be unsubmitted (games not started)
-                </span>
-              </div>
+              {isCutoffPassed ? (
+                <div className="flex items-center space-x-2">
+                  <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                  <span className="text-gray-700 dark:text-gray-300">
+                    <span className="font-semibold">{picks.length}</span> Locked (cutoff time passed)
+                  </span>
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-red-500 rounded-full"></div>
+                    <span className="text-gray-700 dark:text-gray-300">
+                      <span className="font-semibold">
+                        {startedGamePicks.length}
+                      </span>{" "}
+                      Locked (games started)
+                    </span>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                    <span className="text-gray-700 dark:text-gray-300">
+                      <span className="font-semibold">
+                        {unstartedGamePicks.length}
+                      </span>{" "}
+                      Can be unsubmitted (games not started)
+                    </span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -313,15 +324,30 @@ export function PicksReview({
 
           return sortedPicks.map((pick) => {
             const gameHasStarted = hasGameStarted(pick.game.commence_time);
+            
+            // Function to get background color based on pick result
+            const getPickBgColor = (result: 'win' | 'loss' | 'push' | null | undefined, gameStarted: boolean) => {
+              if (!result) {
+                // If no result yet, use game started status for styling
+                return gameStarted 
+                  ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                  : 'bg-gray-50 dark:bg-gray-700';
+              }
+              
+              // Use result-based styling (same as AllPicksBrowser)
+              const colors = {
+                win: 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800',
+                loss: 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800',
+                push: 'bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800'
+              };
+              
+              return colors[result] || 'bg-gray-50 dark:bg-gray-700';
+            };
 
             return (
               <div
                 key={pick.id}
-                className={`flex items-center justify-between p-4 rounded-lg ${
-                  gameHasStarted
-                    ? "bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800"
-                    : "bg-gray-50 dark:bg-gray-700"
-                }`}
+                className={`flex items-center justify-between p-4 rounded-lg ${getPickBgColor(pick.result, gameHasStarted)}`}
               >
                 <div className="flex-1">
                   <div className="flex items-center space-x-3">
@@ -338,7 +364,7 @@ export function PicksReview({
                         Triple Play
                       </span>
                     )}
-                    {isSubmitted && gameHasStarted && (
+                    {isSubmitted && !isCutoffPassed && gameHasStarted && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-400 font-medium">
                         <svg
                           className="w-3 h-3 mr-1"
@@ -356,7 +382,7 @@ export function PicksReview({
                         Locked
                       </span>
                     )}
-                    {isSubmitted && !gameHasStarted && (
+                    {isSubmitted && !isCutoffPassed && !gameHasStarted && (
                       <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-800 dark:bg-orange-900/20 dark:text-orange-400 font-medium">
                         <svg
                           className="w-3 h-3 mr-1"
@@ -376,15 +402,25 @@ export function PicksReview({
                     )}
                     <div
                       className={`text-sm ${
-                        gameHasStarted
+                        pick.result 
+                          ? pick.result === 'win'
+                            ? "text-green-600 dark:text-green-400 font-medium"
+                            : pick.result === 'loss'
+                            ? "text-red-600 dark:text-red-400 font-medium"
+                            : "text-yellow-600 dark:text-yellow-400 font-medium" // push
+                          : gameHasStarted
                           ? "text-red-600 dark:text-red-400 font-medium"
                           : "text-gray-500 dark:text-gray-400"
                       }`}
                     >
                       {formatGameTime(pick.game.commence_time)}
-                      {gameHasStarted && (
+                      {pick.result ? (
+                        <span className="ml-2 font-bold">
+                          ({pick.result.charAt(0).toUpperCase() + pick.result.slice(1)})
+                        </span>
+                      ) : gameHasStarted ? (
                         <span className="ml-2 font-bold">(Started)</span>
-                      )}
+                      ) : null}
                     </div>
                   </div>
 
