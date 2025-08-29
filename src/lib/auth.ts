@@ -69,10 +69,19 @@ export async function signIn(email: string, password: string) {
     const response = await client.send(command);
 
     if (response.AuthenticationResult?.AccessToken) {
-      // Store tokens in localStorage
+      // Store tokens in localStorage with debugging
       localStorage.setItem('accessToken', response.AuthenticationResult.AccessToken);
       localStorage.setItem('idToken', response.AuthenticationResult.IdToken || '');
-      localStorage.setItem('refreshToken', response.AuthenticationResult.RefreshToken || '');
+      
+      const refreshToken = response.AuthenticationResult.RefreshToken || '';
+      localStorage.setItem('refreshToken', refreshToken);
+      
+      console.log('Sign-in tokens stored:', {
+        hasAccessToken: !!response.AuthenticationResult.AccessToken,
+        hasIdToken: !!response.AuthenticationResult.IdToken,
+        hasRefreshToken: !!refreshToken,
+        refreshTokenLength: refreshToken.length
+      });
     }
 
     return response;
@@ -120,21 +129,43 @@ export async function refreshTokens(): Promise<boolean> {
   });
 
   try {
+    console.log('Attempting token refresh with InitiateAuth...');
     const response = await client.send(command);
+
+    console.log('Refresh response received:', {
+      hasAccessToken: !!response.AuthenticationResult?.AccessToken,
+      hasIdToken: !!response.AuthenticationResult?.IdToken,
+      hasNewRefreshToken: !!response.AuthenticationResult?.RefreshToken,
+    });
 
     if (response.AuthenticationResult?.AccessToken) {
       // Update tokens in localStorage
       localStorage.setItem('accessToken', response.AuthenticationResult.AccessToken);
       localStorage.setItem('idToken', response.AuthenticationResult.IdToken || '');
-      // Note: Refresh token may not be returned in refresh flow, keep existing one
+      
+      // Handle refresh token rotation
       if (response.AuthenticationResult.RefreshToken) {
+        console.log('Updating refresh token (rotation detected)');
         localStorage.setItem('refreshToken', response.AuthenticationResult.RefreshToken);
+      } else {
+        console.log('No new refresh token returned, keeping existing one');
       }
+      
+      console.log('Token refresh successful');
       return true;
+    } else {
+      console.warn('No access token in refresh response');
+      return false;
     }
-    return false;
   } catch (error) {
     console.error('Error refreshing tokens:', error);
+    
+    // Log additional error details for debugging
+    if (error instanceof Error) {
+      console.error('Error name:', error.name);
+      console.error('Error message:', error.message);
+    }
+    
     // If refresh fails, clear tokens to force re-authentication
     signOut();
     return false;
