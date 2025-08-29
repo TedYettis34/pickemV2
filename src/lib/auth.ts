@@ -265,12 +265,19 @@ export async function refreshTokens(): Promise<boolean> {
         if (awsError.name === 'NotAuthorizedException') {
           console.error('NotAuthorized details - likely causes:', {
             possibleCauses: [
-              'Refresh token expired (check Cognito settings)',
-              'Refresh token rotation conflict',
-              'User pool configuration issue',
-              'Token has been revoked'
+              'Refresh token expired (30 days max)',
+              'Token revoked by AWS (EnableTokenRevocation: true)',
+              'Multiple device login detected',
+              'Password changed elsewhere',
+              'Suspicious activity detected'
             ],
-            troubleshooting: 'Check AWS Cognito User Pool > App integration > App client settings'
+            tokenRevocationEnabled: true,
+            userPoolConfig: {
+              refreshTokenValidity: '30 days',
+              accessTokenValidity: '60 minutes', 
+              enableTokenRevocation: true
+            },
+            troubleshooting: 'User needs to sign in again - tokens cannot be recovered when revoked'
           });
         }
       }

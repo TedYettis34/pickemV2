@@ -120,6 +120,9 @@ resource "aws_cognito_user_pool_client" "pickem_user_pool_client" {
 
   # Prevent user existence errors
   prevent_user_existence_errors = "ENABLED"
+
+  # Disable token revocation to prevent refresh token invalidation
+  enable_token_revocation = false
 }
 
 # Cognito User Pool Domain

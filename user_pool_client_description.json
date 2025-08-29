@@ -1,0 +1,56 @@
+{
+    "UserPoolClient": {
+        "UserPoolId": "us-east-1_O5k2ADTro",
+        "ClientName": "pickem-dev-user-pool-client",
+        "ClientId": "77jac49eg6mm1a38tc8v233stv",
+        "LastModifiedDate": "2025-07-04T21:25:59.474000-05:00",
+        "CreationDate": "2025-06-29T16:18:40.872000-05:00",
+        "RefreshTokenValidity": 30,
+        "AccessTokenValidity": 60,
+        "IdTokenValidity": 60,
+        "TokenValidityUnits": {
+            "AccessToken": "minutes",
+            "IdToken": "minutes",
+            "RefreshToken": "days"
+        },
+        "ReadAttributes": [
+            "email",
+            "email_verified",
+            "preferred_username"
+        ],
+        "WriteAttributes": [
+            "email",
+            "preferred_username"
+        ],
+        "ExplicitAuthFlows": [
+            "ALLOW_REFRESH_TOKEN_AUTH",
+            "ALLOW_USER_PASSWORD_AUTH",
+            "ALLOW_USER_SRP_AUTH"
+        ],
+        "SupportedIdentityProviders": [
+            "COGNITO"
+        ],
+        "CallbackURLs": [
+            "http://localhost:3000/auth/callback",
+            "https://pickem-dev.example.com/auth/callback"
+        ],
+        "LogoutURLs": [
+            "http://localhost:3000/auth/logout",
+            "https://pickem-dev.example.com/auth/logout"
+        ],
+        "AllowedOAuthFlows": [
+            "code",
+            "implicit"
+        ],
+        "AllowedOAuthScopes": [
+            "email",
+            "openid",
+            "profile"
+        ],
+        "AllowedOAuthFlowsUserPoolClient": true,
+        "PreventUserExistenceErrors": "ENABLED",
+        "EnableTokenRevocation": true,
+        "EnablePropagateAdditionalUserContextData": false,
+        "AuthSessionValidity": 3
+    }
+}
