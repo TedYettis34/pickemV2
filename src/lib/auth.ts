@@ -112,13 +112,30 @@ export function signOut() {
   localStorage.removeItem('refreshToken');
 }
 
+// Global variable to track refresh promise and prevent race conditions
+let refreshPromise: Promise<boolean> | null = null;
+
 export async function refreshTokens(): Promise<boolean> {
+  // If a refresh is already in progress, return that promise
+  if (refreshPromise) {
+    console.log('Refresh already in progress, waiting for existing promise');
+    return refreshPromise;
+  }
+
   const refreshToken = localStorage.getItem('refreshToken');
   
   if (!refreshToken) {
     console.warn('No refresh token available');
     return false;
   }
+
+  console.log('Starting new token refresh:', {
+    refreshTokenLength: refreshToken.length,
+    refreshTokenStart: refreshToken.substring(0, 20),
+    timestamp: new Date().toISOString(),
+    clientId: CLIENT_ID?.substring(0, 10) + '...',
+    userAgent: navigator?.userAgent?.substring(0, 50) || 'unknown'
+  });
 
   const command = new InitiateAuthCommand({
     ClientId: CLIENT_ID,
@@ -128,48 +145,121 @@ export async function refreshTokens(): Promise<boolean> {
     },
   });
 
-  try {
-    console.log('Attempting token refresh with InitiateAuth...');
-    const response = await client.send(command);
-
-    console.log('Refresh response received:', {
-      hasAccessToken: !!response.AuthenticationResult?.AccessToken,
-      hasIdToken: !!response.AuthenticationResult?.IdToken,
-      hasNewRefreshToken: !!response.AuthenticationResult?.RefreshToken,
-    });
-
-    if (response.AuthenticationResult?.AccessToken) {
-      // Update tokens in localStorage
-      localStorage.setItem('accessToken', response.AuthenticationResult.AccessToken);
-      localStorage.setItem('idToken', response.AuthenticationResult.IdToken || '');
+  // Create and store the refresh promise
+  refreshPromise = (async () => {
+    try {
+      console.log('Sending InitiateAuth request to Cognito...', {
+        authFlow: 'REFRESH_TOKEN_AUTH',
+        timestamp: new Date().toISOString(),
+        region: process.env.NEXT_PUBLIC_AWS_REGION
+      });
       
-      // Handle refresh token rotation
-      if (response.AuthenticationResult.RefreshToken) {
-        console.log('Updating refresh token (rotation detected)');
-        localStorage.setItem('refreshToken', response.AuthenticationResult.RefreshToken);
+      const response = await client.send(command);
+
+      console.log('Refresh response received:', {
+        hasAccessToken: !!response.AuthenticationResult?.AccessToken,
+        hasIdToken: !!response.AuthenticationResult?.IdToken,
+        hasNewRefreshToken: !!response.AuthenticationResult?.RefreshToken,
+        timestamp: new Date().toISOString(),
+        requestId: response.$metadata?.requestId,
+        httpStatusCode: response.$metadata?.httpStatusCode,
+        attempts: response.$metadata?.attempts,
+        cfId: response.$metadata?.cfId
+      });
+
+      if (response.AuthenticationResult?.AccessToken) {
+        // Update tokens in localStorage
+        localStorage.setItem('accessToken', response.AuthenticationResult.AccessToken);
+        localStorage.setItem('idToken', response.AuthenticationResult.IdToken || '');
+        
+        // Handle refresh token rotation
+        if (response.AuthenticationResult.RefreshToken) {
+          const oldTokenStart = refreshToken.substring(0, 20);
+          const newTokenStart = response.AuthenticationResult.RefreshToken.substring(0, 20);
+          console.log('Updating refresh token (rotation detected):', {
+            oldTokenStart,
+            newTokenStart,
+            tokenChanged: oldTokenStart !== newTokenStart,
+            newTokenLength: response.AuthenticationResult.RefreshToken.length
+          });
+          localStorage.setItem('refreshToken', response.AuthenticationResult.RefreshToken);
+        } else {
+          console.log('No new refresh token returned, keeping existing one');
+        }
+        
+        console.log('Token refresh successful:', {
+          timestamp: new Date().toISOString(),
+          requestId: response.$metadata?.requestId
+        });
+        return true;
       } else {
-        console.log('No new refresh token returned, keeping existing one');
+        console.warn('No access token in refresh response');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error refreshing tokens:', error);
+      
+      // Enhanced logging for debugging AWS Cognito errors
+      if (error && typeof error === 'object') {
+        const awsError = error as Record<string, unknown> & { 
+          name?: string; 
+          message?: string; 
+          stack?: string; 
+          $metadata?: Record<string, unknown>;
+          $service?: Record<string, unknown>;
+          Code?: string;
+        };
+        
+        console.error('Detailed error information:', {
+          name: awsError.name,
+          message: awsError.message,
+          code: awsError.Code || awsError.$metadata?.httpStatusCode,
+          requestId: awsError.$metadata?.requestId,
+          httpStatusCode: awsError.$metadata?.httpStatusCode,
+          attempts: awsError.$metadata?.attempts,
+          totalRetryDelay: awsError.$metadata?.totalRetryDelay,
+          cfId: awsError.$metadata?.cfId,
+          extendedRequestId: awsError.$metadata?.extendedRequestId,
+          timestamp: new Date().toISOString(),
+          refreshTokenLength: localStorage.getItem('refreshToken')?.length || 'not found',
+          refreshTokenStart: localStorage.getItem('refreshToken')?.substring(0, 20) || 'not found',
+          userAgent: navigator?.userAgent?.substring(0, 100) || 'unknown'
+        });
+
+        // Log stack trace if available
+        if (awsError.stack) {
+          console.error('Error stack trace:', awsError.stack);
+        }
+
+        // Log specific AWS service errors
+        if (awsError.$service) {
+          console.error('AWS Service info:', awsError.$service);
+        }
+
+        // Check for common error types
+        if (awsError.name === 'NotAuthorizedException') {
+          console.error('NotAuthorized details - likely causes:', {
+            possibleCauses: [
+              'Refresh token expired (check Cognito settings)',
+              'Refresh token rotation conflict',
+              'User pool configuration issue',
+              'Token has been revoked'
+            ],
+            troubleshooting: 'Check AWS Cognito User Pool > App integration > App client settings'
+          });
+        }
       }
       
-      console.log('Token refresh successful');
-      return true;
-    } else {
-      console.warn('No access token in refresh response');
+      // If refresh fails, clear tokens to force re-authentication
+      signOut();
       return false;
+    } finally {
+      // Clear the refresh promise when done (success or failure)
+      refreshPromise = null;
     }
-  } catch (error) {
-    console.error('Error refreshing tokens:', error);
-    
-    // Log additional error details for debugging
-    if (error instanceof Error) {
-      console.error('Error name:', error.name);
-      console.error('Error message:', error.message);
-    }
-    
-    // If refresh fails, clear tokens to force re-authentication
-    signOut();
-    return false;
-  }
+  })();
+
+  return refreshPromise;
 }
 
 export function isAuthenticated(): boolean {
