@@ -44,9 +44,9 @@ resource "aws_cognito_user_pool" "pickem_user_pool" {
     enabled = var.environment == "prod"
   }
 
-  # Device configuration
+  # Device configuration - disable challenges to prevent refresh token issues
   device_configuration {
-    challenge_required_on_new_device      = true
+    challenge_required_on_new_device      = false
     device_only_remembered_on_user_prompt = false
   }
 
@@ -97,6 +97,9 @@ resource "aws_cognito_user_pool_client" "pickem_user_pool_client" {
     "ALLOW_USER_SRP_AUTH"
   ]
 
+  # Auth session validity - Max allowed is 15 minutes (was defaulting to 3 minutes!)
+  auth_session_validity = 15  # 15 minutes (maximum allowed)
+
   # Token validity
   access_token_validity  = 60    # 1 hour
   id_token_validity     = 60    # 1 hour
@@ -137,6 +140,6 @@ resource "aws_cognito_user_pool_domain" "pickem_domain" {
 resource "aws_cognito_user_group" "admin_group" {
   name         = "admin"
   user_pool_id = aws_cognito_user_pool.pickem_user_pool.id
-  description  = "Administrator group with full access to admin features"
+  description  = "Captains who can set up a week"
   precedence   = 1
 }
