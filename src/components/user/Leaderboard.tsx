@@ -52,11 +52,6 @@ export default function Leaderboard({ currentUserId }: LeaderboardProps) {
     return <span className="w-5 h-5 flex items-center justify-center text-sm font-medium text-gray-500 dark:text-gray-400">#{rank}</span>;
   };
 
-  const getRecordIcon = (wins: number, losses: number) => {
-    if (wins > losses) return <span className="text-green-500">↗</span>;
-    if (losses > wins) return <span className="text-red-500">↘</span>;
-    return <span className="text-gray-500">—</span>;
-  };
 
   const formatGamesBack = (gamesBack: number) => {
     if (gamesBack === 0) return '—';
@@ -119,7 +114,6 @@ export default function Leaderboard({ currentUserId }: LeaderboardProps) {
         <div className="space-y-3">
           {leaderboard.map((entry) => {
             const isCurrentUser = currentUserId && entry.userId === currentUserId;
-            const totalGames = entry.totalWins + entry.totalLosses;
 
             return (
               <div
@@ -151,9 +145,6 @@ export default function Leaderboard({ currentUserId }: LeaderboardProps) {
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 dark:text-gray-400">
-                        {entry.email}
-                      </p>
                     </div>
                   </div>
 
@@ -165,18 +156,6 @@ export default function Leaderboard({ currentUserId }: LeaderboardProps) {
                       </div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
                         Record
-                      </div>
-                    </div>
-
-                    <div className="text-center">
-                      <div className="flex items-center gap-1">
-                        {getRecordIcon(entry.totalWins, entry.totalLosses)}
-                        <span className="font-medium text-gray-900 dark:text-white">
-                          {totalGames > 0 ? `${entry.winPercentage}%` : '0%'}
-                        </span>
-                      </div>
-                      <div className="text-xs text-gray-500 dark:text-gray-400">
-                        Win %
                       </div>
                     </div>
 

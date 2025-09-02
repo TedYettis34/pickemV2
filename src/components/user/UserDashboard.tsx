@@ -871,10 +871,11 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
               {games.length > 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
                   <div className="border-b border-gray-200 dark:border-gray-700">
-                    <nav className="-mb-px flex">
+                    <div className="overflow-x-auto">
+                      <nav className="-mb-px flex min-w-max">
                       <button
                         onClick={() => setActiveTab('games')}
-                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${
+                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                           activeTab === 'games'
                             ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                             : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
@@ -884,7 +885,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                       </button>
                       <button
                         onClick={() => setActiveTab('review')}
-                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${(() => {
+                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${(() => {
                           const hasUnsubmittedPicks = (draftPicks.size > 0 || userPicks.some(pick => !pick.submitted)) && !hasSubmittedPicks;
                           
                           if (hasUnsubmittedPicks) {
@@ -907,7 +908,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                       </button>
                       <button
                         onClick={() => setActiveTab('browse')}
-                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${
+                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                           activeTab === 'browse'
                             ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                             : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
@@ -917,7 +918,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                       </button>
                       <button
                         onClick={() => setActiveTab('leaderboard')}
-                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${
+                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                           activeTab === 'leaderboard'
                             ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                             : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
@@ -925,7 +926,8 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                       >
                         Leaderboard
                       </button>
-                    </nav>
+                      </nav>
+                    </div>
                   </div>
                 </div>
               )}
