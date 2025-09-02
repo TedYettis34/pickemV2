@@ -31,7 +31,8 @@
       "Bash(terraform plan:*)",
       "Bash(brew services:*)",
       "Bash(claude code mcp list)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "Bash(npm run test:*)"
     ],
     "deny": []
   }
