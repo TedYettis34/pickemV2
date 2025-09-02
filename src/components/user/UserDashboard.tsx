@@ -7,6 +7,7 @@ import { Pick, PicksSummary, CreatePickInput, PickWithGame } from '../../types/p
 import { PickCard } from '../picks/PickCard';
 import { PicksReview } from '../picks/PicksReview';
 import { AllPicksBrowser } from '../picks/AllPicksBrowser';
+import Leaderboard from './Leaderboard';
 import { getCurrentUserContext, getAuthHeaders } from '../../lib/userAuth';
 
 interface UserDashboardProps {
@@ -32,7 +33,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
   const [error, setError] = useState<string | null>(null);
   const [oddsStatus, setOddsStatus] = useState<OddsStatus | null>(null);
   const [submittingPicks, setSubmittingPicks] = useState(false);
-  const [activeTab, setActiveTab] = useState<'games' | 'review' | 'browse'>('games');
+  const [activeTab, setActiveTab] = useState<'games' | 'review' | 'browse' | 'leaderboard'>('games');
   const [attemptedDeletes, setAttemptedDeletes] = useState<Set<number>>(new Set());
 
   useEffect(() => {
@@ -914,6 +915,16 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                       >
                         Browse All Picks
                       </button>
+                      <button
+                        onClick={() => setActiveTab('leaderboard')}
+                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors ${
+                          activeTab === 'leaderboard'
+                            ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+                        }`}
+                      >
+                        Leaderboard
+                      </button>
                     </nav>
                   </div>
                 </div>
@@ -1021,6 +1032,10 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
 
                   {activeTab === 'browse' && (
                     <AllPicksBrowser weekId={activeWeek?.id} />
+                  )}
+
+                  {activeTab === 'leaderboard' && (
+                    <Leaderboard currentUserId={getCurrentUserContext()?.userId} />
                   )}
                 </>
               )}
