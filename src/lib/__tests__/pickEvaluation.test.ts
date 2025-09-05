@@ -131,6 +131,31 @@ describe('pickEvaluation', () => {
         const result = evaluatePick(pick, 21, 17); // Away loses by 4, away spread was +3
         expect(result).toBe('loss');
       });
+
+      // Regression tests for Cowboys +8.5 bug - large underdog spreads
+      test('Away large underdog (+8.5) loses by less than spread - should WIN', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -8.5 };
+        const result = evaluatePick(pick, 17, 10); // Away loses by 7, spread was +8.5
+        expect(result).toBe('win'); // Cowboys covered +8.5 by losing less than 8.5
+      });
+
+      test('Away large underdog (+8.5) loses by more than spread - should LOSE', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -8.5 };
+        const result = evaluatePick(pick, 30, 20); // Away loses by 10, spread was +8.5
+        expect(result).toBe('loss'); // Did not cover +8.5
+      });
+
+      test('Away large underdog (+8.5) wins outright - should WIN', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -8.5 };
+        const result = evaluatePick(pick, 20, 24); // Away wins by 4, spread was +8.5
+        expect(result).toBe('win'); // Covered by winning outright
+      });
+
+      test('Away large underdog (+10.5) loses by exactly 10.5 - should PUSH', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -10.5 };
+        const result = evaluatePick(pick, 30.5, 20); // Away loses by 10.5, spread was +10.5
+        expect(result).toBe('push'); // Exact match = push
+      });
     });
 
     test('Throws error when spread value is null', () => {
