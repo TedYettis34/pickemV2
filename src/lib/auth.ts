@@ -27,6 +27,9 @@ if (typeof window !== 'undefined' && CLIENT_ID) {
   } else {
     console.log('⚠️ Using unknown client ID');
   }
+
+  // Automatic cleanup of stale tokens from old client ID
+  detectAndClearStaleTokens();
 }
 
 export async function signUp(email: string, password: string, name: string) {
@@ -294,6 +297,9 @@ export async function refreshTokens(): Promise<boolean> {
         }
       }
       
+      // Track refresh failures for stale token detection
+      localStorage.setItem('lastRefreshFailure', new Date().toISOString());
+      
       // If refresh fails, clear tokens to force re-authentication
       signOut();
       return false;
@@ -309,4 +315,99 @@ export async function refreshTokens(): Promise<boolean> {
 export function isAuthenticated(): boolean {
   if (typeof window === 'undefined') return false;
   return !!localStorage.getItem('accessToken');
+}
+
+/**
+ * Detect and automatically clear tokens that were issued by the old client ID
+ * This prevents "Invalid Refresh Token" errors when the client ID changed
+ */
+function detectAndClearStaleTokens(): void {
+  if (typeof window === 'undefined') return;
+  
+  const refreshToken = localStorage.getItem('refreshToken');
+  const accessToken = localStorage.getItem('accessToken');
+  
+  if (!refreshToken && !accessToken) {
+    // No tokens to check
+    return;
+  }
+  
+  // Check if we can decode the tokens to inspect their client ID
+  // Cognito tokens are JWTs with client ID in the payload
+  let shouldClearTokens = false;
+  let detectionMethod = '';
+  
+  try {
+    if (accessToken) {
+      // Parse JWT payload (second part of JWT, base64 decoded)
+      const tokenParts = accessToken.split('.');
+      if (tokenParts.length === 3) {
+        const payload = JSON.parse(atob(tokenParts[1]));
+        const tokenClientId = payload.client_id || payload.aud;
+        
+        console.log('🔍 Token analysis:', {
+          tokenClientId: tokenClientId?.substring(0, 10) + '...',
+          currentClientId: CLIENT_ID?.substring(0, 10) + '...',
+          tokensMatch: tokenClientId === CLIENT_ID
+        });
+        
+        if (tokenClientId && tokenClientId !== CLIENT_ID) {
+          shouldClearTokens = true;
+          detectionMethod = 'client_id_mismatch';
+          console.warn('⚠️ Stale tokens detected: Client ID mismatch');
+          console.warn('Token client ID:', tokenClientId);
+          console.warn('Current client ID:', CLIENT_ID);
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Could not parse access token for client ID check:', error);
+    
+    // Fallback: Check for suspicious token patterns or known old client ID patterns
+    if (refreshToken && refreshToken.includes('77jac49eg6pt81jv9mjglmo9hj')) {
+      shouldClearTokens = true;
+      detectionMethod = 'old_client_pattern';
+      console.warn('⚠️ Stale tokens detected: Old client ID pattern in refresh token');
+    }
+  }
+  
+  // Additional heuristic: Check for refresh token failures in recent history
+  const lastRefreshFailure = localStorage.getItem('lastRefreshFailure');
+  const lastLoginTime = localStorage.getItem('lastLoginTime');
+  
+  if (lastRefreshFailure && lastLoginTime) {
+    const failureTime = new Date(lastRefreshFailure);
+    const loginTime = new Date(lastLoginTime);
+    const hoursSinceLogin = (Date.now() - loginTime.getTime()) / (1000 * 60 * 60);
+    const hoursSinceFailure = (Date.now() - failureTime.getTime()) / (1000 * 60 * 60);
+    
+    // If tokens are relatively new (< 48 hours) but refresh is consistently failing
+    if (hoursSinceLogin < 48 && hoursSinceFailure < 1) {
+      shouldClearTokens = true;
+      detectionMethod = 'recent_refresh_failures';
+      console.warn('⚠️ Stale tokens detected: Recent refresh failures with relatively new tokens');
+    }
+  }
+  
+  if (shouldClearTokens) {
+    console.log('🧨 Automatically clearing stale tokens to prevent refresh errors');
+    console.log('Detection method:', detectionMethod);
+    
+    // Clear all auth-related localStorage
+    signOut();
+    
+    // Clear additional tracking items
+    localStorage.removeItem('lastRefreshFailure');
+    
+    console.log('✅ Stale tokens cleared. User will need to log in again.');
+    
+    // Optional: Show a user-friendly message
+    if (typeof window !== 'undefined' && window.location) {
+      console.log('📱 Redirecting to login due to authentication update...');
+      // Force page reload to reset auth state
+      window.location.reload();
+    }
+  } else {
+    console.log('✅ Token validation passed - no stale tokens detected');
+  }
 }
