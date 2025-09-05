@@ -17,6 +17,18 @@ if (!CLIENT_ID && process.env.NODE_ENV !== 'test') {
   throw new Error('NEXT_PUBLIC_USER_POOL_CLIENT_ID environment variable is required');
 }
 
+// Debug logging to verify correct client ID in production
+if (typeof window !== 'undefined' && CLIENT_ID) {
+  console.log('🔑 Auth initialized with client ID:', CLIENT_ID.substring(0, 10) + '...');
+  if (CLIENT_ID === '77jac49eg6mm1a38tc8v233stv') {
+    console.log('✅ Using CORRECT client ID');
+  } else if (CLIENT_ID === '77jac49eg6pt81jv9mjglmo9hj') {
+    console.log('❌ Using OLD/INCORRECT client ID - this will cause refresh token errors!');
+  } else {
+    console.log('⚠️ Using unknown client ID');
+  }
+}
+
 export async function signUp(email: string, password: string, name: string) {
   const command = new SignUpCommand({
     ClientId: CLIENT_ID,
