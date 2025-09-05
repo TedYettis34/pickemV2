@@ -335,8 +335,8 @@ function forceTokenClearForRevocationFix(): void {
     const accessToken = localStorage.getItem('accessToken');
     
     if (refreshToken || accessToken) {
-      console.log('🔧 Clearing all tokens due to revocation configuration fix');
-      console.log('This is a one-time operation to ensure all users have fresh tokens');
+      console.log('🔧 Clearing all tokens due to refresh token issues');
+      console.log('This ensures all users get fresh tokens that work with current configuration');
       
       // Clear all auth-related data
       signOut();
@@ -355,7 +355,41 @@ function forceTokenClearForRevocationFix(): void {
     } else {
       // No tokens to clear, just mark as done
       localStorage.setItem('tokensClearedForRevocationFix', TOKEN_CLEAR_DATE);
-      console.log('ℹ️ No existing tokens to clear for revocation fix');
+      console.log('ℹ️ No existing tokens to clear for refresh fix');
+    }
+  }
+  
+  // Additional check: Force clear tokens that consistently fail refresh
+  // This catches tokens issued after the fix date but still problematic
+  const lastRefreshFailure = localStorage.getItem('lastRefreshFailure');
+  const lastLoginTime = localStorage.getItem('lastLoginTime');
+  
+  if (lastRefreshFailure && lastLoginTime) {
+    const failureTime = new Date(lastRefreshFailure);
+    const loginTime = new Date(lastLoginTime);
+    const hoursSinceFailure = (Date.now() - failureTime.getTime()) / (1000 * 60 * 60);
+    const hoursSinceLogin = (Date.now() - loginTime.getTime()) / (1000 * 60 * 60);
+    
+    // If tokens have failed refresh recently, clear them (be more aggressive)
+    if (hoursSinceFailure < 2) { // 2 hours window
+      console.log('🚨 Force clearing tokens due to recent refresh failures');
+      console.log('Token age:', Math.round(hoursSinceLogin * 100) / 100, 'hours');
+      console.log('Last failure:', Math.round(hoursSinceFailure * 60), 'minutes ago');
+      console.log('This indicates the refresh token is invalid and needs to be replaced');
+      
+      signOut();
+      localStorage.removeItem('lastRefreshFailure');
+      
+      // Clear the marker to force re-clearing on next load
+      localStorage.removeItem('tokensClearedForRevocationFix');
+      
+      console.log('✅ Problematic tokens cleared. Please sign in again.');
+      
+      // Show user message or redirect for immediate failures
+      if (typeof window !== 'undefined' && window.location && hoursSinceFailure < 0.1) { // < 6 minutes
+        console.log('📱 Redirecting due to immediate refresh failure...');
+        window.location.href = '/';
+      }
     }
   }
 }
