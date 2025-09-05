@@ -28,6 +28,9 @@ if (typeof window !== 'undefined' && CLIENT_ID) {
     console.log('⚠️ Using unknown client ID');
   }
 
+  // Force clear all tokens issued before token revocation fix (2025-09-05)
+  forceTokenClearForRevocationFix();
+
   // Automatic cleanup of stale tokens from old client ID
   detectAndClearStaleTokens();
 }
@@ -315,6 +318,46 @@ export async function refreshTokens(): Promise<boolean> {
 export function isAuthenticated(): boolean {
   if (typeof window === 'undefined') return false;
   return !!localStorage.getItem('accessToken');
+}
+
+/**
+ * Force clear all tokens issued before the revocation fix was applied
+ * This ensures all users get fresh tokens from the corrected configuration
+ */
+function forceTokenClearForRevocationFix(): void {
+  if (typeof window === 'undefined') return;
+
+  const TOKEN_CLEAR_DATE = '2025-09-05'; // Date when revocation fix was applied
+  const clearMarker = localStorage.getItem('tokensClearedForRevocationFix');
+  
+  if (!clearMarker || clearMarker !== TOKEN_CLEAR_DATE) {
+    const refreshToken = localStorage.getItem('refreshToken');
+    const accessToken = localStorage.getItem('accessToken');
+    
+    if (refreshToken || accessToken) {
+      console.log('🔧 Clearing all tokens due to revocation configuration fix');
+      console.log('This is a one-time operation to ensure all users have fresh tokens');
+      
+      // Clear all auth-related data
+      signOut();
+      localStorage.removeItem('lastRefreshFailure');
+      
+      // Mark that we've done this cleanup
+      localStorage.setItem('tokensClearedForRevocationFix', TOKEN_CLEAR_DATE);
+      
+      console.log('✅ Token cleanup complete. Please sign in again.');
+      
+      // Optional: Show user message or redirect
+      if (typeof window !== 'undefined' && window.location && window.location.pathname !== '/') {
+        console.log('📱 Redirecting to home page for fresh authentication...');
+        window.location.href = '/';
+      }
+    } else {
+      // No tokens to clear, just mark as done
+      localStorage.setItem('tokensClearedForRevocationFix', TOKEN_CLEAR_DATE);
+      console.log('ℹ️ No existing tokens to clear for revocation fix');
+    }
+  }
 }
 
 /**
