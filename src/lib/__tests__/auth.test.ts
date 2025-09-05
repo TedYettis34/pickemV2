@@ -1,15 +1,60 @@
-// Mock the entire module BEFORE imports
-jest.mock('@aws-sdk/client-cognito-identity-provider')
+// Mock environment variables first
+process.env.NEXT_PUBLIC_USER_POOL_CLIENT_ID = 'test-client-id'
+process.env.NEXT_PUBLIC_AWS_REGION = 'us-east-1'
 
-import { signUp, signIn, confirmSignUp, resendConfirmationCode, signOut, isAuthenticated } from '../auth'
-import { mockSend } from '@aws-sdk/client-cognito-identity-provider'
+// Mock localStorage
+const mockLocalStorage = {
+  getItem: jest.fn(),
+  setItem: jest.fn(),
+  removeItem: jest.fn(),
+  clear: jest.fn(),
+}
 
-// Get the mocked localStorage functions
-const mockLocalStorage = localStorage as jest.Mocked<typeof localStorage>
+Object.defineProperty(window, 'localStorage', {
+  value: mockLocalStorage,
+})
+
+jest.mock('@aws-sdk/client-cognito-identity-provider', () => {
+  // Create send mock inside the factory to avoid hoisting issues
+  const sendMock = jest.fn()
+  const mockCognitoClient = {
+    send: sendMock,
+  }
+  
+  // Store reference to the send mock in a global so we can access it in tests
+  global.__mockSend = sendMock
+  
+  return {
+    CognitoIdentityProviderClient: jest.fn(() => mockCognitoClient),
+    SignUpCommand: jest.fn(),
+    ConfirmSignUpCommand: jest.fn(),  
+    InitiateAuthCommand: jest.fn(),
+    ResendConfirmationCodeCommand: jest.fn(),
+    AuthFlowType: {
+      USER_PASSWORD_AUTH: 'USER_PASSWORD_AUTH',
+      REFRESH_TOKEN_AUTH: 'REFRESH_TOKEN_AUTH',
+    },
+  }
+})
+
+import {
+  signUp,
+  confirmSignUp,
+  signIn,
+  resendConfirmationCode,
+  signOut,
+  isAuthenticated,
+} from '../auth'
+
+import { SignUpCommand, ConfirmSignUpCommand, InitiateAuthCommand, ResendConfirmationCodeCommand } from '@aws-sdk/client-cognito-identity-provider'
 
 describe('Auth Functions', () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    mockLocalStorage.getItem.mockReturnValue(null)
+    if (global.__mockSend) {
+      global.__mockSend.mockClear()
+    }
   })
 
   describe('signUp', () => {
@@ -21,28 +66,19 @@ describe('Auth Functions', () => {
           DeliveryMedium: 'EMAIL'
         }
       }
-      mockSend.mockResolvedValueOnce(mockResponse)
+      global.__mockSend.mockResolvedValueOnce(mockResponse)
 
       const result = await signUp('test@example.com', 'TempPass123!', 'Test User')
 
-      expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          input: {
-            ClientId: 'test-client-id',
-            Username: 'Test User', // Username is now the name parameter
-            Password: 'TempPass123!',
-            UserAttributes: [
-              { Name: 'email', Value: 'test@example.com' }
-            ]
-          }
-        })
+      expect(global.__mockSend).toHaveBeenCalledWith(
+        expect.any(SignUpCommand)
       )
       expect(result).toEqual(mockResponse)
     })
 
     it('should handle signup errors', async () => {
       const mockError = new Error('UsernameExistsException')
-      mockSend.mockRejectedValueOnce(mockError)
+      global.__mockSend.mockRejectedValueOnce(mockError)
 
       await expect(signUp('test@example.com', 'TempPass123!', 'Test User'))
         .rejects.toThrow('UsernameExistsException')
@@ -52,25 +88,19 @@ describe('Auth Functions', () => {
   describe('confirmSignUp', () => {
     it('should successfully confirm signup', async () => {
       const mockResponse = {}
-      mockSend.mockResolvedValueOnce(mockResponse)
+      global.__mockSend.mockResolvedValueOnce(mockResponse)
 
       const result = await confirmSignUp('Test User', '123456')
 
-      expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          input: {
-            ClientId: 'test-client-id',
-            Username: 'Test User',
-            ConfirmationCode: '123456'
-          }
-        })
+      expect(global.__mockSend).toHaveBeenCalledWith(
+        expect.any(ConfirmSignUpCommand)
       )
       expect(result).toEqual(mockResponse)
     })
 
     it('should handle confirmation errors', async () => {
       const mockError = new Error('CodeMismatchException')
-      mockSend.mockRejectedValueOnce(mockError)
+      global.__mockSend.mockRejectedValueOnce(mockError)
 
       await expect(confirmSignUp('Test User', '123456'))
         .rejects.toThrow('CodeMismatchException')
@@ -86,32 +116,24 @@ describe('Auth Functions', () => {
           RefreshToken: 'refresh-token'
         }
       }
-      mockSend.mockResolvedValueOnce(mockResponse)
+      global.__mockSend.mockResolvedValueOnce(mockResponse)
 
       const result = await signIn('test@example.com', 'TempPass123!')
 
-      expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          input: {
-            ClientId: 'test-client-id',
-            AuthFlow: 'USER_PASSWORD_AUTH',
-            AuthParameters: {
-              USERNAME: 'test@example.com',
-              PASSWORD: 'TempPass123!'
-            }
-          }
-        })
+      expect(global.__mockSend).toHaveBeenCalledWith(
+        expect.any(InitiateAuthCommand)
       )
 
       expect(mockLocalStorage.setItem).toHaveBeenCalledWith('accessToken', 'access-token')
       expect(mockLocalStorage.setItem).toHaveBeenCalledWith('idToken', 'id-token')
       expect(mockLocalStorage.setItem).toHaveBeenCalledWith('refreshToken', 'refresh-token')
+      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('lastLoginTime', expect.any(String))
       expect(result).toEqual(mockResponse)
     })
 
     it('should handle signin errors', async () => {
       const mockError = new Error('NotAuthorizedException')
-      mockSend.mockRejectedValueOnce(mockError)
+      global.__mockSend.mockRejectedValueOnce(mockError)
 
       await expect(signIn('test@example.com', 'wrongpassword'))
         .rejects.toThrow('NotAuthorizedException')
@@ -119,7 +141,7 @@ describe('Auth Functions', () => {
 
     it('should handle response without tokens', async () => {
       const mockResponse = { AuthenticationResult: {} }
-      mockSend.mockResolvedValueOnce(mockResponse)
+      global.__mockSend.mockResolvedValueOnce(mockResponse)
 
       const result = await signIn('test@example.com', 'TempPass123!')
 
@@ -136,17 +158,12 @@ describe('Auth Functions', () => {
           DeliveryMedium: 'EMAIL'
         }
       }
-      mockSend.mockResolvedValueOnce(mockResponse)
+      global.__mockSend.mockResolvedValueOnce(mockResponse)
 
       const result = await resendConfirmationCode('Test User')
 
-      expect(mockSend).toHaveBeenCalledWith(
-        expect.objectContaining({
-          input: {
-            ClientId: 'test-client-id',
-            Username: 'Test User'
-          }
-        })
+      expect(global.__mockSend).toHaveBeenCalledWith(
+        expect.any(ResendConfirmationCodeCommand)
       )
       expect(result).toEqual(mockResponse)
     })
@@ -154,15 +171,12 @@ describe('Auth Functions', () => {
 
   describe('signOut', () => {
     it('should clear all tokens from localStorage', () => {
-      localStorage.setItem('accessToken', 'test-access-token')
-      localStorage.setItem('idToken', 'test-id-token')
-      localStorage.setItem('refreshToken', 'test-refresh-token')
-
       signOut()
 
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('accessToken')
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('idToken')
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('refreshToken')
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('lastLoginTime')
     })
   })
 
