@@ -63,24 +63,18 @@ export function evaluatePick(
     // User picked the away team with the spread
     // Away team needs to "cover" the spread
     
-    // Away spread is the opposite of home spread
-    const awaySpread = -spread;
+    // For away team picks, we evaluate from the away team's perspective
+    // The spread value represents the home team's spread, so:
+    // - If spread is negative, home team is favored (away team gets points)
+    // - If spread is positive, home team is underdog (away team is favored)
+    
     const awayActualMargin = -actualMargin; // Away team's margin from their perspective
     
-    if (awaySpread < 0) {
-      // Away team is favored (negative spread)
-      const requiredMargin = Math.abs(awaySpread);
-      
-      if (awayActualMargin > requiredMargin) {
-        return 'win';
-      } else if (awayActualMargin === requiredMargin) {
-        return 'push';
-      } else {
-        return 'loss';
-      }
-    } else if (awaySpread > 0) {
-      // Away team is underdog (positive spread)
-      const allowedMargin = -awaySpread;
+    if (spread < 0) {
+      // Home team is favored, away team is underdog getting points
+      // Away team wins if they lose by less than abs(spread) or win outright
+      const pointsReceived = Math.abs(spread);
+      const allowedMargin = -pointsReceived; // Negative because they can lose
       
       if (awayActualMargin > allowedMargin) {
         return 'win';
@@ -89,8 +83,20 @@ export function evaluatePick(
       } else {
         return 'loss';
       }
+    } else if (spread > 0) {
+      // Home team is underdog, away team is favored
+      // Away team must win by more than the spread
+      const requiredMargin = spread;
+      
+      if (awayActualMargin > requiredMargin) {
+        return 'win';
+      } else if (awayActualMargin === requiredMargin) {
+        return 'push';
+      } else {
+        return 'loss';
+      }
     } else {
-      // awaySpread === 0 (pick'em game)
+      // spread === 0 (pick'em game)
       if (awayActualMargin > 0) {
         return 'win';
       } else if (awayActualMargin === 0) {
