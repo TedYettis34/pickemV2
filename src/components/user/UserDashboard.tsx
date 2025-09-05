@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Week } from '../../types/week';
 import { Game } from '../../types/game';
 import { Pick, PicksSummary, CreatePickInput, PickWithGame } from '../../types/pick';
@@ -35,6 +35,9 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
   const [submittingPicks, setSubmittingPicks] = useState(false);
   const [activeTab, setActiveTab] = useState<'games' | 'review' | 'browse' | 'leaderboard'>('games');
   const [attemptedDeletes, setAttemptedDeletes] = useState<Set<number>>(new Set());
+  const [showLeftArrow, setShowLeftArrow] = useState(false);
+  const [showRightArrow, setShowRightArrow] = useState(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadActiveWeekAndGames();
@@ -52,6 +55,36 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
       }
     }
   }, [picksSummary]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Check scroll position and update arrow visibility
+  const checkScrollPosition = () => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    setShowLeftArrow(scrollLeft > 0);
+    setShowRightArrow(scrollLeft + clientWidth < scrollWidth);
+  };
+
+  // Check scroll position on mount and games change
+  useEffect(() => {
+    const timer = setTimeout(checkScrollPosition, 100); // Small delay to ensure rendering is complete
+    return () => clearTimeout(timer);
+  }, [games]);
+
+  // Add scroll event listener
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    container.addEventListener('scroll', checkScrollPosition);
+    window.addEventListener('resize', checkScrollPosition);
+
+    return () => {
+      container.removeEventListener('scroll', checkScrollPosition);
+      window.removeEventListener('resize', checkScrollPosition);
+    };
+  }, []);
 
   const loadActiveWeekAndGames = async () => {
     try {
@@ -871,8 +904,27 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
               {games.length > 0 && (
                 <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md">
                   <div className="border-b border-gray-200 dark:border-gray-700">
-                    <div className="overflow-x-auto">
-                      <nav className="-mb-px flex min-w-max">
+                    <div className="relative">
+                      {/* Left arrow */}
+                      {showLeftArrow && (
+                        <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center pointer-events-none">
+                          <div className="bg-gradient-to-r from-white dark:from-gray-800 to-transparent w-8 h-full flex items-center justify-start pl-1">
+                            <span className="text-gray-400 dark:text-gray-500 text-sm">‹</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Right arrow */}
+                      {showRightArrow && (
+                        <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center pointer-events-none">
+                          <div className="bg-gradient-to-l from-white dark:from-gray-800 to-transparent w-8 h-full flex items-center justify-end pr-1">
+                            <span className="text-gray-400 dark:text-gray-500 text-sm">›</span>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div ref={scrollContainerRef} className="overflow-x-auto overflow-y-hidden">
+                        <nav className="-mb-px flex min-w-max">
                       <button
                         onClick={() => setActiveTab('games')}
                         className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
@@ -926,7 +978,8 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                       >
                         Leaderboard
                       </button>
-                      </nav>
+                        </nav>
+                      </div>
                     </div>
                   </div>
                 </div>
