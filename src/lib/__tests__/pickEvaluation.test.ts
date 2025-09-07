@@ -90,71 +90,115 @@ describe('pickEvaluation', () => {
     });
 
     describe('Away team spread picks', () => {
-      test('Away favorite (home +3) wins by more than spread', () => {
-        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 3 };
-        const result = evaluatePick(pick, 17, 21); // Away wins by 4, away spread was -3
+      test('Away favorite (-3) wins by more than spread', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -3 };
+        const result = evaluatePick(pick, 17, 21); // Away wins by 4, spread was -3
         expect(result).toBe('win');
       });
 
-      test('Away favorite (home +3) wins by exactly the spread', () => {
-        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 3 };
-        const result = evaluatePick(pick, 18, 21); // Away wins by 3, away spread was -3
+      test('Away favorite (-3) wins by exactly the spread', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -3 };
+        const result = evaluatePick(pick, 18, 21); // Away wins by 3, spread was -3
         expect(result).toBe('push');
       });
 
-      test('Away favorite (home +3) wins by less than spread', () => {
-        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 3 };
-        const result = evaluatePick(pick, 19, 21); // Away wins by 2, away spread was -3
+      test('Away favorite (-3) wins by less than spread', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -3 };
+        const result = evaluatePick(pick, 19, 21); // Away wins by 2, spread was -3
         expect(result).toBe('loss');
       });
 
-      test('Away underdog (home -3) wins outright', () => {
-        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -3 };
+      test('Away underdog (+3) wins outright', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 3 };
         const result = evaluatePick(pick, 17, 21); // Away wins by 4
         expect(result).toBe('win');
       });
 
-      test('Away underdog (home -3) loses by less than spread', () => {
-        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -3 };
-        const result = evaluatePick(pick, 21, 19); // Away loses by 2, away spread was +3
+      test('Away underdog (+3) loses by less than spread', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 3 };
+        const result = evaluatePick(pick, 21, 19); // Away loses by 2, spread was +3
         expect(result).toBe('win');
       });
 
-      test('Away underdog (home -3) loses by exactly the spread', () => {
-        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -3 };
-        const result = evaluatePick(pick, 21, 18); // Away loses by 3, away spread was +3
+      test('Away underdog (+3) loses by exactly the spread', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 3 };
+        const result = evaluatePick(pick, 21, 18); // Away loses by 3, spread was +3
         expect(result).toBe('push');
       });
 
-      test('Away underdog (home -3) loses by more than spread', () => {
-        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -3 };
-        const result = evaluatePick(pick, 21, 17); // Away loses by 4, away spread was +3
+      test('Away underdog (+3) loses by more than spread', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 3 };
+        const result = evaluatePick(pick, 21, 17); // Away loses by 4, spread was +3
         expect(result).toBe('loss');
       });
 
       // Regression tests for Cowboys +8.5 bug - large underdog spreads
       test('Away large underdog (+8.5) loses by less than spread - should WIN', () => {
-        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -8.5 };
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 8.5 };
         const result = evaluatePick(pick, 17, 10); // Away loses by 7, spread was +8.5
         expect(result).toBe('win'); // Cowboys covered +8.5 by losing less than 8.5
       });
 
       test('Away large underdog (+8.5) loses by more than spread - should LOSE', () => {
-        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -8.5 };
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 8.5 };
         const result = evaluatePick(pick, 30, 20); // Away loses by 10, spread was +8.5
         expect(result).toBe('loss'); // Did not cover +8.5
       });
 
       test('Away large underdog (+8.5) wins outright - should WIN', () => {
-        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -8.5 };
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 8.5 };
         const result = evaluatePick(pick, 20, 24); // Away wins by 4, spread was +8.5
         expect(result).toBe('win'); // Covered by winning outright
       });
 
       test('Away large underdog (+10.5) loses by exactly 10.5 - should PUSH', () => {
-        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -10.5 };
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 10.5 };
         const result = evaluatePick(pick, 30.5, 20); // Away loses by 10.5, spread was +10.5
         expect(result).toBe('push'); // Exact match = push
+      });
+
+      // Regression test for Troy +32.5 vs Clemson bug - very large underdog spread
+      test('Away huge underdog (+32.5) loses by 11 - should WIN (Troy vs Clemson scenario)', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 32.5 };
+        const result = evaluatePick(pick, 27, 16); // Troy 16, Clemson 27 (Troy loses by 11, spread was +32.5)
+        expect(result).toBe('win'); // Troy covered +32.5 by losing less than 32.5
+      });
+
+      test('Away huge underdog (+32.5) loses by exactly 32.5 - should PUSH', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 32.5 };
+        const result = evaluatePick(pick, 52.5, 20); // Away loses by 32.5, spread was +32.5
+        expect(result).toBe('push'); // Exact match = push
+      });
+
+      test('Away huge underdog (+32.5) loses by more than spread - should LOSE', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: 32.5 };
+        const result = evaluatePick(pick, 60, 20); // Away loses by 40, spread was +32.5
+        expect(result).toBe('loss'); // Did not cover +32.5
+      });
+
+      // Regression tests for Ole Miss -9.5 bug - away favorites laying points
+      test('Away favorite (-9.5) wins by more than spread - should WIN', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -9.5 };
+        const result = evaluatePick(pick, 20, 31); // Away wins by 11, spread was -9.5
+        expect(result).toBe('win'); // Covered -9.5 by winning by more than 9.5
+      });
+
+      test('Away favorite (-9.5) wins by less than spread - should LOSE', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -9.5 };
+        const result = evaluatePick(pick, 23, 30); // Away wins by 7, spread was -9.5  
+        expect(result).toBe('loss'); // Did not cover -9.5 (needed 10+)
+      });
+
+      test('Away favorite (-9.5) wins by exactly the spread - should PUSH', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -9.5 };
+        const result = evaluatePick(pick, 20, 29.5); // Away wins by 9.5, spread was -9.5
+        expect(result).toBe('push'); // Exact match = push
+      });
+
+      test('Away favorite (-9.5) loses outright - should LOSE', () => {
+        const pick = { ...basePick, pick_type: 'away_spread' as const, spread_value: -9.5 };
+        const result = evaluatePick(pick, 30, 25); // Away loses by 5, spread was -9.5
+        expect(result).toBe('loss'); // Lost outright, didn't cover
       });
     });
 
