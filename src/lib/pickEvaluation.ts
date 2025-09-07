@@ -64,33 +64,32 @@ export function evaluatePick(
     // Away team needs to "cover" the spread
     
     // For away team picks, we evaluate from the away team's perspective
-    // The spread value represents the home team's spread, so:
-    // - If spread is negative, home team is favored (away team gets points)
-    // - If spread is positive, home team is underdog (away team is favored)
+    // The spread value represents what the away team is laying or getting:
+    // - If spread is negative, away team is laying points (favorite)
+    // - If spread is positive, away team is getting points (underdog)
     
     const awayActualMargin = -actualMargin; // Away team's margin from their perspective
     
     if (spread < 0) {
-      // Home team is favored, away team is underdog getting points
-      // Away team wins if they lose by less than abs(spread) or win outright
-      const pointsReceived = Math.abs(spread);
-      const allowedMargin = -pointsReceived; // Negative because they can lose
+      // Away team is laying points (favorite)
+      // Away team must win by MORE than the absolute value of the spread
+      const requiredMargin = Math.abs(spread);
       
-      if (awayActualMargin > allowedMargin) {
+      if (awayActualMargin > requiredMargin) {
         return 'win';
-      } else if (awayActualMargin === allowedMargin) {
+      } else if (awayActualMargin === requiredMargin) {
         return 'push';
       } else {
         return 'loss';
       }
     } else if (spread > 0) {
-      // Home team is underdog, away team is favored
-      // Away team must win by more than the spread
-      const requiredMargin = spread;
+      // Away team is getting points (underdog)
+      // Away team wins if they lose by less than the spread or win outright
+      const allowedMargin = -spread; // Negative because they can lose
       
-      if (awayActualMargin > requiredMargin) {
+      if (awayActualMargin > allowedMargin) {
         return 'win';
-      } else if (awayActualMargin === requiredMargin) {
+      } else if (awayActualMargin === allowedMargin) {
         return 'push';
       } else {
         return 'loss';
