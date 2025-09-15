@@ -8,7 +8,25 @@ interface AuthFormProps {
 
 const CLIENT_ID = process.env.NEXT_PUBLIC_USER_POOL_CLIENT_ID;
 const COGNITO_DOMAIN = 'https://pickem-dev-auth.auth.us-east-1.amazoncognito.com';
-const REDIRECT_URI = typeof window !== 'undefined' ? `${window.location.origin}/auth/callback` : 'http://localhost:3000/auth/callback';
+
+// Function to get the appropriate redirect URI based on environment
+const getRedirectURI = () => {
+  if (typeof window === 'undefined') {
+    return 'http://localhost:3000/auth/callback';
+  }
+  
+  const origin = window.location.origin;
+  
+  // For Vercel preview deployments, we need to ensure Cognito is configured for this domain
+  if (origin.includes('.vercel.app')) {
+    console.warn('⚠️ Vercel preview detected:', origin);
+    console.warn('⚠️ Ensure this callback URL is configured in AWS Cognito:', `${origin}/auth/callback`);
+  }
+  
+  return `${origin}/auth/callback`;
+};
+
+const REDIRECT_URI = getRedirectURI();
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export default function AuthForm({ onAuthSuccess: _onAuthSuccess }: AuthFormProps) {
@@ -208,6 +226,19 @@ export default function AuthForm({ onAuthSuccess: _onAuthSuccess }: AuthFormProp
         {error && (
           <div className="text-red-600 dark:text-red-400 text-sm text-center">
             {error}
+          </div>
+        )}
+        {typeof window !== 'undefined' && window.location.origin.includes('.vercel.app') && (
+          <div className="bg-yellow-50 dark:bg-yellow-900 border border-yellow-200 dark:border-yellow-700 rounded-md p-3 text-sm">
+            <div className="text-yellow-800 dark:text-yellow-200 font-medium mb-1">
+              ⚠️ Vercel Preview Deployment
+            </div>
+            <div className="text-yellow-700 dark:text-yellow-300">
+              This preview URL needs to be added to AWS Cognito callback URLs:
+              <code className="block bg-yellow-100 dark:bg-yellow-800 px-2 py-1 rounded mt-1 text-xs font-mono break-all">
+                {window.location.origin}/auth/callback
+              </code>
+            </div>
           </div>
         )}
         <button
