@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cognito Hosted UI Login</title>
+</head>
+<body>
+    <h2>Test Cognito Hosted UI Login</h2>
+    
+    <button onclick="loginWithHostedUI()">Login with Cognito Hosted UI</button>
+    
+    <script>
+    function loginWithHostedUI() {
+        const cognitoDomain = 'https://pickem-dev-auth.auth.us-east-1.amazoncognito.com';
+        const clientId = '77jac49eg6mm1a38tc8v233stv';
+        const redirectUri = 'http://localhost:3000/auth/callback';
+        
+        const loginUrl = `${cognitoDomain}/login?client_id=${clientId}&response_type=code&scope=email+openid+profile&redirect_uri=${encodeURIComponent(redirectUri)}`;
+        
+        window.location.href = loginUrl;
+    }
+    </script>
+    
+    <div style="margin-top: 20px; padding: 10px; background: #f0f0f0;">
+        <h3>What this does:</h3>
+        <p>1. Redirects to: <strong>pickem-dev-auth.auth.us-east-1.amazoncognito.com</strong></p>
+        <p>2. User logs in with Cognito's form</p>
+        <p>3. Cognito redirects back to: <strong>http://localhost:3000/auth/callback</strong></p>
+        <p>4. Your app exchanges the code for tokens (including working refresh tokens)</p>
+    </div>
+</body>
+</html>

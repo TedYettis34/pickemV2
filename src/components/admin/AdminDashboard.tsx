@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
-import { signOut } from '../../lib/auth';
+import { logout } from '../../lib/auth';
 import { WeekManagement } from './WeekManagement';
 import { GameResults } from './GameResults';
 
@@ -16,7 +16,7 @@ export default function AdminDashboard({ onBackToDashboard }: AdminDashboardProp
   const [updatingScores, setUpdatingScores] = useState(false);
 
   const handleSignOut = () => {
-    signOut();
+    logout();
     window.location.reload(); // Refresh to show login page
   };
 

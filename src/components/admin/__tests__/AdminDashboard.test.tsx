@@ -8,7 +8,7 @@ jest.mock('../../../hooks/useAdminAuth', () => ({
 }));
 
 jest.mock('../../../lib/auth', () => ({
-  signOut: jest.fn(),
+  logout: jest.fn(),
 }));
 
 // Mock the WeekManagement component
@@ -17,10 +17,10 @@ jest.mock('../WeekManagement', () => ({
 }));
 
 import { useAdminAuth } from '../../../hooks/useAdminAuth';
-import { signOut } from '../../../lib/auth';
+import { logout } from '../../../lib/auth';
 
 const mockUseAdminAuth = useAdminAuth as jest.MockedFunction<typeof useAdminAuth>;
-const mockSignOut = signOut as jest.MockedFunction<typeof signOut>;
+const mockLogout = logout as jest.MockedFunction<typeof logout>;
 
 describe('AdminDashboard', () => {
   const mockOnBackToDashboard = jest.fn();
@@ -148,7 +148,7 @@ describe('AdminDashboard', () => {
     expect(weeksTab).toHaveClass('border-transparent');
   });
 
-  it('should call signOut when sign out button is clicked', async () => {
+  it('should call logout when sign out button is clicked', async () => {
     const user = userEvent.setup();
 
     mockUseAdminAuth.mockReturnValue({
@@ -161,7 +161,7 @@ describe('AdminDashboard', () => {
     const signOutButton = screen.getByRole('button', { name: 'Sign Out' });
     await user.click(signOutButton);
 
-    expect(mockSignOut).toHaveBeenCalledTimes(1);
+    expect(mockLogout).toHaveBeenCalledTimes(1);
     // Note: window.location.reload() is called but hard to test in JSDOM
   });
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import AuthForm from '../components/auth/AuthForm';
 import AdminDashboard from '../components/admin/AdminDashboard';
 import { UserDashboard } from '../components/user/UserDashboard';
-import { isAuthenticated, signOut } from '../lib/auth';
+import { isAuthenticated, logout } from '../lib/auth';
 import { useAdminAuth } from '../hooks/useAdminAuth';
 import { authEventEmitter } from '../lib/adminAuth';
 
@@ -50,7 +50,7 @@ export default function Home() {
   };
 
   const handleSignOut = () => {
-    signOut();
+    logout();
     setAuthenticated(false);
     setShowAdminDashboard(false);
     setAuthMessage(null);
