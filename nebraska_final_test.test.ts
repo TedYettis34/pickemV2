@@ -39,7 +39,24 @@ describe('Nebraska Spread Evaluation - Final Validation', () => {
 
     // Cincinnati (home) 17, Nebraska (away) 20
     // Nebraska won by 3, but needed to win by MORE than 6.5
-    const result = evaluatePick(pick, 17, 20);
+    const homeScore = 17;
+    const awayScore = 20;
+    
+    // Debug logging for CI
+    console.log('=== NEBRASKA DEBUG INFO ===');
+    console.log('homeScore:', homeScore);
+    console.log('awayScore:', awayScore);
+    console.log('spread_value:', pick.spread_value);
+    console.log('actualMargin (home - away):', homeScore - awayScore);
+    console.log('awayActualMargin (-(home - away)):', -(homeScore - awayScore));
+    console.log('Node version:', process.version);
+    
+    const result = evaluatePick(pick, homeScore, awayScore);
+    
+    console.log('RESULT:', result);
+    console.log('EXPECTED: loss');
+    console.log('STATUS:', result === 'loss' ? 'PASS' : 'FAIL');
+    console.log('========================');
     
     expect(result).toBe('loss');
   });
