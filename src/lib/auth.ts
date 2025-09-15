@@ -213,30 +213,30 @@ export async function refreshTokensAlternative(): Promise<boolean> {
       const response = await client.send(command);
 
       console.log('Alternative refresh response received:', {
-        hasAccessToken: !!response.AccessToken,
-        hasIdToken: !!response.IdToken,
-        hasNewRefreshToken: !!response.RefreshToken,
+        hasAccessToken: !!response.AuthenticationResult?.AccessToken,
+        hasIdToken: !!response.AuthenticationResult?.IdToken,
+        hasNewRefreshToken: !!response.AuthenticationResult?.RefreshToken,
         timestamp: new Date().toISOString(),
         requestId: response.$metadata?.requestId,
         httpStatusCode: response.$metadata?.httpStatusCode,
       });
 
-      if (response.AccessToken) {
+      if (response.AuthenticationResult?.AccessToken) {
         // Update tokens in localStorage
-        localStorage.setItem('accessToken', response.AccessToken);
-        localStorage.setItem('idToken', response.IdToken || '');
+        localStorage.setItem('accessToken', response.AuthenticationResult.AccessToken);
+        localStorage.setItem('idToken', response.AuthenticationResult.IdToken || '');
 
         // Handle refresh token rotation
-        if (response.RefreshToken) {
+        if (response.AuthenticationResult.RefreshToken) {
           const oldTokenStart = refreshToken.substring(0, 20);
-          const newTokenStart = response.RefreshToken.substring(0, 20);
+          const newTokenStart = response.AuthenticationResult.RefreshToken.substring(0, 20);
           console.log('Updating refresh token (rotation detected):', {
             oldTokenStart,
             newTokenStart,
             tokenChanged: oldTokenStart !== newTokenStart,
-            newTokenLength: response.RefreshToken.length
+            newTokenLength: response.AuthenticationResult.RefreshToken.length
           });
-          localStorage.setItem('refreshToken', response.RefreshToken);
+          localStorage.setItem('refreshToken', response.AuthenticationResult.RefreshToken);
         } else {
           console.log('No new refresh token returned, keeping existing one');
         }
