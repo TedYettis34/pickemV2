@@ -2,6 +2,7 @@ import { evaluatePick } from './src/lib/pickEvaluation';
 import { Pick } from './src/types/pick';
 
 describe('Nebraska Spread Evaluation - Final Validation', () => {
+  // Updated to ensure GitHub Actions runs with latest pick evaluation logic
   // Test the exact scenario described in the GitHub issue
   test('Nebraska -6.5 home spread, won by 3, should be LOSS (exact issue scenario)', () => {
     const pick: Pick = {
