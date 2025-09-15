@@ -5,7 +5,7 @@ import Home from '../page';
 // Mock the auth functions
 jest.mock('../../lib/auth', () => ({
   isAuthenticated: jest.fn(),
-  signOut: jest.fn(),
+  logout: jest.fn(),
 }));
 
 // Mock the hooks
@@ -58,11 +58,11 @@ jest.mock('../../components/user/UserDashboard', () => ({
   },
 }));
 
-import { isAuthenticated, signOut } from '../../lib/auth';
+import { isAuthenticated, logout } from '../../lib/auth';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
 const mockIsAuthenticated = isAuthenticated as jest.MockedFunction<typeof isAuthenticated>;
-const mockSignOut = signOut as jest.MockedFunction<typeof signOut>;
+const mockLogout = logout as jest.MockedFunction<typeof logout>;
 const mockUseAdminAuth = useAdminAuth as jest.MockedFunction<typeof useAdminAuth>;
 
 describe('Home Page', () => {
@@ -210,7 +210,7 @@ describe('Home Page', () => {
     const signOutButton = screen.getByRole('button', { name: 'Sign Out' });
     await user.click(signOutButton);
 
-    expect(mockSignOut).toHaveBeenCalledTimes(1);
+    expect(mockLogout).toHaveBeenCalledTimes(1);
     
     // Should show auth form after sign out
     await waitFor(() => {

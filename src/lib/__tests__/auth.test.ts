@@ -38,145 +38,64 @@ jest.mock('@aws-sdk/client-cognito-identity-provider', () => {
 })
 
 import {
-  signUp,
-  confirmSignUp,
-  signIn,
-  resendConfirmationCode,
-  signOut,
+  buildOAuthSignInUrl,
+  buildOAuthSignUpUrl,
+  logout,
   isAuthenticated,
 } from '../auth'
 
-import { SignUpCommand, ConfirmSignUpCommand, InitiateAuthCommand, ResendConfirmationCodeCommand } from '@aws-sdk/client-cognito-identity-provider'
+// Cognito commands are mocked in the module mock above
 
-describe('Auth Functions', () => {
+// Mock fetch globally
+global.fetch = jest.fn()
+
+// Location mocking would be used for navigation tests
+describe('OAuth Auth Functions', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     mockLocalStorage.getItem.mockReturnValue(null)
-    if (global.__mockSend) {
-      global.__mockSend.mockClear()
-    }
+    ;(global.fetch as jest.MockedFunction<typeof fetch>).mockClear()
   })
 
-  describe('signUp', () => {
-    it('should successfully sign up a user', async () => {
-      const mockResponse = {
-        UserSub: 'test-user-id',
-        CodeDeliveryDetails: {
-          Destination: 'test@example.com',
-          DeliveryMedium: 'EMAIL'
-        }
-      }
-      global.__mockSend.mockResolvedValueOnce(mockResponse)
+  describe('buildOAuthSignInUrl', () => {
+    it('should build OAuth sign-in URL without email hint', () => {
+      const result = buildOAuthSignInUrl()
 
-      const result = await signUp('test@example.com', 'TempPass123!', 'Test User')
-
-      expect(global.__mockSend).toHaveBeenCalledWith(
-        expect.any(SignUpCommand)
-      )
-      expect(result).toEqual(mockResponse)
+      expect(result).toContain('https://pickem-dev-auth.auth.us-east-1.amazoncognito.com/oauth2/authorize')
+      expect(result).toContain('response_type=code')
+      expect(result).toContain('client_id=test-client-id')
+      expect(result).toContain('scope=email+openid+profile')
+      expect(result).toContain('redirect_uri=http%3A%2F%2Flocalhost%2Fauth%2Fcallback')
     })
 
-    it('should handle signup errors', async () => {
-      const mockError = new Error('UsernameExistsException')
-      global.__mockSend.mockRejectedValueOnce(mockError)
+    it('should build OAuth sign-in URL with email hint', () => {
+      const result = buildOAuthSignInUrl('test@example.com')
 
-      await expect(signUp('test@example.com', 'TempPass123!', 'Test User'))
-        .rejects.toThrow('UsernameExistsException')
+      expect(result).toContain('login_hint=test%40example.com')
     })
   })
 
-  describe('confirmSignUp', () => {
-    it('should successfully confirm signup', async () => {
-      const mockResponse = {}
-      global.__mockSend.mockResolvedValueOnce(mockResponse)
+  describe('buildOAuthSignUpUrl', () => {
+    it('should build OAuth sign-up URL with signup parameter', () => {
+      const result = buildOAuthSignUpUrl('test@example.com')
 
-      const result = await confirmSignUp('Test User', '123456')
-
-      expect(global.__mockSend).toHaveBeenCalledWith(
-        expect.any(ConfirmSignUpCommand)
-      )
-      expect(result).toEqual(mockResponse)
-    })
-
-    it('should handle confirmation errors', async () => {
-      const mockError = new Error('CodeMismatchException')
-      global.__mockSend.mockRejectedValueOnce(mockError)
-
-      await expect(confirmSignUp('Test User', '123456'))
-        .rejects.toThrow('CodeMismatchException')
+      expect(result).toContain('https://pickem-dev-auth.auth.us-east-1.amazoncognito.com/oauth2/authorize')
+      expect(result).toContain('signup=true')
+      expect(result).toContain('login_hint=test%40example.com')
     })
   })
 
-  describe('signIn', () => {
-    it('should successfully sign in and store tokens', async () => {
-      const mockResponse = {
-        AuthenticationResult: {
-          AccessToken: 'access-token',
-          IdToken: 'id-token',
-          RefreshToken: 'refresh-token'
-        }
-      }
-      global.__mockSend.mockResolvedValueOnce(mockResponse)
-
-      const result = await signIn('test@example.com', 'TempPass123!')
-
-      expect(global.__mockSend).toHaveBeenCalledWith(
-        expect.any(InitiateAuthCommand)
-      )
-
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('accessToken', 'access-token')
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('idToken', 'id-token')
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('refreshToken', 'refresh-token')
-      expect(mockLocalStorage.setItem).toHaveBeenCalledWith('lastLoginTime', expect.any(String))
-      expect(result).toEqual(mockResponse)
-    })
-
-    it('should handle signin errors', async () => {
-      const mockError = new Error('NotAuthorizedException')
-      global.__mockSend.mockRejectedValueOnce(mockError)
-
-      await expect(signIn('test@example.com', 'wrongpassword'))
-        .rejects.toThrow('NotAuthorizedException')
-    })
-
-    it('should handle response without tokens', async () => {
-      const mockResponse = { AuthenticationResult: {} }
-      global.__mockSend.mockResolvedValueOnce(mockResponse)
-
-      const result = await signIn('test@example.com', 'TempPass123!')
-
-      expect(mockLocalStorage.setItem).not.toHaveBeenCalled()
-      expect(result).toEqual(mockResponse)
-    })
-  })
-
-  describe('resendConfirmationCode', () => {
-    it('should successfully resend confirmation code', async () => {
-      const mockResponse = {
-        CodeDeliveryDetails: {
-          Destination: 'test@example.com',
-          DeliveryMedium: 'EMAIL'
-        }
-      }
-      global.__mockSend.mockResolvedValueOnce(mockResponse)
-
-      const result = await resendConfirmationCode('Test User')
-
-      expect(global.__mockSend).toHaveBeenCalledWith(
-        expect.any(ResendConfirmationCodeCommand)
-      )
-      expect(result).toEqual(mockResponse)
-    })
-  })
-
-  describe('signOut', () => {
+  describe('logout', () => {
     it('should clear all tokens from localStorage', () => {
-      signOut()
+      // Mock would prevent actual navigation in tests
+      
+      logout()
 
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('accessToken')
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('idToken')
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('refreshToken')
       expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('lastLoginTime')
+      expect(mockLocalStorage.removeItem).toHaveBeenCalledWith('loginMethod')
     })
   })
 

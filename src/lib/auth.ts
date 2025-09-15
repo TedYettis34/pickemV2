@@ -1,9 +1,7 @@
 import {
   CognitoIdentityProviderClient,
-  SignUpCommand,
-  ConfirmSignUpCommand,
   InitiateAuthCommand,
-  ResendConfirmationCodeCommand,
+  GetTokensFromRefreshTokenCommand,
   AuthFlowType,
 } from '@aws-sdk/client-cognito-identity-provider';
 
@@ -27,152 +25,70 @@ if (typeof window !== 'undefined' && CLIENT_ID) {
   } else {
     console.log('⚠️ Using unknown client ID');
   }
-
-  // Force clear all tokens issued before token revocation fix (2025-09-05)
-  forceTokenClearForRevocationFix();
-
-  // Automatic cleanup of stale tokens from old client ID
-  detectAndClearStaleTokens();
+  // Important: Do not clear tokens automatically on load. We keep existing tokens
+  // and only refresh when needed. Any token reset should be an explicit user action.
 }
 
-export async function signUp(email: string, password: string, name: string) {
-  const command = new SignUpCommand({
-    ClientId: CLIENT_ID,
-    Username: name, // Use name as username since email is an alias
-    Password: password,
-    UserAttributes: [
-      {
-        Name: 'email',
-        Value: email,
-      },
-    ],
+// OAuth URL builders for redirecting to Cognito hosted UI
+export function buildOAuthSignInUrl(email?: string) {
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: CLIENT_ID!,
+    scope: 'email openid profile',
+    redirect_uri: `${window.location.origin}/auth/callback`,
   });
-
-  try {
-    const response = await client.send(command);
-    return response;
-  } catch (error) {
-    console.error('Error signing up:', error);
-    throw error;
+  
+  if (email) {
+    params.append('login_hint', email);
   }
+  
+  return `https://pickem-dev-auth.auth.us-east-1.amazoncognito.com/oauth2/authorize?${params.toString()}`;
 }
 
-export async function confirmSignUp(username: string, confirmationCode: string) {
-  const command = new ConfirmSignUpCommand({
-    ClientId: CLIENT_ID,
-    Username: username,
-    ConfirmationCode: confirmationCode,
+export function buildOAuthSignUpUrl(email?: string) {
+  const params = new URLSearchParams({
+    response_type: 'code',
+    client_id: CLIENT_ID!,
+    scope: 'email openid profile',
+    redirect_uri: `${window.location.origin}/auth/callback`,
+    signup: 'true', // This parameter tells Cognito to show sign-up form
   });
-
-  try {
-    const response = await client.send(command);
-    return response;
-  } catch (error) {
-    console.error('Error confirming sign up:', error);
-    throw error;
+  
+  if (email) {
+    params.append('login_hint', email);
   }
+  
+  return `https://pickem-dev-auth.auth.us-east-1.amazoncognito.com/oauth2/authorize?${params.toString()}`;
 }
 
-export async function signIn(email: string, password: string) {
-  const command = new InitiateAuthCommand({
-    ClientId: CLIENT_ID,
-    AuthFlow: AuthFlowType.USER_PASSWORD_AUTH,
-    AuthParameters: {
-      USERNAME: email,
-      PASSWORD: password,
-    },
-  });
-
-  try {
-    const response = await client.send(command);
-
-    if (response.AuthenticationResult?.AccessToken) {
-      // Store tokens in localStorage with debugging
-      localStorage.setItem('accessToken', response.AuthenticationResult.AccessToken);
-      localStorage.setItem('idToken', response.AuthenticationResult.IdToken || '');
-
-      const refreshToken = response.AuthenticationResult.RefreshToken || '';
-      localStorage.setItem('refreshToken', refreshToken);
-
-      // Store login timestamp for token age tracking
-      localStorage.setItem('lastLoginTime', new Date().toISOString());
-
-      console.log('Sign-in tokens stored:', {
-        hasAccessToken: !!response.AuthenticationResult.AccessToken,
-        hasIdToken: !!response.AuthenticationResult.IdToken,
-        hasRefreshToken: !!refreshToken,
-        refreshTokenLength: refreshToken.length,
-        loginTime: new Date().toISOString()
-      });
-    }
-
-    return response;
-  } catch (error) {
-    console.error('Error signing in:', error);
-    throw error;
-  }
-}
-
-export async function resendConfirmationCode(username: string) {
-  const command = new ResendConfirmationCodeCommand({
-    ClientId: CLIENT_ID,
-    Username: username,
-  });
-
-  try {
-    const response = await client.send(command);
-    return response;
-  } catch (error) {
-    console.error('Error resending confirmation code:', error);
-    throw error;
-  }
-}
-
-export function signOut() {
-  localStorage.removeItem('accessToken');
-  localStorage.removeItem('idToken');
-  localStorage.removeItem('refreshToken');
-  localStorage.removeItem('lastLoginTime');
-}
-
-// Global variable to track refresh promise and prevent race conditions
+// Store refresh promise to prevent concurrent refresh calls
 let refreshPromise: Promise<boolean> | null = null;
 
+// OAuth-only refresh function (simplified)
 export async function refreshTokens(): Promise<boolean> {
+  console.log('Using OAuth-only refresh method');
+  return refreshOAuthTokens();
+}
+
+// Legacy SDK refresh methods kept for testing purposes only
+// (not used in the main app anymore)
+
+// Original SDK refresh method (renamed)
+export async function refreshTokensSDK(): Promise<boolean> {
   // If a refresh is already in progress, return that promise
   if (refreshPromise) {
-    console.log('Refresh already in progress, waiting for existing promise');
+    console.log('SDK refresh already in progress, waiting for existing promise');
     return refreshPromise;
   }
 
   const refreshToken = localStorage.getItem('refreshToken');
 
   if (!refreshToken) {
-    console.warn('No refresh token available');
+    console.warn('No refresh token available for SDK refresh');
     return false;
   }
 
-  // Check if we have token timestamps to detect very old tokens
-  const lastLoginTime = localStorage.getItem('lastLoginTime');
-  if (lastLoginTime) {
-    const lastLogin = new Date(lastLoginTime);
-    const hoursSinceLogin = (Date.now() - lastLogin.getTime()) / (1000 * 60 * 60);
-
-    console.log('Token age analysis:', {
-      lastLogin: lastLogin.toISOString(),
-      hoursSinceLogin: Math.round(hoursSinceLogin * 100) / 100,
-      daysSinceLogin: Math.round(hoursSinceLogin / 24 * 100) / 100
-    });
-
-    // If tokens are older than 25 days, they're likely expired (Cognito default is 30 days)
-    if (hoursSinceLogin > (25 * 24)) {
-      console.warn('Refresh token likely expired due to age, clearing tokens');
-      signOut();
-      return false;
-    }
-  }
-
-  console.log('Starting new token refresh:', {
+  console.log('Starting SDK token refresh:', {
     refreshTokenLength: refreshToken.length,
     refreshTokenStart: refreshToken.substring(0, 20),
     timestamp: new Date().toISOString(),
@@ -199,7 +115,7 @@ export async function refreshTokens(): Promise<boolean> {
 
       const response = await client.send(command);
 
-      console.log('Refresh response received:', {
+      console.log('SDK refresh response received:', {
         hasAccessToken: !!response.AuthenticationResult?.AccessToken,
         hasIdToken: !!response.AuthenticationResult?.IdToken,
         hasNewRefreshToken: !!response.AuthenticationResult?.RefreshToken,
@@ -230,84 +146,213 @@ export async function refreshTokens(): Promise<boolean> {
           console.log('No new refresh token returned, keeping existing one');
         }
 
-        console.log('Token refresh successful:', {
+        console.log('SDK token refresh successful:', {
           timestamp: new Date().toISOString(),
           requestId: response.$metadata?.requestId
         });
         return true;
       } else {
-        console.warn('No access token in refresh response');
+        console.warn('No access token in SDK refresh response');
         return false;
       }
     } catch (error) {
-      console.error('Error refreshing tokens:', error);
+      console.error('Error refreshing SDK tokens:', error);
 
-      // Enhanced logging for debugging AWS Cognito errors
+      // Log basic AWS error info for debugging without mutating auth state
       if (error && typeof error === 'object') {
-        const awsError = error as Record<string, unknown> & {
-          name?: string;
-          message?: string;
-          stack?: string;
-          $metadata?: Record<string, unknown>;
-          $service?: Record<string, unknown>;
-          Code?: string;
-        };
-
-        console.error('Detailed error information:', {
-          name: awsError.name,
-          message: awsError.message,
-          code: awsError.Code || awsError.$metadata?.httpStatusCode,
-          requestId: awsError.$metadata?.requestId,
-          httpStatusCode: awsError.$metadata?.httpStatusCode,
-          attempts: awsError.$metadata?.attempts,
-          totalRetryDelay: awsError.$metadata?.totalRetryDelay,
-          cfId: awsError.$metadata?.cfId,
-          extendedRequestId: awsError.$metadata?.extendedRequestId,
-          timestamp: new Date().toISOString(),
-          refreshTokenLength: localStorage.getItem('refreshToken')?.length || 'not found',
-          refreshTokenStart: localStorage.getItem('refreshToken')?.substring(0, 20) || 'not found',
-          userAgent: navigator?.userAgent?.substring(0, 100) || 'unknown'
-        });
-
-        // Log stack trace if available
-        if (awsError.stack) {
-          console.error('Error stack trace:', awsError.stack);
-        }
-
-        // Log specific AWS service errors
-        if (awsError.$service) {
-          console.error('AWS Service info:', awsError.$service);
-        }
-
-        // Check for common error types
-        if (awsError.name === 'NotAuthorizedException') {
-          console.error('NotAuthorized details - likely causes:', {
-            possibleCauses: [
-              'Refresh token expired (30 days max)',
-              'Token revoked by AWS (EnableTokenRevocation: true)',
-              'Multiple device login detected',
-              'Password changed elsewhere',
-              'Suspicious activity detected'
-            ],
-            tokenRevocationEnabled: true,
-            userPoolConfig: {
-              refreshTokenValidity: '30 days',
-              accessTokenValidity: '60 minutes',
-              enableTokenRevocation: true
-            },
-            troubleshooting: 'User needs to sign in again - tokens cannot be recovered when revoked'
-          });
-        }
+        const awsError = error as Record<string, unknown> & { name?: string; message?: string };
+        console.warn('SDK refresh failed:', { name: awsError.name, message: awsError.message });
       }
 
-      // Track refresh failures for stale token detection
-      localStorage.setItem('lastRefreshFailure', new Date().toISOString());
-
-      // If refresh fails, clear tokens to force re-authentication
-      signOut();
+      // Do not clear tokens here. Caller can decide to prompt re-login.
       return false;
     } finally {
       // Clear the refresh promise when done (success or failure)
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+// Alternative refresh method using GetTokensFromRefreshToken API
+export async function refreshTokensAlternative(): Promise<boolean> {
+  // If a refresh is already in progress, return that promise
+  if (refreshPromise) {
+    console.log('Refresh already in progress, waiting for existing promise');
+    return refreshPromise;
+  }
+
+  const refreshToken = localStorage.getItem('refreshToken');
+
+  if (!refreshToken) {
+    console.warn('No refresh token available');
+    return false;
+  }
+
+  console.log('Starting alternative token refresh with GetTokensFromRefreshToken:', {
+    refreshTokenLength: refreshToken.length,
+    refreshTokenStart: refreshToken.substring(0, 20),
+    timestamp: new Date().toISOString(),
+    clientId: CLIENT_ID?.substring(0, 12) + '...',
+  });
+
+  const command = new GetTokensFromRefreshTokenCommand({
+    ClientId: CLIENT_ID,
+    RefreshToken: refreshToken,
+  });
+
+  // Create and store the refresh promise
+  refreshPromise = (async () => {
+    try {
+      console.log('Sending GetTokensFromRefreshToken request to Cognito...', {
+        timestamp: new Date().toISOString(),
+        region: process.env.NEXT_PUBLIC_AWS_REGION
+      });
+
+      const response = await client.send(command);
+
+      console.log('Alternative refresh response received:', {
+        hasAccessToken: !!response.AccessToken,
+        hasIdToken: !!response.IdToken,
+        hasNewRefreshToken: !!response.RefreshToken,
+        timestamp: new Date().toISOString(),
+        requestId: response.$metadata?.requestId,
+        httpStatusCode: response.$metadata?.httpStatusCode,
+      });
+
+      if (response.AccessToken) {
+        // Update tokens in localStorage
+        localStorage.setItem('accessToken', response.AccessToken);
+        localStorage.setItem('idToken', response.IdToken || '');
+
+        // Handle refresh token rotation
+        if (response.RefreshToken) {
+          const oldTokenStart = refreshToken.substring(0, 20);
+          const newTokenStart = response.RefreshToken.substring(0, 20);
+          console.log('Updating refresh token (rotation detected):', {
+            oldTokenStart,
+            newTokenStart,
+            tokenChanged: oldTokenStart !== newTokenStart,
+            newTokenLength: response.RefreshToken.length
+          });
+          localStorage.setItem('refreshToken', response.RefreshToken);
+        } else {
+          console.log('No new refresh token returned, keeping existing one');
+        }
+
+        console.log('Alternative token refresh successful:', {
+          timestamp: new Date().toISOString(),
+          requestId: response.$metadata?.requestId
+        });
+        return true;
+      } else {
+        console.warn('No access token in alternative refresh response');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error with alternative refresh tokens:', error);
+
+      // Log basic AWS error info for debugging
+      if (error && typeof error === 'object') {
+        const awsError = error as Record<string, unknown> & { name?: string; message?: string };
+        console.warn('Alternative refresh failed:', { name: awsError.name, message: awsError.message });
+      }
+
+      return false;
+    } finally {
+      // Clear the refresh promise when done
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+// OAuth refresh for tokens obtained via Cognito Hosted UI
+export async function refreshOAuthTokens(): Promise<boolean> {
+  // If a refresh is already in progress, return that promise
+  if (refreshPromise) {
+    console.log('Refresh already in progress, waiting for existing promise');
+    return refreshPromise;
+  }
+
+  const refreshToken = localStorage.getItem('refreshToken');
+
+  if (!refreshToken) {
+    console.warn('No refresh token available for OAuth refresh');
+    return false;
+  }
+
+  console.log('Starting OAuth token refresh:', {
+    refreshTokenLength: refreshToken.length,
+    refreshTokenStart: refreshToken.substring(0, 20),
+    timestamp: new Date().toISOString(),
+    clientId: CLIENT_ID?.substring(0, 12) + '...',
+  });
+
+  // Create and store the refresh promise
+  refreshPromise = (async () => {
+    try {
+      console.log('Sending OAuth token refresh request...');
+
+      const tokenResponse = await fetch('https://pickem-dev-auth.auth.us-east-1.amazoncognito.com/oauth2/token', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+          grant_type: 'refresh_token',
+          client_id: CLIENT_ID!,
+          refresh_token: refreshToken,
+        }),
+      });
+
+      if (!tokenResponse.ok) {
+        const errorText = await tokenResponse.text();
+        console.error('OAuth refresh failed:', {
+          status: tokenResponse.status,
+          statusText: tokenResponse.statusText,
+          error: errorText
+        });
+        return false;
+      }
+
+      const tokens = await tokenResponse.json();
+      
+      console.log('OAuth refresh response received:', {
+        hasAccessToken: !!tokens.access_token,
+        hasIdToken: !!tokens.id_token,
+        hasRefreshToken: !!tokens.refresh_token,
+        tokenType: tokens.token_type,
+        expiresIn: tokens.expires_in,
+        timestamp: new Date().toISOString()
+      });
+
+      if (tokens.access_token) {
+        // Update tokens in localStorage
+        localStorage.setItem('accessToken', tokens.access_token);
+        if (tokens.id_token) {
+          localStorage.setItem('idToken', tokens.id_token);
+        }
+        
+        // Handle refresh token rotation (if new one provided)
+        if (tokens.refresh_token) {
+          console.log('Updating refresh token from OAuth response');
+          localStorage.setItem('refreshToken', tokens.refresh_token);
+        }
+
+        console.log('OAuth token refresh successful');
+        return true;
+      } else {
+        console.warn('No access token in OAuth refresh response');
+        return false;
+      }
+    } catch (error) {
+      console.error('Error during OAuth token refresh:', error);
+      return false;
+    } finally {
+      // Clear the refresh promise when done
       refreshPromise = null;
     }
   })();
@@ -320,171 +365,16 @@ export function isAuthenticated(): boolean {
   return !!localStorage.getItem('accessToken');
 }
 
-/**
- * Force clear all tokens issued before the revocation fix was applied
- * This ensures all users get fresh tokens from the corrected configuration
- */
-function forceTokenClearForRevocationFix(): void {
-  if (typeof window === 'undefined') return;
-
-  const TOKEN_CLEAR_DATE = '2025-09-05'; // Date when revocation fix was applied
-  const clearMarker = localStorage.getItem('tokensClearedForRevocationFix');
+// Logout function that clears tokens and redirects to Cognito logout
+export function logout(): void {
+  // Clear tokens from localStorage
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('idToken');
+  localStorage.removeItem('refreshToken');
+  localStorage.removeItem('lastLoginTime');
+  localStorage.removeItem('loginMethod');
   
-  if (!clearMarker || clearMarker !== TOKEN_CLEAR_DATE) {
-    const refreshToken = localStorage.getItem('refreshToken');
-    const accessToken = localStorage.getItem('accessToken');
-    
-    if (refreshToken || accessToken) {
-      console.log('🔧 Clearing all tokens due to refresh token issues');
-      console.log('This ensures all users get fresh tokens that work with current configuration');
-      
-      // Clear all auth-related data
-      signOut();
-      localStorage.removeItem('lastRefreshFailure');
-      
-      // Mark that we've done this cleanup
-      localStorage.setItem('tokensClearedForRevocationFix', TOKEN_CLEAR_DATE);
-      
-      console.log('✅ Token cleanup complete. Please sign in again.');
-      
-      // Optional: Show user message or redirect
-      if (typeof window !== 'undefined' && window.location && window.location.pathname !== '/') {
-        console.log('📱 Redirecting to home page for fresh authentication...');
-        window.location.href = '/';
-      }
-    } else {
-      // No tokens to clear, just mark as done
-      localStorage.setItem('tokensClearedForRevocationFix', TOKEN_CLEAR_DATE);
-      console.log('ℹ️ No existing tokens to clear for refresh fix');
-    }
-  }
-  
-  // Additional check: Force clear tokens that consistently fail refresh
-  // This catches tokens issued after the fix date but still problematic
-  const lastRefreshFailure = localStorage.getItem('lastRefreshFailure');
-  const lastLoginTime = localStorage.getItem('lastLoginTime');
-  
-  if (lastRefreshFailure && lastLoginTime) {
-    const failureTime = new Date(lastRefreshFailure);
-    const loginTime = new Date(lastLoginTime);
-    const hoursSinceFailure = (Date.now() - failureTime.getTime()) / (1000 * 60 * 60);
-    const hoursSinceLogin = (Date.now() - loginTime.getTime()) / (1000 * 60 * 60);
-    
-    // If tokens have failed refresh recently, clear them (be more aggressive)
-    if (hoursSinceFailure < 2) { // 2 hours window
-      console.log('🚨 Force clearing tokens due to recent refresh failures');
-      console.log('Token age:', Math.round(hoursSinceLogin * 100) / 100, 'hours');
-      console.log('Last failure:', Math.round(hoursSinceFailure * 60), 'minutes ago');
-      console.log('This indicates the refresh token is invalid and needs to be replaced');
-      
-      signOut();
-      localStorage.removeItem('lastRefreshFailure');
-      
-      // Clear the marker to force re-clearing on next load
-      localStorage.removeItem('tokensClearedForRevocationFix');
-      
-      console.log('✅ Problematic tokens cleared. Please sign in again.');
-      
-      // Show user message or redirect for immediate failures
-      if (typeof window !== 'undefined' && window.location && hoursSinceFailure < 0.1) { // < 6 minutes
-        console.log('📱 Redirecting due to immediate refresh failure...');
-        window.location.href = '/';
-      }
-    }
-  }
-}
-
-/**
- * Detect and automatically clear tokens that were issued by the old client ID
- * This prevents "Invalid Refresh Token" errors when the client ID changed
- */
-function detectAndClearStaleTokens(): void {
-  if (typeof window === 'undefined') return;
-
-  const refreshToken = localStorage.getItem('refreshToken');
-  const accessToken = localStorage.getItem('accessToken');
-
-  if (!refreshToken && !accessToken) {
-    // No tokens to check
-    return;
-  }
-
-  // Check if we can decode the tokens to inspect their client ID
-  // Cognito tokens are JWTs with client ID in the payload
-  let shouldClearTokens = false;
-  let detectionMethod = '';
-
-  try {
-    if (accessToken) {
-      // Parse JWT payload (second part of JWT, base64 decoded)
-      const tokenParts = accessToken.split('.');
-      if (tokenParts.length === 3) {
-        const payload = JSON.parse(atob(tokenParts[1]));
-        const tokenClientId = payload.client_id || payload.aud;
-
-        console.log('🔍 Token analysis:', {
-          tokenClientId: tokenClientId?.substring(0, 12) + '...',
-          currentClientId: CLIENT_ID?.substring(0, 12) + '...',
-          tokensMatch: tokenClientId === CLIENT_ID
-        });
-
-        if (tokenClientId && tokenClientId !== CLIENT_ID) {
-          shouldClearTokens = true;
-          detectionMethod = 'client_id_mismatch';
-          console.warn('⚠️ Stale tokens detected: Client ID mismatch');
-          console.warn('Token client ID:', tokenClientId);
-          console.warn('Current client ID:', CLIENT_ID);
-        }
-      }
-    }
-  } catch (error) {
-    console.warn('Could not parse access token for client ID check:', error);
-
-    // Fallback: Check for suspicious token patterns or known old client ID patterns
-    if (refreshToken && refreshToken.includes('77jac49eg6pt81jv9mjglmo9hj')) {
-      shouldClearTokens = true;
-      detectionMethod = 'old_client_pattern';
-      console.warn('⚠️ Stale tokens detected: Old client ID pattern in refresh token');
-    }
-  }
-
-  // Additional heuristic: Check for refresh token failures in recent history
-  const lastRefreshFailure = localStorage.getItem('lastRefreshFailure');
-  const lastLoginTime = localStorage.getItem('lastLoginTime');
-
-  if (lastRefreshFailure && lastLoginTime) {
-    const failureTime = new Date(lastRefreshFailure);
-    const loginTime = new Date(lastLoginTime);
-    const hoursSinceLogin = (Date.now() - loginTime.getTime()) / (1000 * 60 * 60);
-    const hoursSinceFailure = (Date.now() - failureTime.getTime()) / (1000 * 60 * 60);
-
-    // If tokens are relatively new (< 48 hours) but refresh is consistently failing
-    if (hoursSinceLogin < 48 && hoursSinceFailure < 1) {
-      shouldClearTokens = true;
-      detectionMethod = 'recent_refresh_failures';
-      console.warn('⚠️ Stale tokens detected: Recent refresh failures with relatively new tokens');
-    }
-  }
-
-  if (shouldClearTokens) {
-    console.log('🧨 Automatically clearing stale tokens to prevent refresh errors');
-    console.log('Detection method:', detectionMethod);
-
-    // Clear all auth-related localStorage
-    signOut();
-
-    // Clear additional tracking items
-    localStorage.removeItem('lastRefreshFailure');
-
-    console.log('✅ Stale tokens cleared. User will need to log in again.');
-
-    // Optional: Show a user-friendly message
-    if (typeof window !== 'undefined' && window.location) {
-      console.log('📱 Redirecting to login due to authentication update...');
-      // Force page reload to reset auth state
-      window.location.reload();
-    }
-  } else {
-    console.log('✅ Token validation passed - no stale tokens detected');
-  }
+  // Redirect to Cognito hosted UI logout endpoint
+  const logoutUrl = `https://pickem-dev-auth.auth.us-east-1.amazoncognito.com/logout?client_id=${CLIENT_ID}&logout_uri=${encodeURIComponent(window.location.origin)}`;
+  window.location.href = logoutUrl;
 }

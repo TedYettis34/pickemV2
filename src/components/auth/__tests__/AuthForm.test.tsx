@@ -1,63 +1,52 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import AuthForm from '../AuthForm'
-import { signUp, signIn, confirmSignUp, resendConfirmationCode } from '../../../lib/auth'
 
-// Mock the auth functions
-jest.mock('../../../lib/auth')
+// Mock environment variables
+process.env.NEXT_PUBLIC_USER_POOL_CLIENT_ID = 'test-client-id'
 
-const mockSignUp = signUp as jest.MockedFunction<typeof signUp>
-const mockSignIn = signIn as jest.MockedFunction<typeof signIn>
-const mockConfirmSignUp = confirmSignUp as jest.MockedFunction<typeof confirmSignUp>
-const mockResendConfirmationCode = resendConfirmationCode as jest.MockedFunction<typeof resendConfirmationCode>
+const mockOnAuthSuccess = jest.fn()
 
 describe('AuthForm', () => {
-  const mockOnAuthSuccess = jest.fn()
-
   beforeEach(() => {
     jest.clearAllMocks()
   })
 
   describe('Login Mode', () => {
-    it('should render login form by default', () => {
+    it('should render login form by default with email-only', () => {
       render(<AuthForm onAuthSuccess={mockOnAuthSuccess} />)
 
       expect(screen.getByRole('heading', { name: 'Sign In' })).toBeInTheDocument()
       expect(screen.getByLabelText('Email')).toBeInTheDocument()
-      expect(screen.getByLabelText('Password')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Sign In' })).toBeInTheDocument()
+      expect(screen.queryByLabelText('Password')).not.toBeInTheDocument() // No password in login mode
+      expect(screen.getByRole('button', { name: 'Continue to Sign In' })).toBeInTheDocument()
       expect(screen.getByText("Don't have an account? Sign up")).toBeInTheDocument()
+      expect(screen.getByText("You'll enter your password on the next page")).toBeInTheDocument()
     })
 
-    it('should successfully sign in', async () => {
+    it('should show loading state when submitting login form', async () => {
       const user = userEvent.setup()
-      mockSignIn.mockResolvedValueOnce({} as unknown)
-
+      
       render(<AuthForm onAuthSuccess={mockOnAuthSuccess} />)
 
       await user.type(screen.getByLabelText('Email'), 'test@example.com')
-      await user.type(screen.getByLabelText('Password'), 'TempPass123!')
-      await user.click(screen.getByRole('button', { name: 'Sign In' }))
+      await user.click(screen.getByRole('button', { name: 'Continue to Sign In' }))
 
-      await waitFor(() => {
-        expect(mockSignIn).toHaveBeenCalledWith('test@example.com', 'TempPass123!')
-        expect(mockOnAuthSuccess).toHaveBeenCalled()
-      })
+      // In test environment, no navigation occurs but we should see the loading state  
+      expect(screen.getByText('Redirecting to secure login...')).toBeInTheDocument()
     })
 
-    it('should display error on sign in failure', async () => {
+    it('should show validation error for missing email in login', async () => {
       const user = userEvent.setup()
-      mockSignIn.mockRejectedValueOnce(new Error('Invalid credentials'))
-
       render(<AuthForm onAuthSuccess={mockOnAuthSuccess} />)
 
-      await user.type(screen.getByLabelText('Email'), 'test@example.com')
-      await user.type(screen.getByLabelText('Password'), 'wrongpassword')
-      await user.click(screen.getByRole('button', { name: 'Sign In' }))
+      // Try to submit login form without email
+      await user.click(screen.getByRole('button', { name: 'Continue to Sign In' }))
 
+      // Wait for the error message to appear
       await waitFor(() => {
-        expect(screen.getByText('Invalid credentials')).toBeInTheDocument()
-      })
+        expect(screen.getByText('Please enter your email')).toBeInTheDocument()
+      }, { timeout: 3000 })
     })
   })
 
@@ -68,11 +57,11 @@ describe('AuthForm', () => {
 
       await user.click(screen.getByText("Don't have an account? Sign up"))
 
-      expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Continue to Sign Up' })).toBeInTheDocument()
       expect(screen.getByLabelText('Display Name')).toBeInTheDocument()
       expect(screen.getByLabelText('Email')).toBeInTheDocument()
       expect(screen.getByLabelText('Password')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Create Account' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Continue to Sign Up' })).toBeInTheDocument()
       expect(screen.getByText('Already have an account? Sign in')).toBeInTheDocument()
     })
 
@@ -100,7 +89,7 @@ describe('AuthForm', () => {
       await user.type(screen.getByLabelText('Email'), 'test@example.com')
       await user.type(screen.getByLabelText('Password'), 'weak')
 
-      const submitButton = screen.getByRole('button', { name: 'Create Account' })
+      const submitButton = screen.getByRole('button', { name: 'Continue to Sign Up' })
       expect(submitButton).toBeDisabled()
     })
 
@@ -113,7 +102,7 @@ describe('AuthForm', () => {
       await user.type(screen.getByLabelText('Email'), 'test@example.com')
       await user.type(screen.getByLabelText('Password'), 'ValidPass123!')
 
-      const submitButton = screen.getByRole('button', { name: 'Create Account' })
+      const submitButton = screen.getByRole('button', { name: 'Continue to Sign Up' })
       expect(submitButton).not.toBeDisabled()
     })
 
@@ -130,98 +119,21 @@ describe('AuthForm', () => {
       expect(screen.getByText('20/20 characters')).toBeInTheDocument()
     })
 
-    it('should successfully sign up and show confirmation mode', async () => {
+    it('should show loading state when submitting signup form', async () => {
       const user = userEvent.setup()
-      mockSignUp.mockResolvedValueOnce({} as unknown)
-
+      
       render(<AuthForm onAuthSuccess={mockOnAuthSuccess} />)
 
       await user.click(screen.getByText("Don't have an account? Sign up"))
       await user.type(screen.getByLabelText('Display Name'), 'Test User')
       await user.type(screen.getByLabelText('Email'), 'test@example.com')
       await user.type(screen.getByLabelText('Password'), 'ValidPass123!')
-      await user.click(screen.getByRole('button', { name: 'Create Account' }))
+      await user.click(screen.getByRole('button', { name: 'Continue to Sign Up' }))
 
-      await waitFor(() => {
-        expect(mockSignUp).toHaveBeenCalledWith('test@example.com', 'ValidPass123!', 'Test User')
-        expect(screen.getByText('Confirm Your Account')).toBeInTheDocument()
-      })
+      // In test environment, no navigation occurs but we should see the loading state
+      expect(screen.getByText('Redirecting to sign up...')).toBeInTheDocument()
     })
   })
 
-  describe('Confirmation Mode', () => {
-    beforeEach(async () => {
-      const user = userEvent.setup()
-      mockSignUp.mockResolvedValueOnce({} as unknown)
-
-      render(<AuthForm onAuthSuccess={mockOnAuthSuccess} />)
-
-      await user.click(screen.getByText("Don't have an account? Sign up"))
-      await user.type(screen.getByLabelText('Display Name'), 'Test User')
-      await user.type(screen.getByLabelText('Email'), 'test@example.com')
-      await user.type(screen.getByLabelText('Password'), 'ValidPass123!')
-      await user.click(screen.getByRole('button', { name: 'Create Account' }))
-
-      await waitFor(() => {
-        expect(screen.getByText('Confirm Your Account')).toBeInTheDocument()
-      })
-    })
-
-    it('should render confirmation form', () => {
-      expect(screen.getByText('Confirm Your Account')).toBeInTheDocument()
-      expect(screen.getByLabelText('Confirmation Code')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'Confirm Account' })).toBeInTheDocument()
-      expect(screen.getByText('Resend confirmation code')).toBeInTheDocument()
-    })
-
-    it('should successfully confirm account', async () => {
-      const user = userEvent.setup()
-      mockConfirmSignUp.mockResolvedValueOnce({} as unknown)
-
-      await user.type(screen.getByLabelText('Confirmation Code'), '123456')
-      await user.click(screen.getByRole('button', { name: 'Confirm Account' }))
-
-      await waitFor(() => {
-        expect(mockConfirmSignUp).toHaveBeenCalledWith('Test User', '123456')
-        expect(screen.getByRole('heading', { name: 'Sign In' })).toBeInTheDocument()
-        expect(screen.getByText('Account confirmed! Please log in.')).toBeInTheDocument()
-      })
-    })
-
-    it('should resend confirmation code', async () => {
-      const user = userEvent.setup()
-      mockResendConfirmationCode.mockResolvedValueOnce({} as unknown)
-
-      await user.click(screen.getByText('Resend confirmation code'))
-
-      await waitFor(() => {
-        expect(mockResendConfirmationCode).toHaveBeenCalledWith('Test User')
-        expect(screen.getByText('Confirmation code resent!')).toBeInTheDocument()
-      })
-    })
-  })
-
-  describe('Error Handling', () => {
-    it('should clear error when switching modes', async () => {
-      const user = userEvent.setup()
-      mockSignIn.mockRejectedValueOnce(new Error('Test error'))
-
-      render(<AuthForm onAuthSuccess={mockOnAuthSuccess} />)
-
-      // Trigger an error in login mode
-      await user.type(screen.getByLabelText('Email'), 'test@example.com')
-      await user.type(screen.getByLabelText('Password'), 'wrongpassword')
-      await user.click(screen.getByRole('button', { name: 'Sign In' }))
-
-      await waitFor(() => {
-        expect(screen.getByText('Test error')).toBeInTheDocument()
-      })
-
-      // Switch to signup mode
-      await user.click(screen.getByText("Don't have an account? Sign up"))
-
-      // Error should be cleared
-      expect(screen.queryByText('Test error')).not.toBeInTheDocument()
-    })
-  })
+  // Note: Confirmation and error handling tests removed since OAuth flow handles these automatically
 })

@@ -11,14 +11,24 @@ export function useTokenRefresh() {
     if (typeof window === 'undefined') return;
 
     try {
+      // Only refresh if token is expiring within 5 minutes AND we have a refresh token
+      const accessToken = localStorage.getItem('accessToken');
+      const refreshToken = localStorage.getItem('refreshToken');
+      
+      if (!accessToken || !refreshToken) {
+        // No tokens to refresh
+        return;
+      }
+      
       // Check if token is expiring soon (within 5 minutes)
       if (isCurrentTokenExpiringSoon(300)) {
+        console.log('Token expiring soon, attempting refresh...');
         const refreshSuccess = await refreshTokens();
         
         if (refreshSuccess) {
-          console.log('Token refreshed successfully');
+          console.log('✅ Token refreshed successfully');
         } else {
-          console.warn('Token refresh failed');
+          console.warn('❌ Token refresh failed - user may need to sign in again');
         }
       }
     } catch (error) {
@@ -27,11 +37,11 @@ export function useTokenRefresh() {
   }, []);
 
   useEffect(() => {
-    // Check immediately on mount
-    checkAndRefreshToken();
-
-    // Set up interval to check every 4 minutes
-    const interval = setInterval(checkAndRefreshToken, 4 * 60 * 1000);
+    // Don't check immediately on mount - wait for normal interval
+    // This prevents aggressive refresh on every page load
+    
+    // Set up interval to check every 10 minutes (less aggressive)
+    const interval = setInterval(checkAndRefreshToken, 10 * 60 * 1000);
 
     return () => {
       clearInterval(interval);

@@ -39,6 +39,9 @@ class AuthEventEmitter {
 
 export const authEventEmitter = new AuthEventEmitter();
 
+// Cooldown mechanism to prevent infinite validation loops
+// Note: These would be used for preventing validation spam in production
+
 // Utility to handle token expiration - attempts refresh before logout
 async function handleTokenExpiration(): Promise<AdminAuthResult> {
   if (typeof window !== 'undefined') {
@@ -65,11 +68,7 @@ async function handleTokenExpiration(): Promise<AdminAuthResult> {
       console.error('Failed to refresh token:', error);
     }
     
-    // If refresh failed, clear tokens and emit logout event
-    localStorage.removeItem('accessToken');
-    localStorage.removeItem('idToken');
-    localStorage.removeItem('refreshToken');
-    
+    // If refresh failed, emit event but don't clear tokens automatically
     authEventEmitter.emit({ 
       type: 'token-expired', 
       message: 'Your session has expired. Please log in again.' 
@@ -84,7 +83,9 @@ async function handleTokenExpiration(): Promise<AdminAuthResult> {
 }
 
 // Check if user is authenticated and is an admin (client-side)
-export async function validateAdminAuthClient(accessToken: string): Promise<AdminAuthResult> {
+export async function validateAdminAuthClient(accessToken: string, retryCount = 0): Promise<AdminAuthResult> {
+  // Prevent infinite recursion with retry limit
+  
   try {
     // Validate input
     if (!accessToken || typeof accessToken !== 'string') {
@@ -96,33 +97,60 @@ export async function validateAdminAuthClient(accessToken: string): Promise<Admi
     }
 
     const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-    const response = await fetch(`${baseUrl}/api/auth/admin`, {
+    const url = `${baseUrl}/api/auth/admin`;
+    
+    console.log('🔍 Client: Making admin API request');
+    console.log('  URL:', url);
+    console.log('  Base URL:', baseUrl);
+    console.log('  Token length:', accessToken.length);
+    console.log('  Token starts with:', accessToken.substring(0, 20));
+    
+    const headers = {
+      'Authorization': `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    };
+    
+    console.log('🔍 Client: Request headers:', headers);
+    console.log('🔍 Client: Authorization header:', headers.Authorization.substring(0, 30) + '...');
+    
+    const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: headers,
     });
+    
+    console.log('🔍 Client: Response received');
+    console.log('  Status:', response.status);
+    console.log('  Status text:', response.statusText);
+    console.log('  OK:', response.ok);
 
     if (!response.ok) {
       const errorData = await response.json();
       
-      // Check if the error indicates token expiration
-      if (response.status === 401 && 
+      // Check if the error indicates token expiration and we haven't retried yet
+      if (response.status === 401 && retryCount === 0 && 
           (errorData.error === 'Token expired' || 
            errorData.error?.includes('expired') ||
            errorData.error?.includes('Access Token has expired'))) {
         const refreshResult = await handleTokenExpiration();
         
-        // If token was refreshed, retry the original request
+        // If token was refreshed, retry the original request ONCE
         if (refreshResult.error === 'TOKEN_REFRESHED') {
           const newAccessToken = localStorage.getItem('accessToken');
-          if (newAccessToken) {
-            return await validateAdminAuthClient(newAccessToken);
+          if (newAccessToken && newAccessToken !== accessToken) {
+            return await validateAdminAuthClient(newAccessToken, retryCount + 1);
           }
         }
         
         return refreshResult;
+      }
+      
+      // For 401 errors that aren't token expiration (or after retry), user likely isn't admin
+      if (response.status === 401) {
+        return {
+          isAdmin: false,
+          user: null,
+          error: 'User does not have admin privileges',
+        };
       }
       
       return {
@@ -142,18 +170,18 @@ export async function validateAdminAuthClient(accessToken: string): Promise<Admi
   } catch (error) {
     console.error('Error validating admin auth:', error);
     
-    // If token is expired, handle it properly
-    if (error instanceof Error && 
+    // If token is expired and we haven't retried yet, handle it properly
+    if (retryCount === 0 && error instanceof Error && 
         (error.name === 'NotAuthorizedException' || 
          error.message.includes('expired') ||
          error.message.includes('Access Token has expired'))) {
       const refreshResult = await handleTokenExpiration();
       
-      // If token was refreshed, retry the original request
+      // If token was refreshed, retry the original request ONCE
       if (refreshResult.error === 'TOKEN_REFRESHED') {
         const newAccessToken = localStorage.getItem('accessToken');
-        if (newAccessToken) {
-          return await validateAdminAuthClient(newAccessToken);
+        if (newAccessToken && newAccessToken !== accessToken) {
+          return await validateAdminAuthClient(newAccessToken, retryCount + 1);
         }
       }
       
