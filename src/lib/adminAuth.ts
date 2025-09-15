@@ -202,100 +202,17 @@ export async function validateAdminAuthClient(accessToken: string, retryCount = 
   }
 }
 
-// Direct validation function for server-side use (avoids HTTP calls)
-async function validateAdminAuthDirect(accessToken: string): Promise<AdminAuthResult> {
-  try {
-    const { CognitoIdentityProviderClient, GetUserCommand, AdminListGroupsForUserCommand } = await import('@aws-sdk/client-cognito-identity-provider');
-    
-    const client = new CognitoIdentityProviderClient({
-      region: process.env.NEXT_PUBLIC_AWS_REGION || 'us-east-1',
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-      },
-    });
 
-    const USER_POOL_ID = process.env.NEXT_PUBLIC_USER_POOL_ID;
-    
-    if (!USER_POOL_ID) {
-      return {
-        isAdmin: false,
-        user: null,
-        error: 'USER_POOL_ID not configured',
-      };
-    }
-
-    // Get user info from access token
-    const getUserCommand = new GetUserCommand({
-      AccessToken: accessToken,
-    });
-
-    const userResult = await client.send(getUserCommand);
-    
-    if (!userResult || !userResult.Username) {
-      return {
-        isAdmin: false,
-        user: null,
-        error: 'Invalid user token',
-      };
-    }
-
-    // Get user's groups
-    const getGroupsCommand = new AdminListGroupsForUserCommand({
-      UserPoolId: USER_POOL_ID,
-      Username: userResult.Username,
-    });
-
-    const groupsResult = await client.send(getGroupsCommand);
-    const groups = groupsResult.Groups?.map(group => group.GroupName || '') || [];
-    
-    // Extract user attributes
-    const attributes = userResult.UserAttributes || [];
-    const email = attributes.find(attr => attr.Name === 'email')?.Value || '';
-    const name = attributes.find(attr => attr.Name === 'name')?.Value || '';
-    
-    // Check if user is in admin group (case-insensitive)
-    const isAdmin = groups.some(group => group.toLowerCase() === 'admin');
-
-    const user = {
-      username: userResult.Username,
-      email,
-      name,
-      groups,
-    };
-
-    return {
-      isAdmin,
-      user,
-    };
-
-  } catch (error) {
-    // Handle token expiration for server-side validation too
-    if (error instanceof Error && 
-        (error.name === 'NotAuthorizedException' || 
-         error.message.includes('expired') ||
-         error.message.includes('Access Token has expired'))) {
-      return {
-        isAdmin: false,
-        user: null,
-        error: 'Session expired. Please log in again.',
-      };
-    }
-    
-    return {
-      isAdmin: false,
-      user: null,
-      error: error instanceof Error ? error.message : 'Authentication failed',
-    };
-  }
-}
-
-// Server-side validation for NextRequest
+// Server-side validation for NextRequest using JWT parsing
 export async function validateAdminAuth(request: Request | { headers: { get(name: string): string | null } }): Promise<{ isValid: boolean; user?: CognitoUser; error?: string }> {
   try {
+    console.log('🔍 Server-side admin validation started (JWT parsing)');
     const authHeader = request.headers.get('authorization');
+    console.log('🔍 Auth header present:', !!authHeader);
+    console.log('🔍 Auth header starts with Bearer:', authHeader?.startsWith('Bearer '));
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ Missing or invalid auth header');
       return {
         isValid: false,
         error: 'Authorization header required',
@@ -303,27 +220,148 @@ export async function validateAdminAuth(request: Request | { headers: { get(name
     }
 
     const accessToken = authHeader.substring(7).trim(); // Remove 'Bearer ' prefix
+    console.log('🔍 Token length:', accessToken.length);
+    console.log('🔍 Token starts with:', accessToken.substring(0, 20));
     
-    // Validate access token format
-    if (!accessToken || !/^[A-Za-z0-9\-_.=]+$/.test(accessToken)) {
+    // Validate access token format - JWT tokens are base64url encoded with dots
+    console.log('🔍 Validating token format...');
+    if (!accessToken) {
+      console.log('❌ Token is empty');
       return {
         isValid: false,
         error: 'Invalid access token format',
       };
     }
-
-    const authResult = await validateAdminAuthDirect(accessToken);
-
-    if (!authResult.isAdmin) {
+    
+    // JWT tokens should have the format: header.payload.signature
+    // Each part is base64url encoded (A-Z, a-z, 0-9, -, _, =)
+    if (!/^[A-Za-z0-9\-_.=]+$/.test(accessToken)) {
+      console.log('❌ Token format validation failed');
+      console.log('❌ Token does not match JWT pattern');
+      console.log('❌ Token length:', accessToken.length);
+      console.log('❌ Token sample:', accessToken.substring(0, 50) + '...');
       return {
         isValid: false,
-        error: authResult.error || 'Admin access required',
+        error: 'Invalid access token format',
+      };
+    }
+    
+    console.log('✅ Token format validation passed');
+
+    // Parse JWT token directly (same approach as /api/auth/admin)
+    let payload;
+    try {
+      console.log('🔍 Starting JWT parsing...');
+      // JWT tokens have 3 parts separated by '.'
+      const parts = accessToken.split('.');
+      console.log('🔍 Token parts count:', parts.length);
+      
+      if (parts.length !== 3) {
+        console.log('❌ Invalid token format - wrong number of parts');
+        return {
+          isValid: false,
+          error: 'Invalid token format',
+        };
+      }
+      
+      console.log('🔍 Decoding JWT payload...');
+      // Decode the payload (middle part)
+      const base64Payload = parts[1];
+      console.log('🔍 Base64 payload length:', base64Payload.length);
+      
+      const jsonPayload = Buffer.from(base64Payload, 'base64').toString();
+      console.log('🔍 JSON payload length:', jsonPayload.length);
+      console.log('🔍 JSON payload preview:', jsonPayload.substring(0, 100) + '...');
+      
+      payload = JSON.parse(jsonPayload);
+      console.log('🔍 JWT parsing successful');
+      
+      console.log('🔍 Decoded token payload:');
+      console.log('  Subject (sub):', payload.sub);
+      console.log('  Username:', payload.username || payload['cognito:username']);
+      console.log('  Email:', payload.email);
+      console.log('  Groups:', payload['cognito:groups'] || []);
+      console.log('  Token use:', payload.token_use);
+      console.log('  Client ID:', payload.client_id || payload.aud);
+      
+    } catch (error) {
+      console.error('❌ Error decoding token:', error);
+      console.error('❌ Error type:', typeof error);
+      console.error('❌ Error name:', error instanceof Error ? error.name : 'Unknown');
+      console.error('❌ Error message:', error instanceof Error ? error.message : String(error));
+      return {
+        isValid: false,
+        error: 'Invalid token format',
       };
     }
 
+    // Validate token
+    if (!payload.sub) {
+      return {
+        isValid: false,
+        error: 'Invalid user token',
+      };
+    }
+
+    // Extract user info from token
+    const username = payload.username || payload['cognito:username'] || payload.sub;
+    const email = payload.email || '';
+    const name = payload.name || payload.given_name || '';
+    const groups = payload['cognito:groups'] || [];
+    
+    console.log('🔍 Extracting user info from JWT:');
+    console.log('  Username from payload.username:', payload.username);
+    console.log('  Username from payload["cognito:username"]:', payload['cognito:username']);
+    console.log('  Username from payload.sub:', payload.sub);
+    console.log('  Final username:', username);
+    console.log('  Email:', email);
+    console.log('  Name:', name);
+    console.log('  Raw groups from payload["cognito:groups"]:', payload['cognito:groups']);
+    console.log('  Groups type:', typeof groups);
+    console.log('  Groups is array:', Array.isArray(groups));
+    console.log('  Groups length:', groups?.length || 0);
+    console.log('  Groups content:', groups);
+    
+    // Check if user is in admin group (case-insensitive)
+    console.log('🔍 Starting admin group check...');
+    if (!Array.isArray(groups)) {
+      console.log('❌ Groups is not an array, converting:', groups);
+      const groupsArray = groups ? [groups] : [];
+      console.log('❌ Converted to array:', groupsArray);
+    }
+    
+    const isAdmin = Array.isArray(groups) && groups.some((group: string) => {
+      console.log('  Checking group:', group, 'type:', typeof group);
+      const lowercaseGroup = String(group).toLowerCase();
+      console.log('  Lowercase group:', lowercaseGroup);
+      const isMatch = lowercaseGroup === 'admin';
+      console.log('  Matches "admin":', isMatch);
+      return isMatch;
+    });
+    
+    console.log('🔍 JWT Admin Check Results:');
+    console.log('  Username:', username);
+    console.log('  Groups:', groups);
+    console.log('  Is Admin:', isAdmin);
+
+    if (!isAdmin) {
+      return {
+        isValid: false,
+        error: 'Admin access required',
+      };
+    }
+
+    const user: CognitoUser = {
+      username,
+      email,
+      name,
+      groups,
+    };
+
+    console.log('✅ JWT validation completed successfully');
     return {
       isValid: true,
-      user: authResult.user || undefined,
+      user,
     };
   } catch (error) {
     console.error('Error validating admin auth:', error);

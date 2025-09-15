@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useAdminAuth } from '../../hooks/useAdminAuth';
 import { logout } from '../../lib/auth';
 import { WeekManagement } from './WeekManagement';
 import { GameResults } from './GameResults';
@@ -11,7 +10,6 @@ interface AdminDashboardProps {
 }
 
 export default function AdminDashboard({ onBackToDashboard }: AdminDashboardProps) {
-  const { isAdmin, isLoading } = useAdminAuth();
   const [activeTab, setActiveTab] = useState<'weeks' | 'results' | 'settings'>('weeks');
   const [updatingScores, setUpdatingScores] = useState(false);
 
@@ -58,28 +56,7 @@ export default function AdminDashboard({ onBackToDashboard }: AdminDashboardProp
     }
   };
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-lg">Loading admin dashboard...</div>
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
-            Access Denied
-          </h1>
-          <p className="text-gray-600 dark:text-gray-300">
-            You don&apos;t have administrator privileges to access this page.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  // Admin status is verified by parent component before rendering this component
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
