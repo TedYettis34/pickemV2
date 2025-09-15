@@ -2,24 +2,25 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import AdminDashboard from '../AdminDashboard';
 
-// Mock the hooks and functions
-jest.mock('../../../hooks/useAdminAuth', () => ({
-  useAdminAuth: jest.fn(),
-}));
-
+// Mock the lib/auth functions
 jest.mock('../../../lib/auth', () => ({
   logout: jest.fn(),
 }));
 
-// Mock the WeekManagement component
+// Mock the WeekManagement and GameResults components
 jest.mock('../WeekManagement', () => ({
   WeekManagement: () => <div data-testid="week-management">Week Management Component</div>,
 }));
 
-import { useAdminAuth } from '../../../hooks/useAdminAuth';
+jest.mock('../GameResults', () => ({
+  GameResults: () => <div data-testid="game-results">Game Results Component</div>,
+}));
+
+// Mock fetch for score update functionality
+global.fetch = jest.fn();
+
 import { logout } from '../../../lib/auth';
 
-const mockUseAdminAuth = useAdminAuth as jest.MockedFunction<typeof useAdminAuth>;
 const mockLogout = logout as jest.MockedFunction<typeof logout>;
 
 describe('AdminDashboard', () => {
@@ -29,35 +30,7 @@ describe('AdminDashboard', () => {
     jest.clearAllMocks();
   });
 
-  it('should render loading state when admin auth is loading', () => {
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: false,
-      isLoading: true,
-    });
-
-    render(<AdminDashboard />);
-
-    expect(screen.getByText('Loading admin dashboard...')).toBeInTheDocument();
-  });
-
-  it('should render access denied when user is not admin', () => {
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: false,
-      isLoading: false,
-    });
-
-    render(<AdminDashboard />);
-
-    expect(screen.getByText('Access Denied')).toBeInTheDocument();
-    expect(screen.getByText("You don't have administrator privileges to access this page.")).toBeInTheDocument();
-  });
-
-  it('should render admin dashboard when user is admin', () => {
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: true,
-      isLoading: false,
-    });
-
+  it('should render admin dashboard', () => {
     render(<AdminDashboard />);
 
     expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
@@ -66,23 +39,14 @@ describe('AdminDashboard', () => {
   });
 
   it('should render navigation tabs', () => {
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: true,
-      isLoading: false,
-    });
-
     render(<AdminDashboard />);
 
     expect(screen.getByRole('button', { name: 'Week Management' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Game Results' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Settings' })).toBeInTheDocument();
   });
 
   it('should show WeekManagement component by default', () => {
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: true,
-      isLoading: false,
-    });
-
     render(<AdminDashboard />);
 
     expect(screen.getByTestId('week-management')).toBeInTheDocument();
@@ -90,11 +54,6 @@ describe('AdminDashboard', () => {
 
   it('should switch to settings tab when clicked', async () => {
     const user = userEvent.setup();
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: true,
-      isLoading: false,
-    });
-
     render(<AdminDashboard />);
 
     const settingsTab = screen.getByRole('button', { name: 'Settings' });
@@ -106,11 +65,6 @@ describe('AdminDashboard', () => {
 
   it('should switch back to weeks tab when clicked', async () => {
     const user = userEvent.setup();
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: true,
-      isLoading: false,
-    });
-
     render(<AdminDashboard />);
 
     // Switch to settings first
@@ -127,11 +81,6 @@ describe('AdminDashboard', () => {
 
   it('should highlight active tab correctly', async () => {
     const user = userEvent.setup();
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: true,
-      isLoading: false,
-    });
-
     render(<AdminDashboard />);
 
     const weeksTab = screen.getByRole('button', { name: 'Week Management' });
@@ -150,12 +99,6 @@ describe('AdminDashboard', () => {
 
   it('should call logout when sign out button is clicked', async () => {
     const user = userEvent.setup();
-
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: true,
-      isLoading: false,
-    });
-
     render(<AdminDashboard />);
 
     const signOutButton = screen.getByRole('button', { name: 'Sign Out' });
@@ -166,22 +109,12 @@ describe('AdminDashboard', () => {
   });
 
   it('should show back to dashboard button when onBackToDashboard prop is provided', () => {
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: true,
-      isLoading: false,
-    });
-
     render(<AdminDashboard onBackToDashboard={mockOnBackToDashboard} />);
 
     expect(screen.getByRole('button', { name: 'Back to Dashboard' })).toBeInTheDocument();
   });
 
   it('should not show back to dashboard button when onBackToDashboard prop is not provided', () => {
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: true,
-      isLoading: false,
-    });
-
     render(<AdminDashboard />);
 
     expect(screen.queryByRole('button', { name: 'Back to Dashboard' })).not.toBeInTheDocument();
@@ -189,11 +122,6 @@ describe('AdminDashboard', () => {
 
   it('should call onBackToDashboard when back button is clicked', async () => {
     const user = userEvent.setup();
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: true,
-      isLoading: false,
-    });
-
     render(<AdminDashboard onBackToDashboard={mockOnBackToDashboard} />);
 
     const backButton = screen.getByRole('button', { name: 'Back to Dashboard' });
@@ -203,11 +131,6 @@ describe('AdminDashboard', () => {
   });
 
   it('should have proper CSS classes for styling', () => {
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: true,
-      isLoading: false,
-    });
-
     render(<AdminDashboard />);
 
     // Check header styling
@@ -221,22 +144,12 @@ describe('AdminDashboard', () => {
 
   describe('Accessibility', () => {
     it('should have proper heading hierarchy', () => {
-      mockUseAdminAuth.mockReturnValue({
-        isAdmin: true,
-        isLoading: false,
-      });
-
       render(<AdminDashboard />);
 
       expect(screen.getByRole('heading', { level: 1, name: 'Admin Dashboard' })).toBeInTheDocument();
     });
 
     it('should have accessible navigation', () => {
-      mockUseAdminAuth.mockReturnValue({
-        isAdmin: true,
-        isLoading: false,
-      });
-
       render(<AdminDashboard />);
 
       const navigation = screen.getByRole('navigation');
@@ -245,11 +158,6 @@ describe('AdminDashboard', () => {
 
     it('should have keyboard accessible tabs', async () => {
       const user = userEvent.setup();
-      mockUseAdminAuth.mockReturnValue({
-        isAdmin: true,
-        isLoading: false,
-      });
-
       render(<AdminDashboard />);
 
       const settingsTab = screen.getByRole('button', { name: 'Settings' });

@@ -29,6 +29,13 @@ export function useWeeks() {
     }
     
     const token = getCurrentAccessToken();
+    console.log('🔑 useWeeks token check:', {
+      hasToken: !!token,
+      tokenLength: token?.length,
+      tokenStart: token?.substring(0, 20),
+      tokenEnd: token?.substring(token?.length - 20)
+    });
+    
     if (token) {
       return { Authorization: `Bearer ${token}` };
     }
@@ -41,8 +48,11 @@ export function useWeeks() {
       setError(null);
 
       const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
+      const headers = await getAuthHeaders();
+      console.log('🔍 useWeeks: Fetching weeks with headers:', headers);
+      
       const response = await fetch(`${baseUrl}/api/admin/weeks`, {
-        headers: await getAuthHeaders(),
+        headers,
       });
 
       const data: ApiResponse<Week[]> = await response.json();

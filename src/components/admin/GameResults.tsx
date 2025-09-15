@@ -24,6 +24,14 @@ export function GameResults({ selectedWeekId }: GameResultsProps) {
   const [submittingResults, setSubmittingResults] = useState<Set<number>>(new Set());
   const [forms, setForms] = useState<Record<number, GameResultForm>>({});
 
+  const getAuthHeaders = (): Record<string, string> => {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    if (token) {
+      return { Authorization: `Bearer ${token}` };
+    }
+    return {};
+  };
+
   const loadGames = useCallback(async () => {
     try {
       setLoading(true);
@@ -34,7 +42,11 @@ export function GameResults({ selectedWeekId }: GameResultsProps) {
         params.set('weekId', selectedWeekId.toString());
       }
 
-      const response = await fetch(`/api/admin/games/results?${params}`);
+      const response = await fetch(`/api/admin/games/results?${params}`, {
+        headers: {
+          ...getAuthHeaders(),
+        },
+      });
       const data = await response.json();
 
       if (!data.success) {
@@ -99,6 +111,7 @@ export function GameResults({ selectedWeekId }: GameResultsProps) {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           homeScore,

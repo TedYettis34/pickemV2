@@ -20,6 +20,16 @@ import { CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-
 const mockFetch = global.fetch as jest.MockedFunction<typeof fetch>;
 const mockCognitoClient = CognitoIdentityProviderClient as jest.MockedClass<typeof CognitoIdentityProviderClient>;
 
+// Helper to create valid JWT tokens for testing
+function createTestJWT(payload: Record<string, unknown>) {
+  const header = { alg: 'HS256', typ: 'JWT' };
+  const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+  const signature = 'mock-signature';
+  
+  return `${encodedHeader}.${encodedPayload}.${signature}`;
+}
+
 // Mock localStorage
 const mockLocalStorage = {
   getItem: jest.fn(),
@@ -135,6 +145,7 @@ describe('AdminAuth Module', () => {
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
+        json: async () => ({ error: 'User does not have admin privileges' }),
       } as Response);
 
       const result = await isCurrentUserAdmin();
@@ -172,10 +183,11 @@ describe('AdminAuth Module', () => {
         json: async () => ({ error: 'Token expired' }),
       } as Response);
       
-      // Mock the token refresh to fail
+      // Mock the token refresh to fail (OAuth refresh call)
       mockFetch.mockResolvedValueOnce({
         ok: false,
         status: 401,
+        text: async () => JSON.stringify({ error: 'invalid_grant' }),
       } as Response);
 
       const result = await isCurrentUserAdmin();
@@ -190,24 +202,19 @@ describe('AdminAuth Module', () => {
     it('should return authorized when user is admin', async () => {
       const adminCheck = requireAdmin();
       
-      // Mock AWS SDK responses for a valid admin user
-      mockClientInstance.send
-        .mockResolvedValueOnce({
-          // GetUserCommand response
-          Username: 'testuser',
-          UserAttributes: [
-            { Name: 'email', Value: 'test@example.com' },
-            { Name: 'name', Value: 'Test User' }
-          ],
-        })
-        .mockResolvedValueOnce({
-          // AdminListGroupsForUserCommand response
-          Groups: [{ GroupName: 'admin' }],
-        });
+      // Create a valid JWT token with admin group
+      const adminToken = createTestJWT({
+        sub: 'user-123',
+        'cognito:groups': ['admin', 'users'],
+        'cognito:username': 'testuser',
+        email: 'test@example.com',
+        name: 'Test User',
+        exp: Math.floor(Date.now() / 1000) + 3600, // Valid for 1 hour
+      });
 
       const mockRequest = {
         headers: {
-          get: jest.fn().mockReturnValue('Bearer test-access-token'),
+          get: jest.fn().mockReturnValue(`Bearer ${adminToken}`),
         },
       } as Request;
       
@@ -218,7 +225,7 @@ describe('AdminAuth Module', () => {
         username: 'testuser',
         email: 'test@example.com',
         name: 'Test User',
-        groups: ['admin'],
+        groups: ['admin', 'users'],
       });
       expect(result.error).toBeUndefined();
     });
@@ -226,24 +233,19 @@ describe('AdminAuth Module', () => {
     it('should return unauthorized when user is not admin', async () => {
       const adminCheck = requireAdmin();
       
-      // Mock AWS SDK responses for a valid user but not admin
-      mockClientInstance.send
-        .mockResolvedValueOnce({
-          // GetUserCommand response
-          Username: 'regularuser',
-          UserAttributes: [
-            { Name: 'email', Value: 'user@example.com' },
-            { Name: 'name', Value: 'Regular User' }
-          ],
-        })
-        .mockResolvedValueOnce({
-          // AdminListGroupsForUserCommand response - no admin group
-          Groups: [{ GroupName: 'users' }],
-        });
+      // Create a valid JWT token without admin group
+      const regularToken = createTestJWT({
+        sub: 'user-456',
+        'cognito:groups': ['users'],
+        'cognito:username': 'regularuser',
+        email: 'user@example.com',
+        name: 'Regular User',
+        exp: Math.floor(Date.now() / 1000) + 3600, // Valid for 1 hour
+      });
 
       const mockRequest = {
         headers: {
-          get: jest.fn().mockReturnValue('Bearer test-access-token'),
+          get: jest.fn().mockReturnValue(`Bearer ${regularToken}`),
         },
       } as Request;
       
@@ -283,22 +285,20 @@ describe('AdminAuth Module', () => {
       expect(result.error).toBe('Authorization header required');
     });
 
-    it('should return unauthorized when admin check fails', async () => {
+    it('should return unauthorized when token is invalid format', async () => {
       const adminCheck = requireAdmin();
       
-      // Mock AWS SDK to throw error
-      mockClientInstance.send.mockRejectedValueOnce(new Error('Network error'));
-
+      // Use an invalid JWT token (not properly formatted)
       const mockRequest = {
         headers: {
-          get: jest.fn().mockReturnValue('Bearer test-access-token'),
+          get: jest.fn().mockReturnValue('Bearer invalid-token-format'),
         },
       } as Request;
       
       const result = await adminCheck(mockRequest);
 
       expect(result.isAuthorized).toBe(false);
-      expect(result.error).toBe('Network error');
+      expect(result.error).toBe('Invalid token format');
     });
   });
 });

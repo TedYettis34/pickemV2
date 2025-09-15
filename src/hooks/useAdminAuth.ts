@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { isCurrentUserAdmin, getCurrentAccessToken, authEventEmitter } from '../lib/adminAuth';
 
 let lastAdminCheck = 0;
+let cachedAdminStatus: boolean | null = null;
+let cachedAccessToken: string | null = null;
 const MIN_CHECK_INTERVAL = 30000; // 30 seconds between checks
 
 export function useAdminAuth() {
@@ -15,14 +17,46 @@ export function useAdminAuth() {
     setIsAdmin(false);
     setAccessToken(null);
     setAuthError(null);
+    cachedAdminStatus = null;
+    cachedAccessToken = null;
   };
 
   const checkAdminStatus = async (forceCheck = false) => {
     const now = Date.now();
+    const token = getCurrentAccessToken();
     
-    // Rate limiting: don't check too frequently unless forced
-    if (!forceCheck && (now - lastAdminCheck < MIN_CHECK_INTERVAL)) {
-      console.log('Admin check rate limited, skipping');
+    console.log('🔍 Admin Status Check:', {
+      forceCheck,
+      hasToken: !!token,
+      tokenLength: token?.length || 0,
+      cachedStatus: cachedAdminStatus,
+      cachedToken: cachedAccessToken?.substring(0, 10) + '...',
+      timeSinceLastCheck: now - lastAdminCheck,
+      minInterval: MIN_CHECK_INTERVAL
+    });
+    
+    // If we have cached status for the same token and it's recent, use it
+    if (!forceCheck && 
+        cachedAdminStatus !== null && 
+        cachedAccessToken === token && 
+        (now - lastAdminCheck < MIN_CHECK_INTERVAL)) {
+      console.log('✅ Using cached admin status:', cachedAdminStatus);
+      setIsAdmin(cachedAdminStatus);
+      setAccessToken(token);
+      setIsLoading(false);
+      return;
+    }
+    
+    // Rate limiting: don't check too frequently unless forced or token changed
+    if (!forceCheck && 
+        cachedAccessToken === token && 
+        (now - lastAdminCheck < MIN_CHECK_INTERVAL)) {
+      console.log('⏱️  Admin check rate limited, skipping - but preserving current state');
+      // Don't change the admin status if we're rate limited but have a cached value
+      if (cachedAdminStatus !== null) {
+        setIsAdmin(cachedAdminStatus);
+        setAccessToken(token);
+      }
       setIsLoading(false);
       return;
     }
@@ -37,19 +71,23 @@ export function useAdminAuth() {
     lastAdminCheck = now;
     
     try {
-      const token = getCurrentAccessToken();
       setAccessToken(token);
       
       if (token) {
         const adminStatus = await isCurrentUserAdmin();
         setIsAdmin(adminStatus);
+        cachedAdminStatus = adminStatus;
+        cachedAccessToken = token;
         setAuthError(null); // Clear any previous errors
       } else {
         setIsAdmin(false);
+        cachedAdminStatus = false;
+        cachedAccessToken = null;
       }
     } catch (error) {
       console.error('Error checking admin status:', error);
       setIsAdmin(false);
+      cachedAdminStatus = false;
       setAuthError(error instanceof Error ? error.message : 'Authentication failed');
     } finally {
       setIsLoading(false);
