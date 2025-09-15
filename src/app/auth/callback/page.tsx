@@ -28,6 +28,15 @@ function AuthCallbackContent() {
         setStatus('Exchanging code for tokens...');
 
         // Exchange authorization code for tokens
+        // Use the current origin to match the redirect_uri used in the OAuth request
+        const currentRedirectUri = `${window.location.origin}/auth/callback`;
+        
+        console.log('🔄 Token exchange request:', {
+          redirect_uri: currentRedirectUri,
+          code_length: code.length,
+          origin: window.location.origin
+        });
+        
         const tokenResponse = await fetch('https://pickem-dev-auth.auth.us-east-1.amazoncognito.com/oauth2/token', {
           method: 'POST',
           headers: {
@@ -37,7 +46,7 @@ function AuthCallbackContent() {
             grant_type: 'authorization_code',
             client_id: '77jac49eg6mm1a38tc8v233stv',
             code: code,
-            redirect_uri: 'http://localhost:3000/auth/callback',
+            redirect_uri: currentRedirectUri,
           }),
         });
 
