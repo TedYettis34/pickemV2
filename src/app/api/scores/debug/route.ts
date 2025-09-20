@@ -3,18 +3,40 @@ import { getGamesNeedingScoreUpdates } from '../../../../lib/scoreUpdater';
 import { query } from '../../../../lib/database';
 import { Game } from '../../../../types/game';
 
+interface GameDebugInfo {
+  id: number;
+  teams: string;
+  commence_time: string;
+  hoursAgo: string;
+  game_status: string;
+  home_score?: number | null;
+  away_score?: number | null;
+  sport: string;
+  external_id?: string;
+}
+
+interface DebugInfo {
+  timestamp: string;
+  currentTime: string;
+  databaseConnection: string;
+  allActiveGames: GameDebugInfo[];
+  candidateGames: GameDebugInfo[];
+  gamesNeedingUpdates: GameDebugInfo[];
+  errors: string[];
+}
+
 export async function GET(): Promise<NextResponse> {
   try {
     console.log('Score update debug requested');
     
-    const debugInfo = {
+    const debugInfo: DebugInfo = {
       timestamp: new Date().toISOString(),
       currentTime: new Date().toLocaleString(),
       databaseConnection: 'unknown',
-      allActiveGames: [] as any[],
-      candidateGames: [] as any[],
-      gamesNeedingUpdates: [] as any[],
-      errors: [] as string[]
+      allActiveGames: [],
+      candidateGames: [],
+      gamesNeedingUpdates: [],
+      errors: []
     };
     
     // Test database connection
@@ -84,6 +106,7 @@ export async function GET(): Promise<NextResponse> {
         teams: `${game.away_team} @ ${game.home_team}`,
         commence_time: game.commence_time,
         hoursAgo: ((new Date().getTime() - new Date(game.commence_time).getTime()) / (1000 * 60 * 60)).toFixed(1),
+        game_status: game.game_status,
         external_id: game.external_id,
         sport: game.sport
       }));

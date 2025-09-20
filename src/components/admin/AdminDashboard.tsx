@@ -81,7 +81,7 @@ export default function AdminDashboard({ onBackToDashboard }: AdminDashboardProp
         
         if (debug.allActiveGames.length > 0) {
           message += `\n\nAll Active Games:\n`;
-          debug.allActiveGames.slice(0, 10).forEach((game: any) => {
+          debug.allActiveGames.slice(0, 10).forEach((game: { teams: string; hoursAgo: string; game_status: string }) => {
             message += `- ${game.teams} (${game.hoursAgo}h ago) - Status: ${game.game_status}\n`;
           });
           if (debug.allActiveGames.length > 10) {
@@ -131,7 +131,7 @@ export default function AdminDashboard({ onBackToDashboard }: AdminDashboardProp
         
         if (details.length > 0) {
           message += `\nDetails:\n`;
-          details.forEach((detail: any) => {
+          details.forEach((detail: { teams: string; status: string; reason?: string; note?: string }) => {
             message += `- ${detail.teams}: ${detail.status}`;
             if (detail.reason) message += ` (${detail.reason})`;
             if (detail.note) message += ` - ${detail.note}`;

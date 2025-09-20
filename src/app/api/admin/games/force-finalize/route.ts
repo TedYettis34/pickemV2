@@ -4,6 +4,23 @@ import { query } from '../../../../../lib/database';
 import { Game } from '../../../../../types/game';
 import { finalizeGameResult } from '../../../../../lib/gameResults';
 
+interface GameDetail {
+  id: number;
+  teams: string;
+  status: string;
+  reason?: string;
+  scores?: string;
+  note?: string;
+  error?: string;
+}
+
+interface ForceFinalizationResult {
+  gamesChecked: number;
+  gamesFinalized: number;
+  details: GameDetail[];
+  errors: string[];
+}
+
 // ADMIN ONLY ENDPOINT: Force finalize games that have been completed
 export async function POST(request: NextRequest): Promise<NextResponse> {
   try {
@@ -17,7 +34,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     }
 
     // Parse request body
-    const body = await request.json().catch(() => ({}));
+    const body = await request.json().catch(() => ({})) as { gameIds?: number[]; sport?: string };
     const { gameIds, sport } = body;
 
     // Validation
@@ -35,7 +52,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       WHERE game_status != 'final'
     `;
     
-    const params: any[] = [];
+    const params: (number[] | string)[] = [];
     
     // Filter by specific gameIds if provided
     if (gameIds && Array.isArray(gameIds) && gameIds.length > 0) {
@@ -63,15 +80,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       });
     }
     
-    // Get unique external IDs for API calls
-    const externalIds = games.map(game => game.external_id);
-    
     // Use the scoreUpdater directly but without the filter (force finalization)
-    const results = {
+    const results: ForceFinalizationResult = {
       gamesChecked: games.length,
       gamesFinalized: 0,
-      details: [] as any[],
-      errors: [] as string[]
+      details: [],
+      errors: []
     };
 
     // Process each game
