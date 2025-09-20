@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { logout } from '../../lib/auth';
+import { getAuthHeaders } from '../../lib/userAuth';
 import { WeekManagement } from './WeekManagement';
 import { GameResults } from './GameResults';
 
@@ -12,6 +13,9 @@ interface AdminDashboardProps {
 export default function AdminDashboard({ onBackToDashboard }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<'weeks' | 'results' | 'settings'>('weeks');
   const [updatingScores, setUpdatingScores] = useState(false);
+  const [diagnosing, setDiagnosing] = useState(false);
+  const [forceFinalizingNFL, setForceFinalizingNFL] = useState(false);
+  const [forceFinalizingCollege, setForceFinalizingCollege] = useState(false);
 
   const handleSignOut = () => {
     logout();
@@ -53,6 +57,101 @@ export default function AdminDashboard({ onBackToDashboard }: AdminDashboardProp
       alert('Failed to update scores. Please try again.');
     } finally {
       setUpdatingScores(false);
+    }
+  };
+
+  const handleDiagnoseScores = async () => {
+    setDiagnosing(true);
+    try {
+      const response = await fetch('/api/scores/debug');
+      const data = await response.json();
+      
+      if (data.success) {
+        const { debug, summary } = data;
+        let message = `Score Update Diagnostic Report\n\n`;
+        message += `Current Time: ${debug.currentTime}\n`;
+        message += `Database Connection: ${debug.databaseConnection}\n\n`;
+        message += `Active Games (not final): ${summary.allActiveGames}\n`;
+        message += `Candidate Games (5+ hrs ago, no scores): ${summary.candidateGames}\n`;
+        message += `Games Needing Updates: ${summary.gamesNeedingUpdates}\n`;
+        
+        if (debug.errors.length > 0) {
+          message += `\nErrors:\n${debug.errors.join('\n')}`;
+        }
+        
+        if (debug.allActiveGames.length > 0) {
+          message += `\n\nAll Active Games:\n`;
+          debug.allActiveGames.slice(0, 10).forEach((game: { teams: string; hoursAgo: string; game_status: string }) => {
+            message += `- ${game.teams} (${game.hoursAgo}h ago) - Status: ${game.game_status}\n`;
+          });
+          if (debug.allActiveGames.length > 10) {
+            message += `... and ${debug.allActiveGames.length - 10} more\n`;
+          }
+        }
+        
+        alert(message);
+      } else {
+        alert(`Diagnostic failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error running diagnostics:', error);
+      alert('Failed to run diagnostics. Please try again.');
+    } finally {
+      setDiagnosing(false);
+    }
+  };
+
+  const handleForceFinalize = async (sport: 'americanfootball_nfl' | 'americanfootball_ncaaf') => {
+    const sportName = sport === 'americanfootball_nfl' ? 'NFL' : 'College';
+    const confirmed = confirm(`Are you sure you want to force finalize all ${sportName} games that started 5+ hours ago?\n\nThis will mark games as final with placeholder scores (0-0) and evaluate all picks. This action cannot be undone.`);
+    
+    if (!confirmed) return;
+    
+    const setLoading = sport === 'americanfootball_nfl' ? setForceFinalizingNFL : setForceFinalizingCollege;
+    
+    setLoading(true);
+    try {
+      const authHeaders = await getAuthHeaders();
+      const response = await fetch('/api/admin/games/force-finalize', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authHeaders,
+        },
+        body: JSON.stringify({ sport }),
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        const { gamesChecked, gamesFinalized, details, errors } = data.data;
+        let message = `Force Finalization Complete!\n\n`;
+        message += `Games checked: ${gamesChecked}\n`;
+        message += `Games finalized: ${gamesFinalized}\n`;
+        
+        if (details.length > 0) {
+          message += `\nDetails:\n`;
+          details.forEach((detail: { teams: string; status: string; reason?: string; note?: string }) => {
+            message += `- ${detail.teams}: ${detail.status}`;
+            if (detail.reason) message += ` (${detail.reason})`;
+            if (detail.note) message += ` - ${detail.note}`;
+            message += `\n`;
+          });
+        }
+        
+        if (errors.length > 0) {
+          message += `\nErrors:\n${errors.join('\n')}`;
+        }
+        
+        alert(message);
+      } else {
+        alert(`Force finalization failed: ${data.error}`);
+      }
+    } catch (error) {
+      console.error('Error force finalizing games:', error);
+      alert('Failed to force finalize games. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -143,18 +242,56 @@ export default function AdminDashboard({ onBackToDashboard }: AdminDashboardProp
               <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-3">
                 Score Management
               </h3>
-              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4">
-                <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
-                  Manually trigger an update of game scores from the Odds API. This will automatically 
-                  fetch scores for games that started 4+ hours ago and don&apos;t have manually entered results.
-                </p>
-                <button
-                  onClick={handleUpdateScores}
-                  disabled={updatingScores}
-                  className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-md font-medium transition-colors disabled:cursor-not-allowed"
-                >
-                  {updatingScores ? 'Updating Scores...' : 'Update Scores from API'}
-                </button>
+              <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 space-y-4">
+                <div>
+                  <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
+                    Manually trigger an update of game scores from the Odds API. This will automatically 
+                    fetch scores for games that started 5+ hours ago and don&apos;t have manually entered results.
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={handleUpdateScores}
+                      disabled={updatingScores}
+                      className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-4 py-2 rounded-md font-medium transition-colors disabled:cursor-not-allowed"
+                    >
+                      {updatingScores ? 'Updating Scores...' : 'Update Scores from API'}
+                    </button>
+                    <button
+                      onClick={handleDiagnoseScores}
+                      disabled={diagnosing}
+                      className="bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white px-4 py-2 rounded-md font-medium transition-colors disabled:cursor-not-allowed"
+                    >
+                      {diagnosing ? 'Running Diagnostics...' : 'Diagnose Score Issues'}
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Emergency Finalization Section */}
+                <div className="border-t border-gray-300 dark:border-gray-600 pt-4">
+                  <h4 className="text-sm font-semibold text-red-700 dark:text-red-400 mb-2">
+                    Emergency Tools
+                  </h4>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                    ⚠️ Use only when the automatic score system is not working and games need to be finalized urgently.
+                    This will mark games as final with placeholder scores (0-0) and evaluate picks.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      onClick={() => handleForceFinalize('americanfootball_nfl')}
+                      disabled={forceFinalizingNFL}
+                      className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-3 py-1 text-sm rounded-md font-medium transition-colors disabled:cursor-not-allowed"
+                    >
+                      {forceFinalizingNFL ? 'Processing...' : 'Force Finalize NFL Games'}
+                    </button>
+                    <button
+                      onClick={() => handleForceFinalize('americanfootball_ncaaf')}
+                      disabled={forceFinalizingCollege}
+                      className="bg-red-600 hover:bg-red-700 disabled:bg-red-400 text-white px-3 py-1 text-sm rounded-md font-medium transition-colors disabled:cursor-not-allowed"
+                    >
+                      {forceFinalizingCollege ? 'Processing...' : 'Force Finalize College Games'}
+                    </button>
+                  </div>
+                </div>
               </div>
             </div>
 
