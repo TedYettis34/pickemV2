@@ -423,6 +423,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
           game_id: pick.game_id,
           pick_type: pick.pick_type,
           spread_value: pick.spread_value,
+          is_triple_play: pick.is_triple_play,
         }));
       
       // Combine draft picks and unsubmitted picks
