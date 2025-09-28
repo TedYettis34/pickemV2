@@ -330,7 +330,7 @@ export function PicksReview({
               if (!result) {
                 // If no result yet, use game started status for styling
                 return gameStarted 
-                  ? 'bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800'
+                  ? 'bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800'
                   : 'bg-gray-50 dark:bg-gray-700';
               }
               
@@ -409,7 +409,7 @@ export function PicksReview({
                             ? "text-red-600 dark:text-red-400 font-medium"
                             : "text-yellow-600 dark:text-yellow-400 font-medium" // push
                           : gameHasStarted
-                          ? "text-red-600 dark:text-red-400 font-medium"
+                          ? "text-orange-600 dark:text-orange-400 font-medium"
                           : "text-gray-500 dark:text-gray-400"
                       }`}
                     >
