@@ -315,6 +315,14 @@ export async function refreshOAuthTokens(): Promise<boolean> {
           statusText: tokenResponse.statusText,
           error: errorText
         });
+        
+        // Clear all tokens on refresh failure (e.g. invalid_grant after 30 days)
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('idToken');
+        localStorage.removeItem('refreshToken');
+        localStorage.removeItem('lastLoginTime');
+        localStorage.removeItem('loginMethod');
+        
         return false;
       }
 
@@ -350,6 +358,14 @@ export async function refreshOAuthTokens(): Promise<boolean> {
       }
     } catch (error) {
       console.error('Error during OAuth token refresh:', error);
+      
+      // Clear all tokens on refresh error
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('idToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('lastLoginTime');
+      localStorage.removeItem('loginMethod');
+      
       return false;
     } finally {
       // Clear the refresh promise when done
@@ -375,6 +391,7 @@ export function logout(): void {
   localStorage.removeItem('loginMethod');
   
   // Redirect to Cognito hosted UI logout endpoint
+  // Use the root domain for logout redirect to avoid the callback path issue
   const logoutUrl = `https://pickem-dev-auth.auth.us-east-1.amazoncognito.com/logout?client_id=${CLIENT_ID}&logout_uri=${encodeURIComponent(window.location.origin)}`;
   window.location.href = logoutUrl;
 }

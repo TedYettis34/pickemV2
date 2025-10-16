@@ -82,9 +82,9 @@ resource "aws_cognito_user_pool_client" "pickem_user_pool_client" {
   ])
 
   logout_urls = compact([
-    "http://localhost:3000/auth/logout",
-    "https://${var.project_name}-${var.environment}.example.com/auth/logout",
-    var.production_domain != "" ? "${var.production_domain}/auth/logout" : null
+    "http://localhost:3000",
+    "https://${var.project_name}-${var.environment}.example.com",
+    var.production_domain != "" ? var.production_domain : null
   ])
 
   # Supported identity providers
