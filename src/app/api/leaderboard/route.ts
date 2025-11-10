@@ -25,24 +25,24 @@ export async function GET() {
           -- Calculate wins: regular wins (1 point) + triple play wins (3 points)
           COALESCE(SUM(
             CASE 
-              WHEN p.result = 'win' AND p.is_triple_play = true THEN 3
-              WHEN p.result = 'win' AND p.is_triple_play = false THEN 1
+              WHEN p.result = 'win' AND COALESCE(p.is_triple_play, false) = true THEN 3
+              WHEN p.result = 'win' THEN 1
               ELSE 0
             END
           ), 0) as total_wins,
           -- Calculate losses: regular losses (1 point) + triple play losses (3 points)
           COALESCE(SUM(
             CASE 
-              WHEN p.result = 'loss' AND p.is_triple_play = true THEN 3
-              WHEN p.result = 'loss' AND p.is_triple_play = false THEN 1
+              WHEN p.result = 'loss' AND COALESCE(p.is_triple_play, false) = true THEN 3
+              WHEN p.result = 'loss' THEN 1
               ELSE 0
             END
           ), 0) as total_losses,
           -- Pushes don't count toward record but track for completeness
           COALESCE(SUM(
             CASE 
-              WHEN p.result = 'push' AND p.is_triple_play = true THEN 3
-              WHEN p.result = 'push' AND p.is_triple_play = false THEN 1
+              WHEN p.result = 'push' AND COALESCE(p.is_triple_play, false) = true THEN 3
+              WHEN p.result = 'push' THEN 1
               ELSE 0
             END
           ), 0) as total_pushes
@@ -57,34 +57,34 @@ export async function GET() {
           *,
           -- Calculate win percentage (pushes don't count in denominator)
           CASE 
-            WHEN (total_wins + total_losses) = 0 THEN 0
+            WHEN (total_wins + total_losses) = 0 THEN 0.0
             ELSE ROUND((total_wins::decimal / (total_wins + total_losses) * 100), 1)
           END as win_percentage,
           -- Rank by win percentage, then by total wins as tiebreaker
           RANK() OVER (
             ORDER BY 
               CASE 
-                WHEN (total_wins + total_losses) = 0 THEN 0
+                WHEN (total_wins + total_losses) = 0 THEN 0.0
                 ELSE (total_wins::decimal / (total_wins + total_losses))
               END DESC,
               total_wins DESC
           ) as rank
         FROM user_stats
+      ),
+      leader_record AS (
+        SELECT MAX(total_wins - total_losses) as leader_differential
+        FROM ranked_users
+        WHERE rank = 1
       )
       SELECT 
-        *,
+        ru.*,
         -- Calculate games back from the leader
         CASE 
-          WHEN rank = 1 THEN 0
-          ELSE (
-            -- Get the leader's record
-            (SELECT (total_wins - total_losses) FROM ranked_users WHERE rank = 1) -
-            -- Subtract this user's record  
-            (total_wins - total_losses)
-          ) / 2.0
+          WHEN ru.rank = 1 THEN 0.0
+          ELSE COALESCE(((SELECT leader_differential FROM leader_record) - (ru.total_wins - ru.total_losses)) / 2.0, 0.0)
         END as games_back
-      FROM ranked_users
-      ORDER BY rank ASC, total_wins DESC;
+      FROM ranked_users ru
+      ORDER BY ru.rank ASC, ru.total_wins DESC;
     `;
 
     const result = await query(sql, []);
@@ -105,8 +105,13 @@ export async function GET() {
     
   } catch (error) {
     console.error('Error fetching leaderboard:', error);
+    console.error('Error details:', error instanceof Error ? error.message : String(error));
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
     return NextResponse.json(
-      { error: 'Failed to fetch leaderboard data' },
+      { 
+        error: 'Failed to fetch leaderboard data',
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }
