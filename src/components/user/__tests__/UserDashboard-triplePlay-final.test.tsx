@@ -20,6 +20,8 @@ describe('UserDashboard - Triple Play Retention Test', () => {
     onSignOut: jest.fn(),
     isAdmin: false,
     onShowAdminPanel: jest.fn(),
+    isAuthenticated: true,
+    authMessage: null,
   };
 
   beforeEach(() => {

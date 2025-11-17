@@ -86,6 +86,8 @@ describe('UserDashboard', () => {
     onSignOut: jest.fn(),
     isAdmin: false,
     onShowAdminPanel: jest.fn(),
+    isAuthenticated: true,
+    authMessage: null,
   };
 
   beforeEach(() => {

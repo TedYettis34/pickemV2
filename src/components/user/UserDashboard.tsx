@@ -9,11 +9,14 @@ import { PicksReview } from '../picks/PicksReview';
 import { AllPicksBrowser } from '../picks/AllPicksBrowser';
 import Leaderboard from './Leaderboard';
 import { getCurrentUserContext, getAuthHeaders } from '../../lib/userAuth';
+import AuthForm from '../auth/AuthForm';
 
 interface UserDashboardProps {
   onSignOut: () => void;
   isAdmin: boolean;
   onShowAdminPanel: () => void;
+  isAuthenticated: boolean;
+  authMessage?: string | null;
 }
 
 interface OddsStatus {
@@ -23,7 +26,7 @@ interface OddsStatus {
   timeSinceUpdate: string | null;
 }
 
-export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDashboardProps) {
+export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel, isAuthenticated, authMessage }: UserDashboardProps) {
   const [activeWeek, setActiveWeek] = useState<Week | null>(null);
   const [games, setGames] = useState<Game[]>([]);
   const [userPicks, setUserPicks] = useState<Pick[]>([]);
@@ -33,11 +36,12 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
   const [error, setError] = useState<string | null>(null);
   const [oddsStatus, setOddsStatus] = useState<OddsStatus | null>(null);
   const [submittingPicks, setSubmittingPicks] = useState(false);
-  const [activeTab, setActiveTab] = useState<'games' | 'review' | 'browse' | 'leaderboard'>('games');
+  const [activeTab, setActiveTab] = useState<'games' | 'review' | 'browse' | 'leaderboard'>(isAuthenticated ? 'games' : 'browse');
   const [attemptedDeletes, setAttemptedDeletes] = useState<Set<number>>(new Set());
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [showLoginModal, setShowLoginModal] = useState(false);
 
   useEffect(() => {
     loadActiveWeekAndGames();
@@ -758,7 +762,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                     {oddsStatus.timeSinceUpdate || 'Never'}
                   </div>
                 )}
-                {isAdmin && (
+                {isAdmin && isAuthenticated && (
                   <button
                     onClick={onShowAdminPanel}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
@@ -766,12 +770,21 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                     Admin Panel
                   </button>
                 )}
-                <button
-                  onClick={onSignOut}
-                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-                >
-                  Sign Out
-                </button>
+                {isAuthenticated ? (
+                  <button
+                    onClick={onSignOut}
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                  >
+                    Sign Out
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => setShowLoginModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                  >
+                    Login
+                  </button>
+                )}
               </div>
             </div>
           </div>
@@ -802,7 +815,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                   {oddsStatus.timeSinceUpdate || 'Never'}
                 </div>
               )}
-              {isAdmin && (
+              {isAdmin && isAuthenticated && (
                 <button
                   onClick={onShowAdminPanel}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
@@ -810,12 +823,21 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                   Admin Panel
                 </button>
               )}
-              <button
-                onClick={onSignOut}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Sign Out
-              </button>
+              {isAuthenticated ? (
+                <button
+                  onClick={onSignOut}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Sign Out
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowLoginModal(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors"
+                >
+                  Login
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -926,39 +948,43 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
                       
                       <div ref={scrollContainerRef} className="overflow-x-auto overflow-y-hidden">
                         <nav className="-mb-px flex min-w-max">
-                      <button
-                        onClick={() => setActiveTab('games')}
-                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                          activeTab === 'games'
-                            ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
-                        }`}
-                      >
-                        Make Picks ({games.length} games)
-                      </button>
-                      <button
-                        onClick={() => setActiveTab('review')}
-                        className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${(() => {
-                          const hasUnsubmittedPicks = (draftPicks.size > 0 || userPicks.some(pick => !pick.submitted)) && !hasSubmittedPicks;
-                          
-                          if (hasUnsubmittedPicks) {
+                      {isAuthenticated && (
+                        <button
+                          onClick={() => setActiveTab('games')}
+                          className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                            activeTab === 'games'
+                              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300'
+                          }`}
+                        >
+                          Make Picks ({games.length} games)
+                        </button>
+                      )}
+                      {isAuthenticated && (
+                        <button
+                          onClick={() => setActiveTab('review')}
+                          className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${(() => {
+                            const hasUnsubmittedPicks = (draftPicks.size > 0 || userPicks.some(pick => !pick.submitted)) && !hasSubmittedPicks;
+
+                            if (hasUnsubmittedPicks) {
+                              return activeTab === 'review'
+                                ? 'border-yellow-500 text-yellow-600 dark:text-yellow-400'
+                                : 'border-transparent text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300';
+                            }
+
                             return activeTab === 'review'
-                              ? 'border-yellow-500 text-yellow-600 dark:text-yellow-400'
-                              : 'border-transparent text-yellow-600 dark:text-yellow-400 hover:text-yellow-700 dark:hover:text-yellow-300';
-                          }
-                          
-                          return activeTab === 'review'
-                            ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                            : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300';
-                        })()}`}
-                      >
-                        Review Picks ({getTotalPicksCount()})
-                        {hasSubmittedPicks && (
-                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
-                            Submitted
-                          </span>
-                        )}
-                      </button>
+                              ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 hover:border-gray-300';
+                          })()}`}
+                        >
+                          Review Picks ({getTotalPicksCount()})
+                          {hasSubmittedPicks && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
+                              Submitted
+                            </span>
+                          )}
+                        </button>
+                      )}
                       <button
                         onClick={() => setActiveTab('browse')}
                         className={`py-4 px-6 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
@@ -1099,6 +1125,33 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel }: UserDash
           )}
         </div>
       </main>
+
+      {/* Login Modal */}
+      {showLoginModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full p-6 relative">
+            <button
+              onClick={() => setShowLoginModal(false)}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">
+              Login to Make Picks
+            </h2>
+            {authMessage && (
+              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
+                <div className="text-sm text-yellow-800 text-center">
+                  {authMessage}
+                </div>
+              </div>
+            )}
+            <AuthForm />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

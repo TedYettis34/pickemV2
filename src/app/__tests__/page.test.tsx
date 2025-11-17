@@ -15,10 +15,10 @@ jest.mock('../../hooks/useAdminAuth', () => ({
 
 // Mock the components
 jest.mock('../../components/auth/AuthForm', () => {
-  return function MockAuthForm({ onAuthSuccess }: { onAuthSuccess: () => void }) {
+  return function MockAuthForm() {
     return (
       <div data-testid="auth-form">
-        <button onClick={() => onAuthSuccess()}>Login</button>
+        Auth Form
       </div>
     );
   };
@@ -35,24 +35,31 @@ jest.mock('../../components/admin/AdminDashboard', () => {
 });
 
 jest.mock('../../components/user/UserDashboard', () => ({
-  UserDashboard: function MockUserDashboard({ 
-    onSignOut, 
-    isAdmin, 
-    onShowAdminPanel 
-  }: { 
-    onSignOut: () => void; 
-    isAdmin: boolean; 
-    onShowAdminPanel: () => void; 
+  UserDashboard: function MockUserDashboard({
+    onSignOut,
+    isAdmin,
+    onShowAdminPanel,
+    isAuthenticated
+  }: {
+    onSignOut: () => void;
+    isAdmin: boolean;
+    onShowAdminPanel: () => void;
+    isAuthenticated: boolean;
+    authMessage?: string | null;
   }) {
     return (
       <div data-testid="user-dashboard">
         <h1>PickEm Dashboard</h1>
         <div>Welcome to your dashboard!</div>
         <div>Your pick&apos;em features will be built here.</div>
-        {isAdmin && (
+        {isAdmin && isAuthenticated && (
           <button onClick={onShowAdminPanel}>Admin Panel</button>
         )}
-        <button onClick={onSignOut}>Sign Out</button>
+        {isAuthenticated ? (
+          <button onClick={onSignOut}>Sign Out</button>
+        ) : (
+          <button>Login</button>
+        )}
       </div>
     );
   },
@@ -82,7 +89,7 @@ describe('Home Page', () => {
     expect(screen.getByText('Loading...')).toBeInTheDocument();
   });
 
-  it('should render auth form when not authenticated', async () => {
+  it('should render dashboard when not authenticated', async () => {
     mockIsAuthenticated.mockReturnValue(false);
     mockUseAdminAuth.mockReturnValue({
       isAdmin: false,
@@ -92,7 +99,8 @@ describe('Home Page', () => {
     render(<Home />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('auth-form')).toBeInTheDocument();
+      expect(screen.getByTestId('user-dashboard')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Login' })).toBeInTheDocument();
     });
   });
 
@@ -170,29 +178,6 @@ describe('Home Page', () => {
     expect(screen.getByText('Welcome to your dashboard!')).toBeInTheDocument();
   });
 
-  it('should handle authentication success', async () => {
-    const user = userEvent.setup();
-    mockIsAuthenticated.mockReturnValue(false);
-    mockUseAdminAuth.mockReturnValue({
-      isAdmin: false,
-      isLoading: false,
-    });
-
-    render(<Home />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('auth-form')).toBeInTheDocument();
-    });
-
-    const loginButton = screen.getByRole('button', { name: 'Login' });
-    await user.click(loginButton);
-
-    // Should show main dashboard after successful auth
-    await waitFor(() => {
-      expect(screen.getByText('Welcome to your dashboard!')).toBeInTheDocument();
-    });
-  });
-
   it('should handle sign out', async () => {
     const user = userEvent.setup();
     mockIsAuthenticated.mockReturnValue(true);
@@ -201,7 +186,7 @@ describe('Home Page', () => {
       isLoading: false,
     });
 
-    render(<Home />);
+    const { rerender } = render(<Home />);
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Sign Out' })).toBeInTheDocument();
@@ -211,10 +196,15 @@ describe('Home Page', () => {
     await user.click(signOutButton);
 
     expect(mockLogout).toHaveBeenCalledTimes(1);
-    
-    // Should show auth form after sign out
+
+    // Simulate sign out by changing auth state
+    mockIsAuthenticated.mockReturnValue(false);
+    rerender(<Home />);
+
+    // Should show dashboard with Login button after sign out
     await waitFor(() => {
-      expect(screen.getByTestId('auth-form')).toBeInTheDocument();
+      expect(screen.getByTestId('user-dashboard')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Login' })).toBeInTheDocument();
     });
   });
 });
