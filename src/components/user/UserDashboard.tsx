@@ -17,7 +17,6 @@ interface UserDashboardProps {
   onShowAdminPanel: () => void;
   isAuthenticated: boolean;
   authMessage?: string | null;
-  onAuthSuccess: () => void;
 }
 
 interface OddsStatus {
@@ -27,7 +26,7 @@ interface OddsStatus {
   timeSinceUpdate: string | null;
 }
 
-export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel, isAuthenticated, authMessage, onAuthSuccess }: UserDashboardProps) {
+export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel, isAuthenticated, authMessage }: UserDashboardProps) {
   const [activeWeek, setActiveWeek] = useState<Week | null>(null);
   const [games, setGames] = useState<Game[]>([]);
   const [userPicks, setUserPicks] = useState<Pick[]>([]);
@@ -1149,10 +1148,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel, isAuthenti
                 </div>
               </div>
             )}
-            <AuthForm onAuthSuccess={() => {
-              setShowLoginModal(false);
-              onAuthSuccess();
-            }} />
+            <AuthForm />
           </div>
         </div>
       )}

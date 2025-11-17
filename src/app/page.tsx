@@ -43,11 +43,6 @@ export default function Home() {
     return unsubscribe;
   }, []);
 
-  const handleAuthSuccess = () => {
-    setAuthenticated(true);
-    setAuthMessage(null); // Clear any auth messages on successful login
-  };
-
   const handleSignOut = () => {
     logout();
     setAuthenticated(false);
@@ -78,7 +73,6 @@ export default function Home() {
       onShowAdminPanel={() => setShowAdminDashboard(true)}
       isAuthenticated={authenticated}
       authMessage={authMessage}
-      onAuthSuccess={handleAuthSuccess}
     />
   );
 }
