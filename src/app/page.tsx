@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import AuthForm from '../components/auth/AuthForm';
 import AdminDashboard from '../components/admin/AdminDashboard';
 import { UserDashboard } from '../components/user/UserDashboard';
 import { isAuthenticated, logout } from '../lib/auth';
@@ -66,58 +65,20 @@ export default function Home() {
     );
   }
 
-  if (!authenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
-        <div className="w-full max-w-6xl flex flex-col lg:flex-row items-center gap-12">
-          <div className="flex-1 text-center lg:text-left">
-            <h1 className="text-4xl lg:text-6xl font-bold text-gray-900 dark:text-white mb-6">
-              Welcome to PickEm
-            </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-300 mb-8">
-              Make your predictions and compete with friends in the ultimate pick&apos;em experience.
-            </p>
-            <div className="space-y-4 text-lg text-gray-500 dark:text-gray-400">
-              <div className="flex items-center justify-center lg:justify-start gap-2">
-                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                Create and join leagues
-              </div>
-              <div className="flex items-center justify-center lg:justify-start gap-2">
-                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                Track your predictions
-              </div>
-              <div className="flex items-center justify-center lg:justify-start gap-2">
-                <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                Compete for the top spot
-              </div>
-            </div>
-          </div>
-          <div className="flex-1 w-full max-w-md">
-            {authMessage && (
-              <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-md">
-                <div className="text-sm text-yellow-800 text-center">
-                  {authMessage}
-                </div>
-              </div>
-            )}
-            <AuthForm onAuthSuccess={handleAuthSuccess} />
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // If user chose to view admin dashboard
-  if (showAdminDashboard && isAdmin) {
+  // If user chose to view admin dashboard (only available for authenticated admins)
+  if (showAdminDashboard && isAdmin && authenticated) {
     return <AdminDashboard onBackToDashboard={() => setShowAdminDashboard(false)} />;
   }
 
-  // Regular user dashboard
+  // Regular user dashboard (available for both authenticated and unauthenticated users)
   return (
-    <UserDashboard 
+    <UserDashboard
       onSignOut={handleSignOut}
       isAdmin={isAdmin}
       onShowAdminPanel={() => setShowAdminDashboard(true)}
+      isAuthenticated={authenticated}
+      authMessage={authMessage}
+      onAuthSuccess={handleAuthSuccess}
     />
   );
 }
