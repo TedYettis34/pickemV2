@@ -7,6 +7,11 @@ import {
 import { PickWithGame, SpreadChange } from '../../types/pick';
 import { Game } from '../../types/game';
 
+// Computed relative to the current date so this fixture never rots into a
+// "past" date as real time advances (avoids flaky failures like the game
+// unexpectedly appearing "already started").
+const FUTURE_YEAR = new Date().getFullYear() + 5;
+
 describe('spreadChanges', () => {
   const mockGame: Game = {
     id: 1,
@@ -14,7 +19,7 @@ describe('spreadChanges', () => {
     week_id: 1,
     home_team: 'Team A',
     away_team: 'Team B',
-    commence_time: '2025-12-25T20:00:00Z', // Future date
+    commence_time: `${FUTURE_YEAR}-12-25T20:00:00Z`, // Future date
     sport: 'americanfootball_nfl',
     spread_home: -3.5,
     spread_away: 3.5,

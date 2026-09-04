@@ -21,6 +21,11 @@ const mockCalculateSpreadChange = calculateSpreadChange as jest.MockedFunction<t
 const mockGetSpreadChangeDisplayText = getSpreadChangeDisplayText as jest.MockedFunction<typeof getSpreadChangeDisplayText>;
 const mockGetSpreadChangeClasses = getSpreadChangeClasses as jest.MockedFunction<typeof getSpreadChangeClasses>;
 
+// Computed relative to the current date so this fixture never rots into a
+// "past" date as real time advances (avoids flaky failures like the game
+// unexpectedly appearing "already started").
+const FUTURE_YEAR = new Date().getFullYear() + 5;
+
 describe('PickCard', () => {
   const mockGame: Game = {
     id: 1,
@@ -29,7 +34,7 @@ describe('PickCard', () => {
     external_id: 'game1',
     home_team: 'Chiefs',
     away_team: 'Bills',
-    commence_time: '2025-12-25T18:00:00Z', // Future date
+    commence_time: `${FUTURE_YEAR}-12-25T18:00:00Z`, // Future date
     spread_home: -3.5,
     spread_away: 3.5,
     total_over_under: 47.5,
