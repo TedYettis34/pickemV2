@@ -2,10 +2,20 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import Home from '../page';
 
-// Mock the auth functions
+type AuthChangeCallback = (user: { uid: string } | null) => void;
+
+let authChangeCallback: AuthChangeCallback | null = null;
+const mockUnsubscribe = jest.fn();
+
+jest.mock('../../lib/firebase/auth', () => ({
+  subscribeToAuthChanges: jest.fn((callback: AuthChangeCallback) => {
+    authChangeCallback = callback;
+    return mockUnsubscribe;
+  }),
+}));
+
 jest.mock('../../lib/auth', () => ({
-  isAuthenticated: jest.fn(),
-  logout: jest.fn(),
+  logout: jest.fn().mockResolvedValue(undefined),
 }));
 
 // Mock the hooks
@@ -14,16 +24,6 @@ jest.mock('../../hooks/useAdminAuth', () => ({
 }));
 
 // Mock the components
-jest.mock('../../components/auth/AuthForm', () => {
-  return function MockAuthForm() {
-    return (
-      <div data-testid="auth-form">
-        Auth Form
-      </div>
-    );
-  };
-});
-
 jest.mock('../../components/admin/AdminDashboard', () => {
   return function MockAdminDashboard({ onBackToDashboard }: { onBackToDashboard?: () => void }) {
     return (
@@ -45,7 +45,6 @@ jest.mock('../../components/user/UserDashboard', () => ({
     isAdmin: boolean;
     onShowAdminPanel: () => void;
     isAuthenticated: boolean;
-    authMessage?: string | null;
   }) {
     return (
       <div data-testid="user-dashboard">
@@ -65,23 +64,25 @@ jest.mock('../../components/user/UserDashboard', () => ({
   },
 }));
 
-import { isAuthenticated, logout } from '../../lib/auth';
+import { logout } from '../../lib/auth';
 import { useAdminAuth } from '../../hooks/useAdminAuth';
 
-const mockIsAuthenticated = isAuthenticated as jest.MockedFunction<typeof isAuthenticated>;
 const mockLogout = logout as jest.MockedFunction<typeof logout>;
 const mockUseAdminAuth = useAdminAuth as jest.MockedFunction<typeof useAdminAuth>;
 
 describe('Home Page', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    authChangeCallback = null;
   });
 
   it('should render loading state initially', () => {
-    mockIsAuthenticated.mockReturnValue(false);
     mockUseAdminAuth.mockReturnValue({
       isAdmin: false,
       isLoading: true,
+      accessToken: null,
+      authError: null,
+      recheckAuth: jest.fn(),
     });
 
     render(<Home />);
@@ -90,13 +91,16 @@ describe('Home Page', () => {
   });
 
   it('should render dashboard when not authenticated', async () => {
-    mockIsAuthenticated.mockReturnValue(false);
     mockUseAdminAuth.mockReturnValue({
       isAdmin: false,
       isLoading: false,
+      accessToken: null,
+      authError: null,
+      recheckAuth: jest.fn(),
     });
 
     render(<Home />);
+    authChangeCallback!(null);
 
     await waitFor(() => {
       expect(screen.getByTestId('user-dashboard')).toBeInTheDocument();
@@ -105,13 +109,16 @@ describe('Home Page', () => {
   });
 
   it('should render main dashboard when authenticated but not admin', async () => {
-    mockIsAuthenticated.mockReturnValue(true);
     mockUseAdminAuth.mockReturnValue({
       isAdmin: false,
       isLoading: false,
+      accessToken: 'test-token',
+      authError: null,
+      recheckAuth: jest.fn(),
     });
 
     render(<Home />);
+    authChangeCallback!({ uid: 'user-123' });
 
     await waitFor(() => {
       expect(screen.getByText('PickEm Dashboard')).toBeInTheDocument();
@@ -120,13 +127,16 @@ describe('Home Page', () => {
   });
 
   it('should show admin dashboard button when user is admin', async () => {
-    mockIsAuthenticated.mockReturnValue(true);
     mockUseAdminAuth.mockReturnValue({
       isAdmin: true,
       isLoading: false,
+      accessToken: 'test-token',
+      authError: null,
+      recheckAuth: jest.fn(),
     });
 
     render(<Home />);
+    authChangeCallback!({ uid: 'admin-123' });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Admin Panel' })).toBeInTheDocument();
@@ -135,13 +145,16 @@ describe('Home Page', () => {
 
   it('should switch to admin dashboard when admin button clicked', async () => {
     const user = userEvent.setup();
-    mockIsAuthenticated.mockReturnValue(true);
     mockUseAdminAuth.mockReturnValue({
       isAdmin: true,
       isLoading: false,
+      accessToken: 'test-token',
+      authError: null,
+      recheckAuth: jest.fn(),
     });
 
     render(<Home />);
+    authChangeCallback!({ uid: 'admin-123' });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Admin Panel' })).toBeInTheDocument();
@@ -155,15 +168,17 @@ describe('Home Page', () => {
 
   it('should go back to main dashboard from admin dashboard', async () => {
     const user = userEvent.setup();
-    mockIsAuthenticated.mockReturnValue(true);
     mockUseAdminAuth.mockReturnValue({
       isAdmin: true,
       isLoading: false,
+      accessToken: 'test-token',
+      authError: null,
+      recheckAuth: jest.fn(),
     });
 
     render(<Home />);
+    authChangeCallback!({ uid: 'admin-123' });
 
-    // Go to admin dashboard
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Admin Panel' })).toBeInTheDocument();
     });
@@ -171,7 +186,6 @@ describe('Home Page', () => {
     const adminButton = screen.getByRole('button', { name: 'Admin Panel' });
     await user.click(adminButton);
 
-    // Go back to main dashboard
     const backButton = screen.getByRole('button', { name: 'Back to Dashboard' });
     await user.click(backButton);
 
@@ -180,13 +194,16 @@ describe('Home Page', () => {
 
   it('should handle sign out', async () => {
     const user = userEvent.setup();
-    mockIsAuthenticated.mockReturnValue(true);
     mockUseAdminAuth.mockReturnValue({
       isAdmin: false,
       isLoading: false,
+      accessToken: 'test-token',
+      authError: null,
+      recheckAuth: jest.fn(),
     });
 
-    const { rerender } = render(<Home />);
+    render(<Home />);
+    authChangeCallback!({ uid: 'user-123' });
 
     await waitFor(() => {
       expect(screen.getByRole('button', { name: 'Sign Out' })).toBeInTheDocument();
@@ -197,11 +214,6 @@ describe('Home Page', () => {
 
     expect(mockLogout).toHaveBeenCalledTimes(1);
 
-    // Simulate sign out by changing auth state
-    mockIsAuthenticated.mockReturnValue(false);
-    rerender(<Home />);
-
-    // Should show dashboard with Login button after sign out
     await waitFor(() => {
       expect(screen.getByTestId('user-dashboard')).toBeInTheDocument();
       expect(screen.getByRole('button', { name: 'Login' })).toBeInTheDocument();

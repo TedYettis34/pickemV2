@@ -9,33 +9,10 @@ export function useWeeks() {
 
   const getAuthHeaders = async (): Promise<Record<string, string>> => {
     if (typeof window === 'undefined') return {};
-    
-    // Check if current token is expired or expiring soon
-    const { isCurrentTokenExpiringSoon } = await import('../lib/userAuth');
-    
-    if (isCurrentTokenExpiringSoon()) {
-      try {
-        const { refreshTokens } = await import('../lib/auth');
-        const refreshSuccess = await refreshTokens();
-        
-        if (!refreshSuccess) {
-          console.warn('Token refresh failed in useWeeks hook');
-          return {};
-        }
-      } catch (error) {
-        console.error('Error refreshing token in useWeeks hook:', error);
-        return {};
-      }
-    }
-    
+
+    // Firebase automatically keeps the cached token fresh in the background,
+    // so we can just read it directly without a manual refresh dance.
     const token = getCurrentAccessToken();
-    console.log('🔑 useWeeks token check:', {
-      hasToken: !!token,
-      tokenLength: token?.length,
-      tokenStart: token?.substring(0, 20),
-      tokenEnd: token?.substring(token?.length - 20)
-    });
-    
     if (token) {
       return { Authorization: `Bearer ${token}` };
     }

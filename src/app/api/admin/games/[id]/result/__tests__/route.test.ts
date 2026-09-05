@@ -3,7 +3,7 @@
  */
 
 // Mock dependencies BEFORE imports
-jest.mock('../../../../../../../lib/adminAuth', () => ({
+jest.mock('../../../../../../../lib/adminAuth.server', () => ({
   validateAdminAuth: jest.fn(),
 }));
 
@@ -14,7 +14,7 @@ jest.mock('../../../../../../../lib/gameResults', () => ({
 
 import { NextRequest } from 'next/server';
 import { PUT, POST } from '../route';
-import { validateAdminAuth } from '../../../../../../../lib/adminAuth';
+import { validateAdminAuth } from '../../../../../../../lib/adminAuth.server';
 import { finalizeGameResult, reevaluateGamePicks } from '../../../../../../../lib/gameResults';
 
 const mockValidateAdminAuth = validateAdminAuth as jest.MockedFunction<typeof validateAdminAuth>;

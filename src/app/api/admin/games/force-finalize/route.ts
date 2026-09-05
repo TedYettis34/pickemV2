@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { validateAdminAuth } from '../../../../../lib/adminAuth';
+import { validateAdminAuth } from '../../../../../lib/adminAuth.server';
 import { query } from '../../../../../lib/database';
 import { Game } from '../../../../../types/game';
 import { finalizeGameResult } from '../../../../../lib/gameResults';

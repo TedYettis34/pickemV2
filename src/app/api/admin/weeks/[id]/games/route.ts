@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '../../../../../../lib/adminAuth';
+import { requireAdmin } from '../../../../../../lib/adminAuth.server';
 import { getGamesByWeekId, createGamesForWeek, deleteGamesByWeekId } from '../../../../../../lib/games';
 import { WeekRepository } from '../../../../../../lib/weeks';
 import { oddsApiService } from '../../../../../../lib/oddsApi';

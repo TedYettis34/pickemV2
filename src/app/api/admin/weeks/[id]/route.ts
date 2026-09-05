@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { WeekRepository, WeekValidator } from '../../../../../lib/weeks';
-import { requireAdmin } from '../../../../../lib/adminAuth';
+import { requireAdmin } from '../../../../../lib/adminAuth.server';
 import { UpdateWeekInput, ApiResponse, Week } from '../../../../../types/week';
 import { getGamesByWeekId } from '../../../../../lib/games';
 

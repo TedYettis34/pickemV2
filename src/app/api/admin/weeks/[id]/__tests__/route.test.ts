@@ -23,7 +23,9 @@ jest.mock('../../../../../../lib/weeks', () => ({
   },
 }));
 
-jest.mock('../../../../../../lib/adminAuth');
+jest.mock('../../../../../../lib/adminAuth.server', () => ({
+  requireAdmin: jest.fn(),
+}));
 
 jest.mock('../../../../../../lib/games', () => ({
   getGamesByWeekId: jest.fn(),
@@ -32,7 +34,7 @@ jest.mock('../../../../../../lib/games', () => ({
 import { NextRequest } from 'next/server';
 import { GET, PUT, DELETE } from '../route';
 import { WeekRepository, WeekValidator } from '../../../../../../lib/weeks';
-import { requireAdmin } from '../../../../../../lib/adminAuth';
+import { requireAdmin } from '../../../../../../lib/adminAuth.server';
 import { getGamesByWeekId } from '../../../../../../lib/games';
 import { Week, UpdateWeekInput } from '../../../../../../types/week';
 

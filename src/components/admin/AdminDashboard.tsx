@@ -17,8 +17,8 @@ export default function AdminDashboard({ onBackToDashboard }: AdminDashboardProp
   const [forceFinalizingNFL, setForceFinalizingNFL] = useState(false);
   const [forceFinalizingCollege, setForceFinalizingCollege] = useState(false);
 
-  const handleSignOut = () => {
-    logout();
+  const handleSignOut = async () => {
+    await logout();
     window.location.reload(); // Refresh to show login page
   };
 

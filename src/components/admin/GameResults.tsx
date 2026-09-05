@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Game } from '../../types/game';
+import { getCurrentAccessToken } from '../../lib/adminAuth';
 
 interface GameResultsProps {
   selectedWeekId?: number;
@@ -25,7 +26,7 @@ export function GameResults({ selectedWeekId }: GameResultsProps) {
   const [forms, setForms] = useState<Record<number, GameResultForm>>({});
 
   const getAuthHeaders = (): Record<string, string> => {
-    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    const token = getCurrentAccessToken();
     if (token) {
       return { Authorization: `Bearer ${token}` };
     }

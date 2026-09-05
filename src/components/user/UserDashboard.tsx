@@ -1148,7 +1148,7 @@ export function UserDashboard({ onSignOut, isAdmin, onShowAdminPanel, isAuthenti
                 </div>
               </div>
             )}
-            <AuthForm />
+            <AuthForm onSuccess={() => setShowLoginModal(false)} />
           </div>
         </div>
       )}

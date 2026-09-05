@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '../../../../../lib/adminAuth';
+import { requireAdmin } from '../../../../../lib/adminAuth.server';
 import { getDatabase } from '../../../../../lib/database';
 import { ApiResponse } from '../../../../../types/pick';
 import { Game } from '../../../../../types/game';

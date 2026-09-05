@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ApiResponse } from '../../../../../types/pick';
 import { Game } from '../../../../../types/game';
 import { getGamesNeedingResults, getCompletedGames } from '../../../../../lib/gameResults';
-import { validateAdminAuth } from '../../../../../lib/adminAuth';
+import { validateAdminAuth } from '../../../../../lib/adminAuth.server';
 
 interface GamesResultsResponse {
   needingResults: Game[];

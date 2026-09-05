@@ -7,11 +7,13 @@ jest.mock('../../../../../../lib/database', () => ({
   getDatabase: jest.fn(),
 }));
 
-jest.mock('../../../../../../lib/adminAuth');
+jest.mock('../../../../../../lib/adminAuth.server', () => ({
+  requireAdmin: jest.fn(),
+}));
 
 import { NextRequest } from 'next/server';
 import { PATCH } from '../route';
-import { requireAdmin } from '../../../../../../lib/adminAuth';
+import { requireAdmin } from '../../../../../../lib/adminAuth.server';
 import { getDatabase } from '../../../../../../lib/database';
 
 const mockRequireAdmin = requireAdmin as jest.MockedFunction<typeof requireAdmin>;

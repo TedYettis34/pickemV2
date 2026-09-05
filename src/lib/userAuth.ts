@@ -1,35 +1,11 @@
 /**
- * User authentication utilities for picks functionality
- * This module provides functions to get the current user context
- * and handle authentication for the picks system
+ * User authentication utilities for picks functionality.
+ * Provides the current user context and auth headers, backed by Firebase
+ * Auth on the client.
  */
+import { firebaseAuth } from './firebase/client';
+import { getCachedIdToken } from './firebase/auth';
 
-// JWT payload interface for Cognito tokens
-interface JWTPayload {
-  sub?: string;
-  username?: string;
-  cognito_username?: string;
-  email?: string;
-  name?: string;
-  given_name?: string;
-  family_name?: string;
-  exp?: number;
-  iat?: number;
-}
-
-// JWT decode utility (simple base64 decode for payload)
-function decodeJWT(token: string): JWTPayload | null {
-  try {
-    const payload = token.split('.')[1];
-    const decoded = atob(payload);
-    return JSON.parse(decoded) as JWTPayload;
-  } catch (error) {
-    console.error('Error decoding JWT:', error);
-    return null;
-  }
-}
-
-// Simple user context type for picks functionality
 export interface UserContext {
   userId: string;
   email: string;
@@ -37,175 +13,91 @@ export interface UserContext {
   accessToken: string;
 }
 
-// Mock user context for development/testing
-// In production, this would come from the actual authentication system
-const mockUserContext: UserContext = {
-  userId: 'mock-user-123',
-  email: 'user@example.com',
-  name: 'Test User',
-  accessToken: 'mock-jwt-token',
-};
-
 /**
- * Get the current user context
- * Integrates with the Cognito authentication system
+ * Get the current user context from Firebase Auth's client-side state.
+ * Returns null if no user is signed in, or if the current ID token hasn't
+ * been cached yet (e.g. immediately after page load, before Firebase's
+ * async auth-state resolution completes).
  */
 export function getCurrentUserContext(): UserContext | null {
-  // Check if we're in a browser environment
   if (typeof window === 'undefined') {
     return null;
   }
-  
-  // For development, return mock user context  
-  if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
-    return mockUserContext;
-  }
-  
-  // In production, check for valid authentication tokens
-  const accessToken = localStorage.getItem('accessToken');
-  const idToken = localStorage.getItem('idToken');
-  
-  if (!accessToken) {
+
+  const user = firebaseAuth.currentUser;
+  const token = getCachedIdToken();
+
+  if (!user || !token) {
     return null;
   }
-  
-  // Try to decode the ID token for user information (more reliable than access token)
-  let userInfo: JWTPayload | null = null;
-  if (idToken) {
-    userInfo = decodeJWT(idToken);
-  }
-  
-  // Fallback to access token if ID token is not available
-  if (!userInfo && accessToken) {
-    userInfo = decodeJWT(accessToken);
-  }
-  
-  // Return user context with decoded information or fallbacks
+
   return {
-    userId: userInfo?.sub || userInfo?.username || userInfo?.cognito_username || 'authenticated-user',
-    email: userInfo?.email || userInfo?.username || 'user@authenticated.com',  
-    name: userInfo?.name || userInfo?.given_name || userInfo?.family_name || userInfo?.username || 'Authenticated User',
-    accessToken: accessToken,
+    userId: user.uid,
+    email: user.email || '',
+    name: user.displayName || user.email || 'User',
+    accessToken: token,
   };
 }
 
 /**
- * Get authentication headers for API requests with automatic token refresh
+ * Get authentication headers for API requests. Always fetches a fresh
+ * (auto-refreshed if needed) ID token from the Firebase SDK.
  */
 export async function getAuthHeaders(): Promise<Record<string, string>> {
   if (typeof window === 'undefined') {
     return {};
   }
 
-  // Check if current token is expired or expiring soon
-  if (isCurrentTokenExpiringSoon()) {
-    try {
-      const { refreshTokens } = await import('./auth');
-      const refreshSuccess = await refreshTokens();
-      
-      if (!refreshSuccess) {
-        console.warn('Token refresh failed, clearing auth data');
-        return {};
-      }
-    } catch (error) {
-      console.error('Error refreshing token:', error);
-      return {};
-    }
-  }
-
-  const userContext = getCurrentUserContext();
-  
-  if (!userContext) {
+  const user = firebaseAuth.currentUser;
+  if (!user) {
     return {};
   }
-  
-  return {
-    'Authorization': `Bearer ${userContext.accessToken}`,
-    'x-user-id': userContext.userId,
-  };
+
+  try {
+    const token = await user.getIdToken();
+    return {
+      Authorization: `Bearer ${token}`,
+      'x-user-id': user.uid,
+    };
+  } catch (error) {
+    console.error('Error getting auth headers:', error);
+    return {};
+  }
 }
 
 /**
- * Get authentication headers for API requests (synchronous version for backwards compatibility)
- * Note: This version does not include automatic token refresh
+ * Synchronous variant of getAuthHeaders(), using the last cached ID token.
+ * Prefer getAuthHeaders() where an async call site is available.
  */
 export function getAuthHeadersSync(): Record<string, string> {
   const userContext = getCurrentUserContext();
-  
+
   if (!userContext) {
     return {};
   }
-  
+
   return {
-    'Authorization': `Bearer ${userContext.accessToken}`,
+    Authorization: `Bearer ${userContext.accessToken}`,
     'x-user-id': userContext.userId,
   };
 }
 
 /**
- * Check if user is authenticated
+ * Check if a user is currently authenticated.
  */
 export function isUserAuthenticated(): boolean {
-  return getCurrentUserContext() !== null;
+  if (typeof window === 'undefined') {
+    return false;
+  }
+  return firebaseAuth.currentUser !== null;
 }
 
 /**
- * Get current user ID
+ * Get the current user's Firebase UID.
  */
 export function getCurrentUserId(): string | null {
-  const userContext = getCurrentUserContext();
-  return userContext?.userId || null;
-}
-
-/**
- * Check if a JWT token is expired
- */
-export function isTokenExpired(token: string): boolean {
-  const decoded = decodeJWT(token);
-  if (!decoded?.exp) {
-    return true; // If no expiration time, consider expired
+  if (typeof window === 'undefined') {
+    return null;
   }
-  
-  // JWT exp is in seconds, Date.now() is in milliseconds
-  const currentTime = Math.floor(Date.now() / 1000);
-  return currentTime >= decoded.exp;
-}
-
-/**
- * Check if a JWT token will expire within the given buffer time (in seconds)
- * Useful for proactive token refresh
- */
-export function isTokenExpiringSoon(token: string, bufferSeconds: number = 300): boolean {
-  const decoded = decodeJWT(token);
-  if (!decoded?.exp) {
-    return true; // If no expiration time, consider expiring soon
-  }
-  
-  // JWT exp is in seconds, Date.now() is in milliseconds
-  const currentTime = Math.floor(Date.now() / 1000);
-  return currentTime >= (decoded.exp - bufferSeconds);
-}
-
-/**
- * Check if the current access token is expired
- */
-export function isCurrentTokenExpired(): boolean {
-  if (typeof window === 'undefined') return true;
-  
-  const accessToken = localStorage.getItem('accessToken');
-  if (!accessToken) return true;
-  
-  return isTokenExpired(accessToken);
-}
-
-/**
- * Check if the current access token will expire soon
- */
-export function isCurrentTokenExpiringSoon(bufferSeconds: number = 300): boolean {
-  if (typeof window === 'undefined') return true;
-  
-  const accessToken = localStorage.getItem('accessToken');
-  if (!accessToken) return true;
-  
-  return isTokenExpiringSoon(accessToken, bufferSeconds);
+  return firebaseAuth.currentUser?.uid || null;
 }

@@ -1,78 +1,59 @@
 import { renderHook, waitFor } from '@testing-library/react';
 import { useAdminAuth } from '../useAdminAuth';
 
-// Mock adminAuth
-jest.mock('../../lib/adminAuth', () => ({
-  isCurrentUserAdmin: jest.fn(),
-  getCurrentAccessToken: jest.fn(),
-  authEventEmitter: {
-    subscribe: jest.fn(() => jest.fn()), // Returns unsubscribe function
-    emit: jest.fn(),
-  },
+type AuthChangeCallback = (user: { uid: string; getIdToken: () => Promise<string> } | null) => void;
+
+let authChangeCallback: AuthChangeCallback | null = null;
+const mockUnsubscribe = jest.fn();
+
+jest.mock('../../lib/firebase/auth', () => ({
+  subscribeToAuthChanges: jest.fn((callback: AuthChangeCallback) => {
+    authChangeCallback = callback;
+    return mockUnsubscribe;
+  }),
 }));
 
-import { isCurrentUserAdmin, getCurrentAccessToken } from '../../lib/adminAuth';
+jest.mock('../../lib/adminAuth', () => ({
+  validateAdminAuthClient: jest.fn(),
+}));
 
-const mockIsCurrentUserAdmin = isCurrentUserAdmin as jest.MockedFunction<typeof isCurrentUserAdmin>;
-const mockGetCurrentAccessToken = getCurrentAccessToken as jest.MockedFunction<typeof getCurrentAccessToken>;
+import { validateAdminAuthClient } from '../../lib/adminAuth';
 
-// Helper to create valid JWT tokens for testing
-function createTestJWT(payload: Record<string, unknown>) {
-  const header = { alg: 'HS256', typ: 'JWT' };
-  const encodedHeader = Buffer.from(JSON.stringify(header)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  const encodedPayload = Buffer.from(JSON.stringify(payload)).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
-  const signature = 'mock-signature';
-  
-  return `${encodedHeader}.${encodedPayload}.${signature}`;
+const mockValidateAdminAuthClient = validateAdminAuthClient as jest.MockedFunction<typeof validateAdminAuthClient>;
+
+function makeUser(idToken: string) {
+  return { uid: 'user-123', getIdToken: jest.fn().mockResolvedValue(idToken) };
 }
 
 describe('useAdminAuth Hook', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    
-    // Reset module-level cache variables
-    jest.resetModules();
-    
-    // Clear any timeouts/intervals
-    jest.clearAllTimers();
+    authChangeCallback = null;
   });
 
-  it('should return admin status when user is admin', async () => {
-    const adminToken = createTestJWT({
-      sub: 'user-123',
-      'cognito:groups': ['admin', 'users'],
-      'cognito:username': 'testuser',
-      email: 'test@example.com'
-    });
-    
-    mockGetCurrentAccessToken.mockReturnValue(adminToken);
-    mockIsCurrentUserAdmin.mockResolvedValue(true);
+  it('should return admin status when the signed-in user is an admin', async () => {
+    mockValidateAdminAuthClient.mockResolvedValue({ isAdmin: true, user: null });
 
     const { result } = renderHook(() => useAdminAuth());
 
     expect(result.current.isLoading).toBe(true);
-    expect(result.current.isAdmin).toBe(false);
+
+    authChangeCallback!(makeUser('test-id-token'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.isAdmin).toBe(true);
-    expect(mockIsCurrentUserAdmin).toHaveBeenCalledTimes(1);
+    expect(result.current.accessToken).toBe('test-id-token');
   });
 
-  it('should return false when user is not admin', async () => {
-    const regularToken = createTestJWT({
-      sub: 'user-456',
-      'cognito:groups': ['users'],
-      'cognito:username': 'regularuser',
-      email: 'user@example.com'
-    });
-    
-    mockGetCurrentAccessToken.mockReturnValue(regularToken);
-    mockIsCurrentUserAdmin.mockResolvedValue(false);
+  it('should return false when the signed-in user is not an admin', async () => {
+    mockValidateAdminAuthClient.mockResolvedValue({ isAdmin: false, user: null, error: 'User does not have admin privileges' });
 
     const { result } = renderHook(() => useAdminAuth());
+
+    authChangeCallback!(makeUser('test-id-token'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
@@ -81,56 +62,40 @@ describe('useAdminAuth Hook', () => {
     expect(result.current.isAdmin).toBe(false);
   });
 
-  it('should return false when no access token', async () => {
-    mockGetCurrentAccessToken.mockReturnValue(null);
-
+  it('should return false when no user is signed in', async () => {
     const { result } = renderHook(() => useAdminAuth());
+
+    authChangeCallback!(null);
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.isAdmin).toBe(false);
-    expect(mockIsCurrentUserAdmin).not.toHaveBeenCalled();
+    expect(result.current.accessToken).toBeNull();
+    expect(mockValidateAdminAuthClient).not.toHaveBeenCalled();
   });
 
-  it('should handle isAdmin error gracefully', async () => {
-    const validToken = createTestJWT({
-      sub: 'user-789',
-      'cognito:groups': ['users'],
-      'cognito:username': 'erroruser',
-      email: 'error@example.com'
-    });
-    
-    mockGetCurrentAccessToken.mockReturnValue(validToken);
-    mockIsCurrentUserAdmin.mockRejectedValue(new Error('Network error'));
+  it('should handle validation errors gracefully', async () => {
+    mockValidateAdminAuthClient.mockRejectedValue(new Error('Network error'));
 
     const { result } = renderHook(() => useAdminAuth());
+
+    authChangeCallback!(makeUser('test-id-token'));
 
     await waitFor(() => {
       expect(result.current.isLoading).toBe(false);
     });
 
     expect(result.current.isAdmin).toBe(false);
+    expect(result.current.authError).toBe('Network error');
   });
 
-  it('should return false in server environment', async () => {
-    // Mock window being undefined (server environment)
-    const originalWindow = global.window;
-    delete (global as unknown as { window?: unknown }).window;
+  it('should unsubscribe on unmount', () => {
+    const { unmount } = renderHook(() => useAdminAuth());
 
-    mockGetCurrentAccessToken.mockReturnValue(null);
+    unmount();
 
-    const { result } = renderHook(() => useAdminAuth());
-
-    await waitFor(() => {
-      expect(result.current.isLoading).toBe(false);
-    });
-
-    expect(result.current.isAdmin).toBe(false);
-    expect(mockIsCurrentUserAdmin).not.toHaveBeenCalled();
-
-    // Restore window
-    global.window = originalWindow;
+    expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
   });
 });

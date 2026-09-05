@@ -3,7 +3,7 @@ import { ApiResponse } from '../../../../../../types/pick';
 import { Game } from '../../../../../../types/game';
 import { finalizeGameResult, reevaluateGamePicks } from '../../../../../../lib/gameResults';
 import { GamePickEvaluation } from '../../../../../../lib/pickEvaluation';
-import { validateAdminAuth } from '../../../../../../lib/adminAuth';
+import { validateAdminAuth } from '../../../../../../lib/adminAuth.server';
 
 interface UpdateGameResultRequest {
   homeScore: number;

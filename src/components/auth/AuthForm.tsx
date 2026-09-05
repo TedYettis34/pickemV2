@@ -1,39 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { signIn, signUp, signInWithGoogle } from "../../lib/firebase/auth";
 
-const CLIENT_ID = process.env.NEXT_PUBLIC_USER_POOL_CLIENT_ID;
-const COGNITO_DOMAIN =
-  "https://pickem-dev-auth.auth.us-east-1.amazoncognito.com";
+interface AuthFormProps {
+  onSuccess?: () => void;
+}
 
-// Function to get the appropriate redirect URI based on environment
-const getRedirectURI = () => {
-  if (typeof window === "undefined") {
-    return "http://localhost:3000/auth/callback";
-  }
-
-  const origin = window.location.origin;
-
-  // For Vercel preview deployments, we need to ensure Cognito is configured for this domain
-  if (origin.includes(".vercel.app")) {
-    console.warn("⚠️ Vercel preview detected:", origin);
-    console.warn(
-      "⚠️ Ensure this callback URL is configured in AWS Cognito:",
-      `${origin}/auth/callback`
-    );
-  }
-
-  return `${origin}/auth/callback`;
-};
-
-const REDIRECT_URI = getRedirectURI();
-
-export default function AuthForm() {
-  const isLogin = true; // Always in login mode
+export default function AuthForm({ onSuccess }: AuthFormProps) {
+  const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState("");
   const [passwordValidation, setPasswordValidation] = useState({
     length: false,
@@ -43,101 +22,86 @@ export default function AuthForm() {
     symbols: false,
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+  const isPasswordValid = Object.values(passwordValidation).every(Boolean);
 
-    try {
-      // Basic validation
-      if (!email) {
-        if (process.env.NODE_ENV === "test") {
-          console.log("AuthForm: Setting email validation error");
-        }
-        setError("Please enter your email");
-        setLoading(false);
-        return;
-      }
-
-      // For signup, we still need password validation on our form
-      if (!isLogin) {
-        if (!password || !name || !isPasswordValid) {
-          if (process.env.NODE_ENV === "test") {
-            console.log("AuthForm: Setting signup validation error");
-          }
-          setError(
-            "Please complete all required fields with valid information"
-          );
-          setLoading(false);
-          return;
-        }
-      }
-
-      // Redirect to OAuth flow
-      if (isLogin) {
-        // For login, redirect to OAuth with login hint (email only)
-        const loginUrl =
-          `${COGNITO_DOMAIN}/login?` +
-          new URLSearchParams({
-            client_id: CLIENT_ID!,
-            response_type: "code",
-            scope: "email openid profile",
-            redirect_uri: REDIRECT_URI,
-            login_hint: email, // Pre-fills email field
-          });
-        // Don't navigate during tests
-        if (process.env.NODE_ENV !== "test") {
-          window.location.href = loginUrl;
-        } else {
-          console.log("AuthForm: Would navigate to", loginUrl);
-          // Keep loading state in tests to show loading UI
-        }
-      } else {
-        // For signup, redirect to OAuth signup
-        const signupUrl =
-          `${COGNITO_DOMAIN}/signup?` +
-          new URLSearchParams({
-            client_id: CLIENT_ID!,
-            response_type: "code",
-            scope: "email openid profile",
-            redirect_uri: REDIRECT_URI,
-            login_hint: email, // Pre-fills email field
-          });
-        // Don't navigate during tests
-        if (process.env.NODE_ENV !== "test") {
-          window.location.href = signupUrl;
-        } else {
-          console.log("AuthForm: Would navigate to", signupUrl);
-          // Keep loading state in tests to show loading UI
-        }
-      }
-    } catch (err: unknown) {
-      const errorMessage =
-        err instanceof Error ? err.message : "An error occurred";
-      setError(errorMessage);
-      setLoading(false);
-    }
-  };
-
-  const validatePassword = (password: string) => {
+  const validatePassword = (value: string) => {
     setPasswordValidation({
-      length: password.length >= 8,
-      lowercase: /[a-z]/.test(password),
-      uppercase: /[A-Z]/.test(password),
-      numbers: /\d/.test(password),
-      symbols: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+      length: value.length >= 8,
+      lowercase: /[a-z]/.test(value),
+      uppercase: /[A-Z]/.test(value),
+      numbers: /\d/.test(value),
+      symbols: /[!@#$%^&*(),.?":{}|<>]/.test(value),
     });
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newPassword = e.target.value;
-    setPassword(newPassword);
+    const value = e.target.value;
+    setPassword(value);
     if (!isLogin) {
-      validatePassword(newPassword);
+      validatePassword(value);
     }
   };
 
-  const isPasswordValid = Object.values(passwordValidation).every(Boolean);
+  const toggleMode = () => {
+    setIsLogin((prev) => !prev);
+    setError("");
+    setPassword("");
+    setPasswordValidation({
+      length: false,
+      lowercase: false,
+      uppercase: false,
+      numbers: false,
+      symbols: false,
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+
+    if (!email) {
+      setError("Please enter your email");
+      return;
+    }
+    if (!password) {
+      setError("Please enter your password");
+      return;
+    }
+    if (!isLogin && !isPasswordValid) {
+      setError("Please choose a password that meets all requirements");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const result = isLogin
+        ? await signIn(email, password)
+        : await signUp(email, password);
+
+      if (result.success) {
+        onSuccess?.();
+      } else {
+        setError(result.error || "Authentication failed");
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setGoogleLoading(true);
+    try {
+      const result = await signInWithGoogle();
+      if (result.success) {
+        onSuccess?.();
+      } else {
+        setError(result.error || "Google sign-in failed");
+      }
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
 
   return (
     <div className="w-full max-w-md mx-auto bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
@@ -145,28 +109,6 @@ export default function AuthForm() {
         {isLogin ? "Sign In" : "Create Account"}
       </h2>
       <form onSubmit={handleSubmit} className="space-y-4">
-        {!isLogin && (
-          <div>
-            <label
-              htmlFor="name"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Display Name
-            </label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={20}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="Enter your display name"
-            />
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {name.length}/20 characters
-            </div>
-          </div>
-        )}
         <div>
           <label
             htmlFor="email"
@@ -183,105 +125,55 @@ export default function AuthForm() {
             placeholder="Enter your email"
           />
         </div>
-        {!isLogin && (
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-            >
-              Password
-            </label>
-            <input
-              type="password"
-              id="password"
-              value={password}
-              onChange={handlePasswordChange}
-              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-              placeholder="Enter your password"
-            />
-            {password && (
-              <div className="mt-2 space-y-1">
-                <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">
-                  Password requirements:
-                </div>
-                <div
-                  className={`flex items-center gap-2 text-xs ${
-                    passwordValidation.length
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      passwordValidation.length ? "bg-green-500" : "bg-red-500"
-                    }`}
-                  ></span>
-                  At least 8 characters
-                </div>
-                <div
-                  className={`flex items-center gap-2 text-xs ${
-                    passwordValidation.lowercase
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      passwordValidation.lowercase
-                        ? "bg-green-500"
-                        : "bg-red-500"
-                    }`}
-                  ></span>
-                  Contains lowercase letter
-                </div>
-                <div
-                  className={`flex items-center gap-2 text-xs ${
-                    passwordValidation.uppercase
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      passwordValidation.uppercase
-                        ? "bg-green-500"
-                        : "bg-red-500"
-                    }`}
-                  ></span>
-                  Contains uppercase letter
-                </div>
-                <div
-                  className={`flex items-center gap-2 text-xs ${
-                    passwordValidation.numbers
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      passwordValidation.numbers ? "bg-green-500" : "bg-red-500"
-                    }`}
-                  ></span>
-                  Contains number
-                </div>
-                <div
-                  className={`flex items-center gap-2 text-xs ${
-                    passwordValidation.symbols
-                      ? "text-green-600 dark:text-green-400"
-                      : "text-red-600 dark:text-red-400"
-                  }`}
-                >
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      passwordValidation.symbols ? "bg-green-500" : "bg-red-500"
-                    }`}
-                  ></span>
-                  Contains symbol
-                </div>
+        <div>
+          <label
+            htmlFor="password"
+            className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+          >
+            Password
+          </label>
+          <input
+            type="password"
+            id="password"
+            value={password}
+            onChange={handlePasswordChange}
+            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
+            placeholder="Enter your password"
+          />
+          {!isLogin && password && (
+            <div className="mt-2 space-y-1">
+              <div className="text-xs text-gray-600 dark:text-gray-400 font-medium">
+                Password requirements:
               </div>
-            )}
-          </div>
-        )}
+              {[
+                { key: "length", label: "At least 8 characters" },
+                { key: "lowercase", label: "Contains lowercase letter" },
+                { key: "uppercase", label: "Contains uppercase letter" },
+                { key: "numbers", label: "Contains number" },
+                { key: "symbols", label: "Contains symbol" },
+              ].map(({ key, label }) => {
+                const met = passwordValidation[key as keyof typeof passwordValidation];
+                return (
+                  <div
+                    key={key}
+                    className={`flex items-center gap-2 text-xs ${
+                      met
+                        ? "text-green-600 dark:text-green-400"
+                        : "text-red-600 dark:text-red-400"
+                    }`}
+                  >
+                    <span
+                      className={`w-2 h-2 rounded-full ${
+                        met ? "bg-green-500" : "bg-red-500"
+                      }`}
+                    ></span>
+                    {label}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
         {error && (
           <div className="text-red-600 dark:text-red-400 text-sm text-center">
             {error}
@@ -289,27 +181,44 @@ export default function AuthForm() {
         )}
         <button
           type="submit"
-          disabled={loading || (!isLogin && !isPasswordValid)}
+          disabled={loading || googleLoading || (!isLogin && !isPasswordValid)}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white font-medium py-2 px-4 rounded-md transition-colors"
         >
           {loading
             ? isLogin
-              ? "Redirecting to secure login..."
-              : "Redirecting to sign up..."
+              ? "Signing in..."
+              : "Creating account..."
             : isLogin
-            ? "Continue to Sign In"
-            : "Continue to Sign Up"}
+            ? "Sign In"
+            : "Create Account"}
         </button>
-        {isLogin && (
-          <div className="text-xs text-gray-500 dark:text-gray-400 text-center mt-2">
-            You&apos;ll enter your password on the next page
-          </div>
-        )}
       </form>
-      <div className="mt-4 text-center">
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          Forgot your password? You will be able to reset it on the next page.
-        </div>
+
+      <div className="mt-4 flex items-center gap-3">
+        <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+        <span className="text-xs text-gray-400 dark:text-gray-500">or</span>
+        <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700" />
+      </div>
+
+      <button
+        type="button"
+        onClick={handleGoogleSignIn}
+        disabled={loading || googleLoading}
+        className="mt-4 w-full border border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 text-gray-700 dark:text-gray-200 font-medium py-2 px-4 rounded-md transition-colors"
+      >
+        {googleLoading ? "Signing in..." : "Continue with Google"}
+      </button>
+
+      <div className="mt-6 text-center">
+        <button
+          type="button"
+          onClick={toggleMode}
+          className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+        >
+          {isLogin
+            ? "Don't have an account? Sign up"
+            : "Already have an account? Sign in"}
+        </button>
       </div>
     </div>
   );

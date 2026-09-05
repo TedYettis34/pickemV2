@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAdmin } from '../../../../../lib/adminAuth';
+import { requireAdmin } from '../../../../../lib/adminAuth.server';
 import { oddsApiService } from '../../../../../lib/oddsApi';
 import { ApiResponse } from '../../../../../types/week';
 

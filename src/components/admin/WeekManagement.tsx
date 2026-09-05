@@ -7,6 +7,7 @@ import { WeekList } from './WeekList';
 import { GamesPreview } from './GamesPreview';
 import { WeekCreationWizard } from './WeekCreationWizard';
 import { Week, CreateWeekInput, UpdateWeekInput } from '../../types/week';
+import { getCurrentAccessToken } from '../../lib/adminAuth';
 
 interface GameData {
   external_id: string;
@@ -151,8 +152,7 @@ export function WeekManagement() {
   };
 
   const getAuthHeaders = (): Record<string, string> => {
-    // Import this from adminAuth if not already available
-    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+    const token = getCurrentAccessToken();
     if (token) {
       return { Authorization: `Bearer ${token}` };
     }

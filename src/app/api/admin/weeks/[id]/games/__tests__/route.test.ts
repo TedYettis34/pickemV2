@@ -29,14 +29,16 @@ jest.mock('../../../../../../../lib/oddsApi', () => ({
   },
 }));
 
-jest.mock('../../../../../../../lib/adminAuth');
+jest.mock('../../../../../../../lib/adminAuth.server', () => ({
+  requireAdmin: jest.fn(),
+}));
 
 import { NextRequest } from 'next/server';
 import { GET, POST, DELETE } from '../route';
 import { WeekRepository } from '../../../../../../../lib/weeks';
 import { getGamesByWeekId, createGamesForWeek, deleteGamesByWeekId } from '../../../../../../../lib/games';
 import { oddsApiService } from '../../../../../../../lib/oddsApi';
-import { requireAdmin } from '../../../../../../../lib/adminAuth';
+import { requireAdmin } from '../../../../../../../lib/adminAuth.server';
 import { Week } from '../../../../../../../types/week';
 import { Game } from '../../../../../../../types/game';
 

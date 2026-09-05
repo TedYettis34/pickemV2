@@ -28,12 +28,14 @@ jest.mock('../../../../../lib/weeks', () => ({
   },
 }));
 
-jest.mock('../../../../../lib/adminAuth');
+jest.mock('../../../../../lib/adminAuth.server', () => ({
+  requireAdmin: jest.fn(),
+}));
 
 import { NextRequest } from 'next/server';
 import { GET, POST } from '../route';
 import { WeekRepository, WeekValidator } from '../../../../../lib/weeks';
-import { requireAdmin } from '../../../../../lib/adminAuth';
+import { requireAdmin } from '../../../../../lib/adminAuth.server';
 import { Week, CreateWeekInput } from '../../../../../types/week';
 
 const mockWeekRepository = WeekRepository as {
